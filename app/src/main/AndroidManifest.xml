@@ -238,6 +238,12 @@
             android:exported="false"
             android:theme="@style/LauncherTheme" />
 
+        <!-- LAUNCHPAD: Per-day time window editor -->
+        <activity
+            android:name=".activities.WeekScheduleActivity"
+            android:exported="false"
+            android:theme="@style/LauncherTheme" />
+
         <activity-alias
             android:name=".activities.SplashActivity.Red"
             android:clearTaskOnLaunch="true"

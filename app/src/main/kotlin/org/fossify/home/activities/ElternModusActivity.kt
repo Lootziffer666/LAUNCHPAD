@@ -181,6 +181,9 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_tagesbericht to {
                 startActivity(Intent(this, DailyReportActivity::class.java))
             },
+            R.id.em_row_wochenplan to {
+                startActivity(Intent(this, WeekScheduleActivity::class.java))
+            },
             R.id.em_row_apps to { startActivity(Intent(this, AppsManagementActivity::class.java)) },
             R.id.em_row_zusagen to {
                 startActivity(Intent(this, ZusagenActivity::class.java).putExtra("isParentMode", true))

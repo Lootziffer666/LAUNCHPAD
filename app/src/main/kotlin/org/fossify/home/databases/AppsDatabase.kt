@@ -26,6 +26,7 @@ import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
 import org.fossify.home.databases.DogeRequest
 import org.fossify.home.databases.ChangeLogEntity
+import org.fossify.home.databases.WeekScheduleEntry
 import org.fossify.home.databases.ExploreAllowlistEntry
 import org.fossify.home.databases.ExploreBlocklistEntry
 import org.fossify.home.databases.ExploreSuggestion
@@ -33,6 +34,7 @@ import org.fossify.home.databases.ExploreSuggestion
 // LAUNCHPAD DAOs
 import org.fossify.home.interfaces.AllowedAppDao
 import org.fossify.home.interfaces.ChangeLogDao
+import org.fossify.home.interfaces.WeekScheduleDao
 import org.fossify.home.interfaces.AppTimeLimitDao
 import org.fossify.home.interfaces.AuditEventDao
 import org.fossify.home.interfaces.CryptoCashDao
@@ -61,9 +63,10 @@ import org.fossify.home.interfaces.DogeRequestDao
         AppTimeLimit::class,
         AuditEvent::class,
         // LAUNCHPAD M4 entities
-        ChangeLogEntity::class
+        ChangeLogEntity::class,
+        WeekScheduleEntry::class
     ],
-    version = 9
+    version = 10
 )
 @TypeConverters(Converters::class)
 @Suppress("TooManyFunctions") // one abstract accessor per DAO
@@ -84,6 +87,7 @@ abstract class AppsDatabase : RoomDatabase() {
     abstract fun zusageDao(): ZusageDao
     abstract fun dogeRequestDao(): DogeRequestDao
     abstract fun changeLogDao(): ChangeLogDao
+    abstract fun weekScheduleDao(): WeekScheduleDao
 
     companion object {
         private var db: AppsDatabase? = null
@@ -176,6 +180,17 @@ abstract class AppsDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `week_schedule` (" +
+                        "`dayOfWeek` INTEGER NOT NULL, `active` INTEGER NOT NULL, " +
+                        "`allowedFromHour` INTEGER NOT NULL, `allowedUntilHour` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`dayOfWeek`))"
+                )
+            }
+        }
+
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -236,7 +251,7 @@ abstract class AppsDatabase : RoomDatabase() {
                             AppsDatabase::class.java,
                             "apps.db"
                         )
-                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                             .addCallback(seedCallback)
                             .build()
                     }

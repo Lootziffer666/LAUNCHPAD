@@ -120,6 +120,16 @@ data class ExploreSuggestion(
     val addedAt: Long = System.currentTimeMillis()
 )
 
+// Wochenplan: per-day time windows for ACTIVE_LEISURE apps.
+// dayOfWeek uses java.util.Calendar constants (SUNDAY=1, MONDAY=2, …, SATURDAY=7).
+@Entity(tableName = "week_schedule")
+data class WeekScheduleEntry(
+    @PrimaryKey val dayOfWeek: Int,
+    val active: Boolean = false,
+    val allowedFromHour: Int = 0,  // screens allowed from this hour (0 = unrestricted from start)
+    val allowedUntilHour: Int = 24 // screens blocked at or after this hour (24 = unrestricted)
+)
+
 // Änderungsverlauf: one row per app per whitelist-management operation.
 // Multiple rows sharing the same batchId belong to the same logical change (e.g. a bulk action).
 @Entity(tableName = "change_log")

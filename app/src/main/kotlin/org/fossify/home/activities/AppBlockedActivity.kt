@@ -105,6 +105,7 @@ class AppBlockedActivity : AppCompatActivity() {
         LaunchpadConstants.REASON_MIN_THRESHOLD -> "⚡" to "Zu wenig Zeit übrig"
         LaunchpadConstants.REASON_LOCKDOWN -> "🔒" to "Sicherheitscheck aktiv"
         LaunchpadConstants.REASON_NOT_ALLOWED -> "🚫" to "Nicht freigegeben"
+        LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🕐" to "Noch nicht Bildschirmzeit"
         else -> "ℹ️" to "Nicht verfügbar"
     }
 

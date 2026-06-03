@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.WeekScheduleEntry
 import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
@@ -19,6 +20,23 @@ import org.fossify.home.databases.ExploreSuggestion
 // All @Query SQL below references the REAL column/table names declared in
 // LaunchpadEntities.kt (Room column name == Kotlin field name). Room/KSP validates
 // these against the entity schema at compile time.
+
+// ─── WeekSchedule DAO ────────────────────────────────────────────────────────
+
+@Dao
+interface WeekScheduleDao {
+    @Query("SELECT * FROM week_schedule")
+    suspend fun getAll(): List<WeekScheduleEntry>
+
+    @Query("SELECT * FROM week_schedule WHERE dayOfWeek = :day LIMIT 1")
+    suspend fun getForDay(day: Int): WeekScheduleEntry?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: WeekScheduleEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<WeekScheduleEntry>)
+}
 
 // ─── AllowedApp DAO ───────────────────────────────────────────────────────────
 

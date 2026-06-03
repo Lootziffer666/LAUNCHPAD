@@ -15,6 +15,7 @@ import android.util.Log
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.models.TimeBudget
+import java.util.Calendar
 
 /**
  * LaunchGate: Central enforcement point for all app launches.
@@ -65,6 +66,24 @@ class LaunchGate(
                 "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben.",
                 category
             )
+        }
+
+        // Check 1.5: Wochenplan time window — only blocks ACTIVE_LEISURE
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE) {
+            val cal = Calendar.getInstance()
+            val schedule = database.weekScheduleDao().getForDay(cal.get(Calendar.DAY_OF_WEEK))
+            if (schedule != null && schedule.active) {
+                val hour = cal.get(Calendar.HOUR_OF_DAY)
+                if (hour < schedule.allowedFromHour || hour >= schedule.allowedUntilHour) {
+                    val fromStr = "%02d:00".format(schedule.allowedFromHour)
+                    return LaunchDecision(
+                        false,
+                        LaunchpadConstants.REASON_SCHEDULE_WINDOW,
+                        "Erst ab $fromStr gibt's Bildschirmzeit.",
+                        category
+                    )
+                }
+            }
         }
 
         // Check 2: Cool-down phase
