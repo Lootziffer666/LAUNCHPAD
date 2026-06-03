@@ -60,6 +60,7 @@ class TimeTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        isRunning = true
         startInForeground()
         startTracking()
         return START_STICKY
@@ -68,6 +69,7 @@ class TimeTrackingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        isRunning = false
         super.onDestroy()
         if (this::handlerThread.isInitialized) handlerThread.quit()
     }
@@ -200,6 +202,9 @@ class TimeTrackingService : Service() {
         private const val NOTIFICATION_ID = 4711
         private const val POLL_INTERVAL_MS = 10_000L
         private const val COOLDOWN_RELAUNCH_THROTTLE_MS = 30_000L
+
+        /** True while the service is running; readable from other components. */
+        @Volatile var isRunning = false
     }
 }
 

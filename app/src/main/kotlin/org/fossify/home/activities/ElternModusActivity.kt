@@ -32,6 +32,7 @@ import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
 import org.fossify.home.helpers.UsageTracker
+import org.fossify.home.services.TimeTrackingService
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -54,6 +55,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var dogeCount: android.widget.TextView
     private lateinit var usageStatus: android.widget.TextView
     private lateinit var pairStatus: android.widget.TextView
+    private lateinit var healthStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -130,6 +132,7 @@ class ElternModusActivity : AppCompatActivity() {
         dogeCount = findViewById(R.id.em_doge_count)
         usageStatus = findViewById(R.id.em_usage_status)
         pairStatus = findViewById(R.id.em_pair_status)
+        healthStatus = findViewById(R.id.em_health_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -152,6 +155,9 @@ class ElternModusActivity : AppCompatActivity() {
             },
             R.id.em_row_cooldown_rules to { showCooldownEditor() },
             R.id.em_row_hinweise to { showHinweiseDialog() },
+            R.id.em_row_health to {
+                startActivity(Intent(this, PermissionHealthActivity::class.java))
+            },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
@@ -180,6 +186,7 @@ class ElternModusActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun refresh() {
         if (!this::balanceBig.isInitialized) return
         scope.launch {
@@ -218,6 +225,16 @@ class ElternModusActivity : AppCompatActivity() {
             dogeCount.text = if (dogePending > 0) "$dogePending offene Anfragen" else "Keine offenen Anfragen"
             usageStatus.text = if (usageGranted) "Erteilt ✓" else "Nicht erteilt — Tippe zum Öffnen"
             pairStatus.text = if (paired) "Gekoppelt ✓" else "Nicht gekoppelt"
+            val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            val issues = listOfNotNull(
+                if (!usageGranted) "Nutzungsstatistiken fehlen" else null,
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) "Akku-Optimierung aktiv" else null,
+                if (enforcement && !TimeTrackingService.isRunning) "Tracking gestoppt" else null
+            )
+            healthStatus.text = if (issues.isEmpty()) "Alles OK ✓" else "⚠️ ${issues.joinToString(", ")}"
+            healthStatus.setTextColor(
+                android.graphics.Color.parseColor(if (issues.isEmpty()) "#4CAF50" else "#F2994A")
+            )
         }
     }
 

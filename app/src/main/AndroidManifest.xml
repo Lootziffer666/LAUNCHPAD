@@ -35,6 +35,9 @@
     <!-- LAUNCHPAD: optional haptic reinforcement for time-limit warnings -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- LAUNCHPAD: restart tracking service after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
@@ -194,6 +197,21 @@
             android:name=".services.TimeTrackingService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- LAUNCHPAD: restart tracking after reboot -->
+        <receiver
+            android:name=".receivers.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- LAUNCHPAD: permission health screen -->
+        <activity
+            android:name=".activities.PermissionHealthActivity"
+            android:exported="false"
+            android:theme="@style/LauncherTheme" />
 
         <activity-alias
             android:name=".activities.SplashActivity.Red"

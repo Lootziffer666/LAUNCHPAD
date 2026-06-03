@@ -37,6 +37,7 @@ object LaunchpadServer {
     const val PORT = 7391
 
     @Volatile private var running = false
+    val isRunning get() = running
     private var serverSocket: ServerSocket? = null
 
     @Volatile var testQrPayload: String? = null
