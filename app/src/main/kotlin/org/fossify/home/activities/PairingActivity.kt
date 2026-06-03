@@ -5,9 +5,15 @@
 
 package org.fossify.home.activities
 
+import android.Manifest
+import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.text.InputType
 import android.util.TypedValue
 import android.widget.Button
@@ -17,9 +23,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,6 +46,12 @@ class PairingActivity : AppCompatActivity() {
 
     private lateinit var statusView: TextView
     private lateinit var qrView: ImageView
+
+    private val writePermLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) saveTestQr() else toast("Schreibrecht verweigert — Test-Modus nicht möglich")
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,6 +90,7 @@ class PairingActivity : AppCompatActivity() {
             showQr(reset = true)
             toast("Kopplung zurückgesetzt")
         })
+        content.addView(button("🧪 Test-Modus (selbes Gerät)") { startTestMode() })
 
         // Step 2: receive the parent's encrypted session key.
         content.addView(heading("Sitzungsschlüssel (vom Eltern-Gerät)", 16f))
@@ -145,6 +160,51 @@ class PairingActivity : AppCompatActivity() {
                     .apply(json)
             }
             toast(result.message)
+        }
+    }
+
+    private fun startTestMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                saveTestQr()
+            } else {
+                writePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        } else {
+            saveTestQr()
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun saveTestQr() {
+        try {
+            val base = pairing.getOrCreateQrPayload(reset = false)
+            val localhostPayload = JSONObject(base).apply { put("ip", "127.0.0.1") }.toString()
+            val bitmap = renderQr(localhostPayload, qrSizePx())
+            val filename = "launchpad_pairing.png"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                    put(MediaStore.Downloads.MIME_TYPE, "image/png")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: error("MediaStore insert returned null")
+                contentResolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                values.clear()
+                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                dir.mkdirs()
+                java.io.File(dir, filename).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }
+            toast("QR gespeichert → Downloads/$filename — Companion: 'Von Datei verbinden'")
+        } catch (e: Exception) {
+            android.util.Log.e("LAUNCHPAD", "saveTestQr failed", e)
+            toast("Test-Modus nicht möglich: ${e.message?.take(50)}")
         }
     }
 

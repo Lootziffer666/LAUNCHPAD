@@ -14,6 +14,11 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
+    <!-- Test-Modus: write QR PNG to Downloads on Android 8/9 (API 29+ uses MediaStore, no permission needed) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <uses-permission
         android:name="android.permission.USE_FINGERPRINT"
         tools:node="remove" />

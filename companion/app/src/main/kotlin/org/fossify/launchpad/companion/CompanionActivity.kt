@@ -14,6 +14,7 @@ import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -28,6 +29,10 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.QRCodeReader
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +67,12 @@ class CompanionActivity : AppCompatActivity() {
 
     private val qrScanLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents != null) handleQrResult(result.contents)
+    }
+
+    private val fileLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) readQrFromUri(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,8 +159,18 @@ class CompanionActivity : AppCompatActivity() {
             setTextColor(Color.LTGRAY)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            ).apply { setMargins(0, 0, 0, 8) }
             setOnClickListener { promptForIpFallback() }
+        })
+
+        content.addView(Button(this).apply {
+            text = "📂 Von Datei (selbes Gerät, Test-Modus)"
+            setBackgroundColor(Color.argb(30, 255, 255, 255))
+            setTextColor(Color.DKGRAY)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setOnClickListener { fileLauncher.launch(arrayOf("image/*")) }
         })
 
         content.addView(spacer(32))
@@ -200,6 +221,23 @@ class CompanionActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             toast("QR-Code konnte nicht gelesen werden: ${e.message?.take(40)}")
+        }
+    }
+
+    private fun readQrFromUri(uri: android.net.Uri) {
+        scope.launch {
+            val qrContent = withContext(Dispatchers.IO) {
+                try {
+                    val bitmap = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                        ?: return@withContext null
+                    val pixels = IntArray(bitmap.width * bitmap.height)
+                    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                    val source = RGBLuminanceSource(bitmap.width, bitmap.height, pixels)
+                    QRCodeReader().decode(BinaryBitmap(HybridBinarizer(source))).text
+                } catch (e: Exception) { null }
+            }
+            if (qrContent != null) handleQrResult(qrContent)
+            else toast("QR-Code in der Datei nicht lesbar")
         }
     }
 
