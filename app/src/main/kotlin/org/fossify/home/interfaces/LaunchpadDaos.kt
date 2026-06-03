@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
@@ -48,6 +49,29 @@ interface AllowedAppDao {
 
     @Query("DELETE FROM allowed_apps WHERE packageName = :pkg")
     suspend fun deleteApp(pkg: String)
+
+    @Query("DELETE FROM allowed_apps")
+    suspend fun deleteAll()
+}
+
+// ─── AppTimeLimit DAO ─────────────────────────────────────────────────────────
+
+@Dao
+interface AppTimeLimitDao {
+    @Query("SELECT * FROM app_time_limits")
+    suspend fun getAll(): List<AppTimeLimit>
+
+    @Query("SELECT * FROM app_time_limits WHERE packageName = :pkg LIMIT 1")
+    suspend fun getForApp(pkg: String): AppTimeLimit?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(limit: AppTimeLimit)
+
+    @Query("DELETE FROM app_time_limits WHERE packageName = :pkg")
+    suspend fun delete(pkg: String)
+
+    @Query("DELETE FROM app_time_limits")
+    suspend fun deleteAll()
 }
 
 // ─── CryptoCash DAO ───────────────────────────────────────────────────────────

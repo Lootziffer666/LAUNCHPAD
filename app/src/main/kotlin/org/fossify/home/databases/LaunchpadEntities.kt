@@ -13,7 +13,15 @@ data class AllowedApp(
     @PrimaryKey val packageName: String,
     val category: String, // ACTIVE_LEISURE, CREATIVE, LEARNING, COOLDOWN, COMMUNICATION, NEUTRAL
     val enabled: Boolean = true,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val addedBy: String = "parent" // "parent", "mama", "papa" etc — set at add time
+)
+
+// Per-app daily time cap (0 = no cap, enforced on top of the global coin budget)
+@Entity(tableName = "app_time_limits")
+data class AppTimeLimit(
+    @PrimaryKey val packageName: String,
+    val dailyMinutes: Int // 0 = no limit
 )
 
 // Krypto-Cash ledger: immutable transaction log, no-regression enforcement

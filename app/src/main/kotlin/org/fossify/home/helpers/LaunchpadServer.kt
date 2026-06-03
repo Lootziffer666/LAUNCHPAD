@@ -8,7 +8,10 @@
 //   POST /api/command    → apply CommandProcessor; returns {ok, message}
 
 // HTTP status codes + broad intentional fail-safe catches.
-@file:Suppress("MagicNumber", "CyclomaticComplexMethod", "NestedBlockDepth", "TooGenericExceptionCaught")
+@file:Suppress(
+    "MagicNumber", "CyclomaticComplexMethod", "NestedBlockDepth",
+    "TooGenericExceptionCaught", "TooManyFunctions", "LongMethod"
+)
 
 package org.fossify.home.helpers
 
@@ -18,6 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AppsDatabase
 import org.json.JSONArray
 import org.json.JSONObject
@@ -90,6 +95,14 @@ object LaunchpadServer {
                     method == "GET" && path == "/api/status" -> handleStatus(context)
                     method == "GET" && path == "/api/pending" -> handlePending(context)
                     method == "POST" && path == "/api/command" -> handleCommand(context, body)
+                    method == "GET" && path == "/api/apps" -> handleGetApps(context)
+                    method == "POST" && path == "/api/apps/remove" -> handleRemoveApp(context, body)
+                    method == "POST" && path == "/api/apps/toggle" -> handleToggleApp(context, body)
+                    method == "GET" && path == "/api/limits" -> handleGetLimits(context)
+                    method == "POST" && path == "/api/limits" -> handleSetLimit(context, body)
+                    method == "POST" && path == "/api/limits/remove" -> handleRemoveLimit(context, body)
+                    method == "GET" && path == "/api/export" -> handleExport(context)
+                    method == "POST" && path == "/api/import" -> handleImport(context, body)
                     path == "/api/ip" -> 200 to """{"ip":"${getLocalIp()}","port":$PORT}"""
                     method == "GET" && path == "/api/test-pair" -> {
                         val p = testQrPayload
@@ -166,6 +179,215 @@ object LaunchpadServer {
             put("ok", result.ok)
             put("message", result.message)
         }.toString()
+    }
+
+    private suspend fun handleGetApps(context: Context): Pair<Int, String> {
+        val db = AppsDatabase.getInstance(context)
+        val pm = context.packageManager
+        val apps = db.allowedAppDao().getAll().sortedByDescending { it.addedAt }
+        val limits = db.appTimeLimitDao().getAll().associateBy { it.packageName }
+
+        val arr = JSONArray()
+        apps.forEach { app ->
+            val displayName = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(app.packageName, 0)).toString()
+            } catch (e: Exception) {
+                Log.w(TAG, "Label not found for ${app.packageName}", e)
+                app.packageName
+            }
+            arr.put(JSONObject().apply {
+                put("packageName", app.packageName)
+                put("displayName", displayName)
+                put("category", app.category)
+                put("enabled", app.enabled)
+                put("addedAt", app.addedAt)
+                put("addedBy", app.addedBy)
+                put("dailyMinutes", limits[app.packageName]?.dailyMinutes ?: 0)
+            })
+        }
+        return 200 to JSONObject().apply { put("apps", arr) }.toString()
+    }
+
+    private suspend fun handleRemoveApp(context: Context, body: String): Pair<Int, String> {
+        val pkg = JSONObject(body).optString("packageName", "")
+        if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
+        AppsDatabase.getInstance(context).allowedAppDao().deleteApp(pkg)
+        return 200 to """{"ok":true}"""
+    }
+
+    private suspend fun handleToggleApp(context: Context, body: String): Pair<Int, String> {
+        val json = JSONObject(body)
+        val pkg = json.optString("packageName", "")
+        if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
+        val enabled = json.optBoolean("enabled", true)
+        AppsDatabase.getInstance(context).allowedAppDao().setEnabled(pkg, enabled)
+        return 200 to """{"ok":true}"""
+    }
+
+    private suspend fun handleGetLimits(context: Context): Pair<Int, String> {
+        val limits = AppsDatabase.getInstance(context).appTimeLimitDao().getAll()
+        val arr = JSONArray()
+        limits.forEach { l ->
+            arr.put(JSONObject().apply {
+                put("packageName", l.packageName)
+                put("dailyMinutes", l.dailyMinutes)
+            })
+        }
+        return 200 to JSONObject().apply { put("limits", arr) }.toString()
+    }
+
+    private suspend fun handleSetLimit(context: Context, body: String): Pair<Int, String> {
+        val json = JSONObject(body)
+        val pkg = json.optString("packageName", "")
+        val minutes = json.optInt("dailyMinutes", 0)
+        if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
+        val db = AppsDatabase.getInstance(context)
+        if (minutes <= 0) {
+            db.appTimeLimitDao().delete(pkg)
+        } else {
+            db.appTimeLimitDao().upsert(AppTimeLimit(pkg, minutes))
+        }
+        return 200 to """{"ok":true}"""
+    }
+
+    private suspend fun handleRemoveLimit(context: Context, body: String): Pair<Int, String> {
+        val pkg = JSONObject(body).optString("packageName", "")
+        if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
+        AppsDatabase.getInstance(context).appTimeLimitDao().delete(pkg)
+        return 200 to """{"ok":true}"""
+    }
+
+    private suspend fun handleExport(context: Context): Pair<Int, String> {
+        val db = AppsDatabase.getInstance(context)
+        val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+
+        val appsArr = JSONArray()
+        db.allowedAppDao().getAll().forEach { app ->
+            appsArr.put(JSONObject().apply {
+                put("packageName", app.packageName)
+                put("category", app.category)
+                put("enabled", app.enabled)
+                put("addedAt", app.addedAt)
+                put("addedBy", app.addedBy)
+            })
+        }
+
+        val limitsArr = JSONArray()
+        db.appTimeLimitDao().getAll().forEach { l ->
+            limitsArr.put(JSONObject().apply {
+                put("packageName", l.packageName)
+                put("dailyMinutes", l.dailyMinutes)
+            })
+        }
+
+        val settingsObj = JSONObject().apply {
+            put(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED,
+                prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false))
+            put(LaunchpadPrefs.PREF_BASE_TIME_MINUTES,
+                prefs.getInt(LaunchpadPrefs.PREF_BASE_TIME_MINUTES, 60))
+            put(LaunchpadPrefs.PREF_WEEK_CAP_MINUTES,
+                prefs.getInt(LaunchpadPrefs.PREF_WEEK_CAP_MINUTES, 120))
+            put(LaunchpadPrefs.PREF_SCHOOL_DAY_CAP_MINUTES,
+                prefs.getInt(LaunchpadPrefs.PREF_SCHOOL_DAY_CAP_MINUTES, 60))
+            put(LaunchpadPrefs.PREF_COOLDOWN_MINUTES,
+                prefs.getInt(LaunchpadPrefs.PREF_COOLDOWN_MINUTES, 15))
+            put(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON,
+                prefs.getString(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON, "") ?: "")
+            put(LaunchpadPrefs.PREF_IMPULSE_ENABLED,
+                prefs.getBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED, true))
+            put(LaunchpadPrefs.PREF_IMPULSE_SECONDS,
+                prefs.getInt(LaunchpadPrefs.PREF_IMPULSE_SECONDS,
+                    LaunchpadConstants.DEFAULT_IMPULSE_SECONDS))
+            put(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+                prefs.getInt(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+                    LaunchpadConstants.DEFAULT_IMPULSE_REOPEN_WINDOW_MIN))
+            put(LaunchpadPrefs.PREF_VIBRATION_ENABLED,
+                prefs.getBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, false))
+            put(LaunchpadPrefs.PREF_VIBRATION_MS,
+                prefs.getInt(LaunchpadPrefs.PREF_VIBRATION_MS,
+                    LaunchpadConstants.DEFAULT_VIBRATION_MS))
+        }
+
+        val export = JSONObject().apply {
+            put("version", 1)
+            put("exportedAt", System.currentTimeMillis())
+            put("allowedApps", appsArr)
+            put("timeLimits", limitsArr)
+            put("settings", settingsObj)
+        }
+        return 200 to export.toString()
+    }
+
+    @Suppress("NestedBlockDepth")
+    private suspend fun handleImport(context: Context, body: String): Pair<Int, String> {
+        val json = JSONObject(body)
+        if (json.optInt("version", 0) != 1) return 400 to """{"error":"unsupported version"}"""
+
+        val db = AppsDatabase.getInstance(context)
+        val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+
+        val appsArr = json.optJSONArray("allowedApps") ?: JSONArray()
+        val newApps = mutableListOf<AllowedApp>()
+        for (i in 0 until appsArr.length()) {
+            val o = appsArr.getJSONObject(i)
+            newApps.add(AllowedApp(
+                packageName = o.getString("packageName"),
+                category = o.optString("category", "NEUTRAL"),
+                enabled = o.optBoolean("enabled", true),
+                addedAt = o.optLong("addedAt", System.currentTimeMillis()),
+                addedBy = o.optString("addedBy", "parent")
+            ))
+        }
+        db.allowedAppDao().deleteAll()
+        db.allowedAppDao().insertAll(newApps)
+
+        val limitsArr = json.optJSONArray("timeLimits") ?: JSONArray()
+        db.appTimeLimitDao().deleteAll()
+        for (i in 0 until limitsArr.length()) {
+            val o = limitsArr.getJSONObject(i)
+            val mins = o.optInt("dailyMinutes", 0)
+            if (mins > 0) db.appTimeLimitDao().upsert(AppTimeLimit(o.getString("packageName"), mins))
+        }
+
+        json.optJSONObject("settings")?.let { s ->
+            prefs.edit().apply {
+                if (s.has(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED))
+                    putBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED,
+                        s.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED))
+                if (s.has(LaunchpadPrefs.PREF_BASE_TIME_MINUTES))
+                    putInt(LaunchpadPrefs.PREF_BASE_TIME_MINUTES,
+                        s.getInt(LaunchpadPrefs.PREF_BASE_TIME_MINUTES))
+                if (s.has(LaunchpadPrefs.PREF_WEEK_CAP_MINUTES))
+                    putInt(LaunchpadPrefs.PREF_WEEK_CAP_MINUTES,
+                        s.getInt(LaunchpadPrefs.PREF_WEEK_CAP_MINUTES))
+                if (s.has(LaunchpadPrefs.PREF_SCHOOL_DAY_CAP_MINUTES))
+                    putInt(LaunchpadPrefs.PREF_SCHOOL_DAY_CAP_MINUTES,
+                        s.getInt(LaunchpadPrefs.PREF_SCHOOL_DAY_CAP_MINUTES))
+                if (s.has(LaunchpadPrefs.PREF_COOLDOWN_MINUTES))
+                    putInt(LaunchpadPrefs.PREF_COOLDOWN_MINUTES,
+                        s.getInt(LaunchpadPrefs.PREF_COOLDOWN_MINUTES))
+                if (s.has(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON))
+                    putString(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON,
+                        s.getString(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON))
+                if (s.has(LaunchpadPrefs.PREF_IMPULSE_ENABLED))
+                    putBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED,
+                        s.getBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED))
+                if (s.has(LaunchpadPrefs.PREF_IMPULSE_SECONDS))
+                    putInt(LaunchpadPrefs.PREF_IMPULSE_SECONDS,
+                        s.getInt(LaunchpadPrefs.PREF_IMPULSE_SECONDS))
+                if (s.has(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN))
+                    putInt(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+                        s.getInt(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN))
+                if (s.has(LaunchpadPrefs.PREF_VIBRATION_ENABLED))
+                    putBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED,
+                        s.getBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED))
+                if (s.has(LaunchpadPrefs.PREF_VIBRATION_MS))
+                    putInt(LaunchpadPrefs.PREF_VIBRATION_MS,
+                        s.getInt(LaunchpadPrefs.PREF_VIBRATION_MS))
+            }.apply()
+        }
+
+        return 200 to """{"ok":true,"message":"Importiert: ${newApps.size} Apps"}"""
     }
 
     private fun getLocalIp(): String = getLocalIp(null) ?: "unknown"

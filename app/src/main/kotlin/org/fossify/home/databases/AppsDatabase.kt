@@ -19,6 +19,7 @@ import org.fossify.home.models.HomeScreenGridItem
 
 // LAUNCHPAD entities
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
@@ -29,6 +30,7 @@ import org.fossify.home.databases.ExploreSuggestion
 
 // LAUNCHPAD DAOs
 import org.fossify.home.interfaces.AllowedAppDao
+import org.fossify.home.interfaces.AppTimeLimitDao
 import org.fossify.home.interfaces.CryptoCashDao
 import org.fossify.home.interfaces.ParentCommandDao
 import org.fossify.home.interfaces.ExploreDao
@@ -50,9 +52,11 @@ import org.fossify.home.interfaces.DogeRequestDao
         ExploreSuggestion::class,
         // LAUNCHPAD M2 entities
         Zusage::class,
-        DogeRequest::class
+        DogeRequest::class,
+        // LAUNCHPAD M3 entities
+        AppTimeLimit::class
     ],
-    version = 6
+    version = 7
 )
 @TypeConverters(Converters::class)
 abstract class AppsDatabase : RoomDatabase() {
@@ -64,6 +68,7 @@ abstract class AppsDatabase : RoomDatabase() {
 
     // LAUNCHPAD DAOs
     abstract fun allowedAppDao(): AllowedAppDao
+    abstract fun appTimeLimitDao(): AppTimeLimitDao
     abstract fun cryptoCashDao(): CryptoCashDao
     abstract fun parentCommandDao(): ParentCommandDao
     abstract fun exploreDao(): ExploreDao
@@ -137,6 +142,19 @@ abstract class AppsDatabase : RoomDatabase() {
 
         // Seed default safe-browsing lists. Runs on upgrade (migration) and on fresh
         // install (RoomDatabase.Callback.onCreate) so both paths get the defaults.
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `allowed_apps` ADD COLUMN `addedBy` TEXT NOT NULL DEFAULT 'parent'"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `app_time_limits` (" +
+                        "`packageName` TEXT NOT NULL, `dailyMinutes` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`packageName`))"
+                )
+            }
+        }
+
         private fun seedExploreDefaults(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
 
@@ -185,7 +203,7 @@ abstract class AppsDatabase : RoomDatabase() {
                             AppsDatabase::class.java,
                             "apps.db"
                         )
-                            .addMigrations(MIGRATION_5_6)
+                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
                             .addCallback(seedCallback)
                             .build()
                     }
