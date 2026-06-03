@@ -106,6 +106,7 @@ class AppBlockedActivity : AppCompatActivity() {
         LaunchpadConstants.REASON_LOCKDOWN -> "🔒" to "Sicherheitscheck aktiv"
         LaunchpadConstants.REASON_NOT_ALLOWED -> "🚫" to "Nicht freigegeben"
         LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🕐" to "Noch nicht Bildschirmzeit"
+        LaunchpadConstants.REASON_APP_DAILY_LIMIT -> "⏱️" to "Tageslimit erreicht"
         else -> "ℹ️" to "Nicht verfügbar"
     }
 
@@ -161,6 +162,8 @@ class AppBlockedActivity : AppCompatActivity() {
                 else ""
             LaunchpadConstants.REASON_LOCKDOWN ->
                 "Mama oder Papa müssen LAUNCHPAD prüfen und freigeben."
+            LaunchpadConstants.REASON_APP_DAILY_LIMIT ->
+                "Morgen gibt es wieder Zeit für diese App."
             else -> ""
         }
     }

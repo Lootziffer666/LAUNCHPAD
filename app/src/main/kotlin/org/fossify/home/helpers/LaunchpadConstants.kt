@@ -71,6 +71,7 @@ object LaunchpadConstants {
     const val REASON_MIN_THRESHOLD = "min_threshold"
     const val REASON_LOCKDOWN = "lockdown"
     const val REASON_SCHEDULE_WINDOW = "schedule_window"
+    const val REASON_APP_DAILY_LIMIT = "app_daily_limit"
 
     // Audit / tamper event types
     const val AUDIT_TIME_CHANGED = "TIME_CHANGED"

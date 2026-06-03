@@ -146,6 +146,13 @@ interface CryptoCashDao {
 
     @Query("UPDATE crypto_cash_tx SET deleted = 1 WHERE id = :id")
     suspend fun softDelete(id: String)
+
+    @Query(
+        "SELECT COALESCE(-SUM(deltaMinutes), 0) FROM crypto_cash_tx " +
+            "WHERE deleted = 0 AND type = 'SPEND' " +
+            "AND reasonText = 'Nutzung: ' || :pkg AND createdAt >= :todayMidnight"
+    )
+    suspend fun getTodaySpentMinutesForApp(pkg: String, todayMidnight: Long): Int
 }
 
 // ─── ParentCommand DAO ────────────────────────────────────────────────────────

@@ -97,6 +97,21 @@ class LaunchGate(
             )
         }
 
+        // Check 2.5: Per-app daily time limit
+        val appLimit = database.appTimeLimitDao().getForApp(packageName)
+        if (appLimit != null && appLimit.dailyMinutes > 0) {
+            val midnight = todayMidnight()
+            val usedToday = database.cryptoCashDao().getTodaySpentMinutesForApp(packageName, midnight)
+            if (usedToday >= appLimit.dailyMinutes) {
+                return LaunchDecision(
+                    false,
+                    LaunchpadConstants.REASON_APP_DAILY_LIMIT,
+                    "Tageslimit für diese App erreicht (${appLimit.dailyMinutes} Min).",
+                    category
+                )
+            }
+        }
+
         // Check 3: Time budget — only coin-gated (ACTIVE_LEISURE) apps are blocked at 0
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes <= 0) {
             return LaunchDecision(
@@ -119,6 +134,15 @@ class LaunchGate(
 
         Log.d(tag, "Launch approved: $packageName (${timeBudget.balanceMinutes} min)")
         return LaunchDecision(true, null, null, category)
+    }
+
+    private fun todayMidnight(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 }
 

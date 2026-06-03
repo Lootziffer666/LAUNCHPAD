@@ -132,6 +132,7 @@ class LaunchpadConstantsGuardTest {
         assertEquals("min_threshold", LaunchpadConstants.REASON_MIN_THRESHOLD)
         assertEquals("lockdown", LaunchpadConstants.REASON_LOCKDOWN)
         assertEquals("schedule_window", LaunchpadConstants.REASON_SCHEDULE_WINDOW)
+        assertEquals("app_daily_limit", LaunchpadConstants.REASON_APP_DAILY_LIMIT)
     }
 
     @Test
