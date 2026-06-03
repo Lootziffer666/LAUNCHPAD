@@ -232,6 +232,12 @@
             android:showOnLockScreen="true"
             android:theme="@style/LauncherTheme" />
 
+        <!-- LAUNCHPAD: Daily summary report for the parent -->
+        <activity
+            android:name=".activities.DailyReportActivity"
+            android:exported="false"
+            android:theme="@style/LauncherTheme" />
+
         <activity-alias
             android:name=".activities.SplashActivity.Red"
             android:clearTaskOnLaunch="true"

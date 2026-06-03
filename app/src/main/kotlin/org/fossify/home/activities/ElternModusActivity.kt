@@ -178,6 +178,9 @@ class ElternModusActivity : AppCompatActivity() {
         listOf<Pair<Int, () -> Unit>>(
             R.id.em_row_add_time to { showAddTimeDialog() },
             R.id.em_row_transactions to { showTransactions() },
+            R.id.em_row_tagesbericht to {
+                startActivity(Intent(this, DailyReportActivity::class.java))
+            },
             R.id.em_row_apps to { startActivity(Intent(this, AppsManagementActivity::class.java)) },
             R.id.em_row_zusagen to {
                 startActivity(Intent(this, ZusagenActivity::class.java).putExtra("isParentMode", true))
