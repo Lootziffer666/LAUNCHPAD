@@ -49,9 +49,10 @@ class JakeDashboardActivity : AppCompatActivity() {
         root.addView(closeBtn)
 
         // Big time display
+        val nunito = androidx.core.content.res.ResourcesCompat.getFont(this, org.fossify.home.R.font.nunito)
         val timeView = TextView(this).apply {
             textSize = 72f
-            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTypeface(nunito, android.graphics.Typeface.BOLD)
             setTextColor(Color.WHITE)
             gravity = android.view.Gravity.CENTER
             setPadding(32, 16, 32, 4)

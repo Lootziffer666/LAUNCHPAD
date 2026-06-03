@@ -21,6 +21,7 @@
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="56dp"
         android:text="LAUNCHPAD"
+        android:fontFamily="@font/nunito"
         android:textColor="@color/hw_white"
         android:textSize="22sp"
         android:textStyle="bold"
