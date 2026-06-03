@@ -28,7 +28,9 @@ class LaunchGate(
     data class LaunchDecision(
         val allowed: Boolean,
         val reason: String?,
-        val childVisibleMessage: String?
+        val childVisibleMessage: String?,
+        /** App category from the whitelist; null when not whitelisted. */
+        val category: String? = null
     )
 
     suspend fun canLaunch(
@@ -46,7 +48,7 @@ class LaunchGate(
         // Cool-down apps (audiobooks, drawing, LEGO) are always allowed — they are the
         // restorative activities offered DURING cool-down and don't consume budget.
         if (isCooldownApp) {
-            return LaunchDecision(true, null, null)
+            return LaunchDecision(true, null, null, category)
         }
 
         // Check 0: Protective lockdown after a tamper signal. Coin-gated apps are paused until
@@ -57,7 +59,8 @@ class LaunchGate(
             return LaunchDecision(
                 false,
                 "Protective lockdown active (tamper detected)",
-                "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben."
+                "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben.",
+                category
             )
         }
 
@@ -67,7 +70,8 @@ class LaunchGate(
             return LaunchDecision(
                 false,
                 "In cool-down phase ($minutesRemaining min remaining)",
-                "Bildschirmpause! Noch $minutesRemaining Minuten. Audiobook, Zeichnen oder LEGO?"
+                "Bildschirmpause! Noch $minutesRemaining Minuten. Audiobook, Zeichnen oder LEGO?",
+                category
             )
         }
 
@@ -76,7 +80,8 @@ class LaunchGate(
             return LaunchDecision(
                 false,
                 "Time budget exhausted",
-                "Keine Zeit mehr. Erst wieder Zeit verdienen!"
+                "Keine Zeit mehr. Erst wieder Zeit verdienen!",
+                category
             )
         }
 
@@ -85,12 +90,13 @@ class LaunchGate(
             return LaunchDecision(
                 false,
                 "Insufficient time for high-stimulation app (minimum 5 min)",
-                "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?"
+                "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?",
+                category
             )
         }
 
         Log.d(tag, "Launch approved: $packageName (${timeBudget.balanceMinutes} min)")
-        return LaunchDecision(true, null, null)
+        return LaunchDecision(true, null, null, category)
     }
 }
 

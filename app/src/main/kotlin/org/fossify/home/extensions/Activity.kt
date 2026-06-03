@@ -59,8 +59,8 @@ fun Activity.launchApp(packageName: String, activityName: String) {
                 return
             }
             // Impulsbremse: calming countdown before a rapid re-open of a high-stimulation app.
-            val category = runBlocking { db.allowedAppDao().getAppCategory(packageName) }
-            if (maybeShowImpulseBrake(packageName, activityName, category)) return
+            // Category is already resolved inside LaunchGate — no extra DB round-trip needed.
+            if (maybeShowImpulseBrake(packageName, activityName, decision.category)) return
         }
     } catch (e: Exception) {
         android.util.Log.e("LAUNCHPAD", "launch gate failed; allowing launch", e)
