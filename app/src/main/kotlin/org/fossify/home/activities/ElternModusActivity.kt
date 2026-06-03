@@ -53,6 +53,10 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var lastTx: android.widget.TextView
     private lateinit var enforcementLabel: android.widget.TextView
 
+    // Dashboard light
+    private lateinit var todayUsed: android.widget.TextView
+    private lateinit var topApps: android.widget.TextView
+
     // Row subtitles
     private lateinit var appsCount: android.widget.TextView
     private lateinit var zusagenCount: android.widget.TextView
@@ -149,6 +153,10 @@ class ElternModusActivity : AppCompatActivity() {
         lastTx = findViewById(R.id.em_last_tx)
         enforcementLabel = findViewById(R.id.em_enforcement_label)
 
+        // Dashboard light
+        todayUsed = findViewById(R.id.em_today_used)
+        topApps = findViewById(R.id.em_top_apps)
+
         // Row subtitles
         appsCount = findViewById(R.id.em_apps_count)
         zusagenCount = findViewById(R.id.em_zusagen_count)
@@ -217,8 +225,33 @@ class ElternModusActivity : AppCompatActivity() {
     private fun refresh() {
         if (!this::balanceBig.isInitialized) return
         scope.launch {
+            val midnight = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
             val balance = withContext(Dispatchers.IO) { db.cryptoCashDao().getCurrentBalance() }
             val tx = withContext(Dispatchers.IO) { db.cryptoCashDao().getLastTransaction() }
+            val todayTxs = withContext(Dispatchers.IO) {
+                db.cryptoCashDao().getTransactionsBetween(midnight, System.currentTimeMillis())
+            }
+            val spentToday = todayTxs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
+                .sumOf { -it.deltaMinutes }
+            val topPkgs = todayTxs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
+                .groupBy { it.reasonText.removePrefix("Nutzung: ") }
+                .mapValues { (_, txs) -> txs.sumOf { -it.deltaMinutes } }
+                .entries.sortedByDescending { it.value }
+                .take(3)
+                .mapNotNull { (pkg, mins) ->
+                    val name = try {
+                        packageManager.getApplicationLabel(
+                            packageManager.getApplicationInfo(pkg, 0)
+                        ).toString()
+                    } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                        android.util.Log.w("ElternModus", "Package not found: $pkg", e)
+                        null
+                    }
+                    name?.let { "$it ($mins Min)" }
+                }
             val appCount = withContext(Dispatchers.IO) { db.allowedAppDao().getAllEnabledApps().size }
             val zusagenPending = withContext(Dispatchers.IO) { db.zusageDao().getZusagenByStatus("ACTIVE").size }
             val dogePending = withContext(Dispatchers.IO) { db.dogeRequestDao().getPending().size }
@@ -240,6 +273,9 @@ class ElternModusActivity : AppCompatActivity() {
             modeBadge.setBackgroundColor(
                 android.graphics.Color.parseColor(if (enforcement) "#4CAF50" else "#FF6B35")
             )
+
+            todayUsed.text = if (spentToday > 0) "Heute genutzt: $spentToday Min" else "Heute noch nicht genutzt"
+            topApps.text = if (topPkgs.isNotEmpty()) "Top: ${topPkgs.joinToString(" · ")}" else ""
 
             val fmt = SimpleDateFormat("dd.MM. HH:mm", Locale.GERMANY)
             lastTx.text = tx?.let { "Letzte Transaktion: ${fmt.format(Date(it.createdAt))}" } ?: "Keine Transaktionen"
