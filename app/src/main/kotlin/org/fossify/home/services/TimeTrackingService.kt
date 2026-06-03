@@ -24,9 +24,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.os.Vibrator
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -34,6 +37,7 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.runBlocking
+import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
@@ -55,6 +59,8 @@ class TimeTrackingService : Service() {
     private var accumulatedMs = 0L
     private var lastCountedAt = 0L
     @Volatile private var lastCooldownLaunch = 0L
+    // Tracks the last warned balance level so each threshold is announced at most once.
+    private var lastWarnedMinutes = Int.MAX_VALUE
 
     // Fires on a manual system-clock or time-zone change → strong tamper signal.
     private val clockChangeReceiver = object : BroadcastReceiver() {
@@ -203,7 +209,10 @@ class TimeTrackingService : Service() {
                 if (newBalance <= 0) {
                     resetCounter()
                     lastCooldownLaunch = System.currentTimeMillis()
-                    launchCooldown()
+                    lastWarnedMinutes = Int.MAX_VALUE
+                    launchTimesUp()
+                } else {
+                    maybeWarnTimeRunningLow(newBalance)
                 }
             }
         }
@@ -287,6 +296,47 @@ class TimeTrackingService : Service() {
         return category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
     }
 
+    private fun maybeWarnTimeRunningLow(balanceMinutes: Int) {
+        if (balanceMinutes >= lastWarnedMinutes) return
+        val thresholds = WARNING_THRESHOLDS
+        val hit = thresholds.firstOrNull { balanceMinutes <= it } ?: return
+        if (hit >= lastWarnedMinutes) return
+        lastWarnedMinutes = hit
+        val msg = "Noch $balanceMinutes Minute${if (balanceMinutes != 1) "n" else ""} Bildschirmzeit!"
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, msg, Toast.LENGTH_LONG).show()
+            val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+            if (prefs.getBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, true)) {
+                val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                val ms = prefs.getInt(LaunchpadPrefs.PREF_VIBRATION_MS, 300).toLong()
+                if (vib != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vib.vibrate(
+                            android.os.VibrationEffect.createOneShot(
+                                ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE
+                            )
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vib.vibrate(ms)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun launchTimesUp() {
+        try {
+            startActivity(
+                Intent(this, TimesUpActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Could not launch TimesUpActivity", e)
+            launchCooldown()
+        }
+    }
+
     private fun launchCooldown() {
         try {
             startActivity(
@@ -303,6 +353,9 @@ class TimeTrackingService : Service() {
         private const val NOTIFICATION_ID = 4711
         private const val POLL_INTERVAL_MS = 10_000L
         private const val COOLDOWN_RELAUNCH_THROTTLE_MS = 30_000L
+
+        // Balance thresholds (minutes) at which Jake sees a warning toast.
+        val WARNING_THRESHOLDS = sortedSetOf(15, 10, 7, 5, 3, 2, 1)
 
         /** True while the service is running; readable from other components. */
         @Volatile var isRunning = false
