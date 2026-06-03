@@ -18,6 +18,10 @@ object LaunchpadConstants {
     const val DEFAULT_COOLDOWN_DURATION_MINUTES = 15
     const val DEFAULT_EXPIRE_UNUSED_AFTER_DAYS = 30
 
+    // Impulsbremse defaults
+    const val DEFAULT_IMPULSE_SECONDS = 7
+    const val DEFAULT_IMPULSE_REOPEN_WINDOW_MIN = 3
+
     // Transaction types
     const val TX_TYPE_EARN = "EARN"
     const val TX_TYPE_SPEND = "SPEND"
@@ -103,6 +107,12 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+
+    // Impulsbremse: short calming countdown before re-opening a high-stimulation (ACTIVE_LEISURE)
+    // app. Skips the first open and only fires on a rapid re-open within the reopen window.
+    const val PREF_IMPULSE_ENABLED = "impulse_enabled" // master on/off (default ON)
+    const val PREF_IMPULSE_SECONDS = "impulse_seconds" // countdown length
+    const val PREF_IMPULSE_REOPEN_WINDOW_MIN = "impulse_reopen_window_min" // "first open free" window
 
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64

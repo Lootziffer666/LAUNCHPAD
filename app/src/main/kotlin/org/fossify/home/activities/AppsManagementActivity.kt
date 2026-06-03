@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
+import org.fossify.home.helpers.LaunchpadPrefs
 
 @Suppress("MagicNumber", "TooManyFunctions", "NestedBlockDepth") // UI built programmatically
 class AppsManagementActivity : AppCompatActivity() {
@@ -94,6 +95,14 @@ class AppsManagementActivity : AppCompatActivity() {
         }
         root.addView(
             hint,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        root.addView(
+            buildImpulseOptions(),
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -222,6 +231,103 @@ class AppsManagementActivity : AppCompatActivity() {
             db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = newCategory))
             allApps = allApps.map { (p, l, c) -> Triple(p, l, if (p == pkg) newCategory else c) }
             withContext(Dispatchers.Main) { renderList() }
+        }
+    }
+
+    // ─── Impulsbremse options ───────────────────────────────────────────────────
+    private fun buildImpulseOptions(): LinearLayout {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, MODE_PRIVATE)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 16, 32, 16)
+            setBackgroundColor(android.graphics.Color.parseColor("#141422"))
+        }
+
+        val enabledCb = CheckBox(this).apply {
+            text = "🧘 Impulsbremse"
+            textSize = 16f
+            setTextColor(android.graphics.Color.WHITE)
+            isChecked = prefs.getBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED, true)
+        }
+        box.addView(enabledCb)
+
+        box.addView(TextView(this).apply {
+            text = "Kurzer Countdown, wenn Jake eine 🪙 Coins-App schnell wieder öffnet. " +
+                "Das erste Öffnen bleibt immer frei."
+            textSize = 12f
+            setTextColor(android.graphics.Color.parseColor("#888888"))
+            setPadding(0, 0, 0, 8)
+        })
+
+        val detail = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        detail.addView(
+            stepperRow(
+                label = "Dauer",
+                unit = "s",
+                initial = prefs.getInt(
+                    LaunchpadPrefs.PREF_IMPULSE_SECONDS, LaunchpadConstants.DEFAULT_IMPULSE_SECONDS
+                ),
+                min = 3, max = 30, step = 1
+            ) { v -> prefs.edit().putInt(LaunchpadPrefs.PREF_IMPULSE_SECONDS, v).apply() }
+        )
+        detail.addView(
+            stepperRow(
+                label = "Fenster",
+                unit = "min",
+                initial = prefs.getInt(
+                    LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+                    LaunchpadConstants.DEFAULT_IMPULSE_REOPEN_WINDOW_MIN
+                ),
+                min = 1, max = 30, step = 1
+            ) { v -> prefs.edit().putInt(LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN, v).apply() }
+        )
+        box.addView(detail)
+        detail.visibility = if (enabledCb.isChecked) android.view.View.VISIBLE else android.view.View.GONE
+
+        enabledCb.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED, checked).apply()
+            detail.visibility = if (checked) android.view.View.VISIBLE else android.view.View.GONE
+        }
+        return box
+    }
+
+    private fun stepperRow(
+        label: String,
+        unit: String,
+        initial: Int,
+        min: Int,
+        max: Int,
+        step: Int,
+        onChange: (Int) -> Unit
+    ): LinearLayout {
+        var value = initial
+        val valueView = TextView(this).apply {
+            text = "$value $unit"
+            textSize = 16f
+            setTextColor(android.graphics.Color.WHITE)
+            gravity = android.view.Gravity.CENTER
+            width = 88.dp
+        }
+        fun apply() { valueView.text = "$value $unit"; onChange(value) }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 4, 0, 4)
+            addView(TextView(this@AppsManagementActivity).apply {
+                text = label
+                textSize = 15f
+                setTextColor(android.graphics.Color.parseColor("#CCFFFFFF"))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(Button(this@AppsManagementActivity).apply {
+                text = "−"
+                setOnClickListener { if (value - step >= min) { value -= step; apply() } }
+            })
+            addView(valueView)
+            addView(Button(this@AppsManagementActivity).apply {
+                text = "+"
+                setOnClickListener { if (value + step <= max) { value += step; apply() } }
+            })
         }
     }
 

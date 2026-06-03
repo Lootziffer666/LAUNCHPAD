@@ -146,6 +146,13 @@
             android:label="Pause"
             android:theme="@style/AppTheme" />
 
+        <!-- LAUNCHPAD: Impulsbremse — calming countdown before re-opening a Sog-App -->
+        <activity
+            android:name=".activities.ImpulseDelayActivity"
+            android:exported="false"
+            android:label="Kurz durchatmen"
+            android:theme="@style/AppTheme" />
+
         <!-- LAUNCHPAD M2: Zusagen (family promises) -->
         <activity
             android:name=".activities.ZusagenActivity"

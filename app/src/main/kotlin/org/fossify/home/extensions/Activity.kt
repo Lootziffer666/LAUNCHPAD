@@ -58,11 +58,55 @@ fun Activity.launchApp(packageName: String, activityName: String) {
                 showDenialDialog(this@launchApp, packageName, decision.childVisibleMessage, budget)
                 return
             }
+            // Impulsbremse: calming countdown before a rapid re-open of a high-stimulation app.
+            val category = runBlocking { db.allowedAppDao().getAppCategory(packageName) }
+            if (maybeShowImpulseBrake(packageName, activityName, category)) return
         }
     } catch (e: Exception) {
         android.util.Log.e("LAUNCHPAD", "launch gate failed; allowing launch", e)
     }
 
+    launchAppDirect(packageName, activityName)
+}
+
+/**
+ * If the Impulsbremse is enabled and [packageName] is a high-stimulation (ACTIVE_LEISURE) app
+ * being re-opened within the configured window, start [ImpulseDelayActivity] and return true
+ * (the caller must not launch directly). Otherwise return false.
+ */
+@Suppress("MagicNumber") // 60_000L = ms per minute
+private fun Activity.maybeShowImpulseBrake(
+    packageName: String,
+    activityName: String,
+    category: String?
+): Boolean {
+    if (category != org.fossify.home.helpers.LaunchpadConstants.CATEGORY_ACTIVE_LEISURE) return false
+    val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+    if (!prefs.getBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED, true)) return false
+
+    val seconds = prefs.getInt(
+        LaunchpadPrefs.PREF_IMPULSE_SECONDS,
+        org.fossify.home.helpers.LaunchpadConstants.DEFAULT_IMPULSE_SECONDS
+    )
+    val windowMin = prefs.getInt(
+        LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+        org.fossify.home.helpers.LaunchpadConstants.DEFAULT_IMPULSE_REOPEN_WINDOW_MIN
+    )
+    val isReopen = org.fossify.home.helpers.ImpulseTracker
+        .isRapidReopen(packageName, windowMin * 60_000L)
+    if (!isReopen) return false
+
+    startActivity(
+        Intent(this, org.fossify.home.activities.ImpulseDelayActivity::class.java)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_PACKAGE, packageName)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_ACTIVITY, activityName)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_SECONDS, seconds)
+    )
+    return true
+}
+
+/** Raw app launch with no gate/Impulsbremse — used after the gate has already passed. */
+fun Activity.launchAppDirect(packageName: String, activityName: String) {
     try {
         Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
