@@ -24,6 +24,17 @@ data class AppTimeLimit(
     val dailyMinutes: Int // 0 = no limit
 )
 
+// Audit log: tamper signals + notable system events shown to the parent
+@Entity(tableName = "audit_events")
+data class AuditEvent(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val createdAt: Long = System.currentTimeMillis(),
+    val type: String, // TIME_CHANGED, USAGE_ACCESS_REVOKED, REBOOT, SERVICE_GAP, ...
+    val severity: String, // INFO, WARNING, CRITICAL
+    val message: String, // human-readable German
+    val acknowledged: Boolean = false // parent has seen/resolved it
+)
+
 // Krypto-Cash ledger: immutable transaction log, no-regression enforcement
 @Entity(tableName = "crypto_cash_tx")
 data class CryptoCashTransaction(

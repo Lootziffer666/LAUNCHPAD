@@ -64,6 +64,26 @@ object LaunchpadConstants {
     const val DOGE_REJECTED = "REJECTED"
     const val DOGE_EXPIRED = "EXPIRED"
 
+    // Audit / tamper event types
+    const val AUDIT_TIME_CHANGED = "TIME_CHANGED"
+    const val AUDIT_TIMEZONE_CHANGED = "TIMEZONE_CHANGED"
+    const val AUDIT_USAGE_ACCESS_REVOKED = "USAGE_ACCESS_REVOKED"
+    const val AUDIT_REBOOT = "REBOOT"
+    const val AUDIT_SERVICE_GAP = "SERVICE_GAP"
+    const val AUDIT_LOCKDOWN_TRIGGERED = "LOCKDOWN_TRIGGERED"
+    const val AUDIT_LOCKDOWN_CLEARED = "LOCKDOWN_CLEARED"
+
+    // Audit severities
+    const val SEVERITY_INFO = "INFO"
+    const val SEVERITY_WARNING = "WARNING"
+    const val SEVERITY_CRITICAL = "CRITICAL"
+
+    // Tamper detection: a service gap larger than this (ms) while enforcement is on is
+    // treated as Doze/kill suppression worth recording.
+    const val TAMPER_GAP_THRESHOLD_MS = 300_000L // 5 min
+    // Wall-vs-monotonic drift beyond this (ms) between two ticks means the clock was changed.
+    const val TAMPER_TIME_DRIFT_TOLERANCE_MS = 60_000L // 1 min
+
     // Explore categories
     const val EXPLORE_CATEGORY_EDUCATIONAL = "EDUCATIONAL"
     const val EXPLORE_CATEGORY_CREATIVE = "CREATIVE"
@@ -120,6 +140,14 @@ object LaunchpadPrefs {
     // Time-limit warning toasts + optional vibration
     const val PREF_VIBRATION_ENABLED = "vibration_enabled" // reinforce time warnings with a buzz
     const val PREF_VIBRATION_MS = "vibration_ms" // buzz length = strength
+
+    // Tamper detection: protective lockdown blocks coin-gated apps until a parent reviews.
+    const val PREF_TAMPER_LOCKDOWN = "tamper_lockdown"
+    // Tracks whether Usage Access was granted before, to detect later revocation.
+    const val PREF_USAGE_WAS_GRANTED = "usage_was_granted"
+    // Heartbeat for service-gap / clock-drift reconciliation (wall clock + monotonic uptime).
+    const val PREF_HEARTBEAT_WALL = "heartbeat_wall"
+    const val PREF_HEARTBEAT_ELAPSED = "heartbeat_elapsed"
 
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64

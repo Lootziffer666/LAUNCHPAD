@@ -8,7 +8,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.services.TimeTrackingStartup
 
 class BootReceiver : BroadcastReceiver() {
@@ -17,6 +19,20 @@ class BootReceiver : BroadcastReceiver() {
         val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
         if (!prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)) return
         Log.i("BootReceiver", "Boot completed — restarting time tracking")
+
+        // Clear the stale heartbeat so the first post-reboot tick re-baselines instead of
+        // misreading the monotonic-clock reset as clock manipulation.
+        prefs.edit()
+            .remove(LaunchpadPrefs.PREF_HEARTBEAT_WALL)
+            .remove(LaunchpadPrefs.PREF_HEARTBEAT_ELAPSED)
+            .apply()
+
+        TamperMonitor.record(
+            context,
+            LaunchpadConstants.AUDIT_REBOOT,
+            LaunchpadConstants.SEVERITY_INFO,
+            "Gerät wurde neu gestartet"
+        )
         TimeTrackingStartup().initializeTimeTracking(context)
     }
 }

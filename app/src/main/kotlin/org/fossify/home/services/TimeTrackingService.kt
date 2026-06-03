@@ -6,7 +6,9 @@
 // Krypto-Cash ledger via TimeBudgetManager.spend(); when the balance reaches 0 the cool-down
 // window starts and CooldownActivity is shown. Requires Usage Access (granted in Eltern-Modus).
 
-@file:Suppress("MagicNumber", "TooGenericExceptionCaught") // polling intervals; fail-safe catches
+@file:Suppress(
+    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions"
+) // polling intervals; fail-safe catches; service handles tracking + tamper checks
 
 package org.fossify.home.services
 
@@ -14,13 +16,16 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -32,6 +37,8 @@ import kotlinx.coroutines.runBlocking
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import org.fossify.home.helpers.TamperClock
+import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.helpers.UsageTracker
 import java.util.concurrent.TimeUnit
@@ -49,6 +56,23 @@ class TimeTrackingService : Service() {
     private var lastCountedAt = 0L
     @Volatile private var lastCooldownLaunch = 0L
 
+    // Fires on a manual system-clock or time-zone change → strong tamper signal.
+    private val clockChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val ctx = context ?: return
+            val enforce = ctx.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+                .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
+            if (!enforce) return
+            val (type, label) = when (intent?.action) {
+                Intent.ACTION_TIMEZONE_CHANGED ->
+                    LaunchpadConstants.AUDIT_TIMEZONE_CHANGED to "Zeitzone wurde geändert"
+                else ->
+                    LaunchpadConstants.AUDIT_TIME_CHANGED to "Systemzeit wurde geändert"
+            }
+            TamperMonitor.triggerLockdown(ctx, type, label)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         database = AppsDatabase.getInstance(this)
@@ -57,6 +81,10 @@ class TimeTrackingService : Service() {
         handlerThread = HandlerThread("TimeTrackingWorker")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
+        registerReceiver(clockChangeReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        })
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -70,6 +98,9 @@ class TimeTrackingService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        try { unregisterReceiver(clockChangeReceiver) } catch (e: IllegalArgumentException) {
+            Log.w(tag, "clockChangeReceiver already unregistered", e)
+        }
         super.onDestroy()
         if (this::handlerThread.isInitialized) handlerThread.quit()
     }
@@ -115,11 +146,15 @@ class TimeTrackingService : Service() {
             resetCounter()
             return
         }
+        // Tamper checks run on every enforced tick, regardless of foreground app.
+        checkClockIntegrity()
         // Need Usage Access to know the foreground app.
         if (!UsageTracker.hasUsageAccess(this)) {
+            handleUsageAccessLost()
             resetCounter()
             return
         }
+        markUsageAccessGranted()
         // Only count while the screen is actually on.
         if (!powerManager.isInteractive) {
             resetCounter()
@@ -171,6 +206,72 @@ class TimeTrackingService : Service() {
                     launchCooldown()
                 }
             }
+        }
+    }
+
+    /**
+     * Reconcile wall clock vs. monotonic uptime across heartbeats to catch a changed clock,
+     * a reboot, or a long suppression gap (Doze/kill). Persists the heartbeat each tick so the
+     * check survives a process kill.
+     */
+    private fun checkClockIntegrity() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        val prevWall = prefs.getLong(LaunchpadPrefs.PREF_HEARTBEAT_WALL, 0L)
+        val prevElapsed = prefs.getLong(LaunchpadPrefs.PREF_HEARTBEAT_ELAPSED, 0L)
+        val nowWall = System.currentTimeMillis()
+        val nowElapsed = SystemClock.elapsedRealtime()
+
+        when (
+            val verdict = TamperClock.evaluate(
+                prevWall = prevWall,
+                prevElapsed = prevElapsed,
+                nowWall = nowWall,
+                nowElapsed = nowElapsed,
+                expectedIntervalMs = POLL_INTERVAL_MS,
+                driftToleranceMs = LaunchpadConstants.TAMPER_TIME_DRIFT_TOLERANCE_MS,
+                gapThresholdMs = LaunchpadConstants.TAMPER_GAP_THRESHOLD_MS
+            )
+        ) {
+            is TamperClock.Verdict.TimeChanged ->
+                TamperMonitor.triggerLockdown(
+                    this,
+                    LaunchpadConstants.AUDIT_TIME_CHANGED,
+                    "Systemzeit weicht ab (${verdict.driftMs / 60_000L} Min) — möglicherweise manipuliert"
+                )
+            is TamperClock.Verdict.Gap ->
+                TamperMonitor.record(
+                    this,
+                    LaunchpadConstants.AUDIT_SERVICE_GAP,
+                    LaunchpadConstants.SEVERITY_WARNING,
+                    "Zeiterfassung war ${verdict.gapMs / 60_000L} Min unterbrochen (Energiesparmodus?)"
+                )
+            TamperClock.Verdict.Reboot,
+            TamperClock.Verdict.Normal -> Unit // reboot is logged by BootReceiver
+        }
+
+        prefs.edit()
+            .putLong(LaunchpadPrefs.PREF_HEARTBEAT_WALL, nowWall)
+            .putLong(LaunchpadPrefs.PREF_HEARTBEAT_ELAPSED, nowElapsed)
+            .apply()
+    }
+
+    private fun markUsageAccessGranted() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(LaunchpadPrefs.PREF_USAGE_WAS_GRANTED, false)) {
+            prefs.edit().putBoolean(LaunchpadPrefs.PREF_USAGE_WAS_GRANTED, true).apply()
+        }
+    }
+
+    private fun handleUsageAccessLost() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        // Only a tamper signal if access was previously granted and is now gone.
+        if (prefs.getBoolean(LaunchpadPrefs.PREF_USAGE_WAS_GRANTED, false)) {
+            prefs.edit().putBoolean(LaunchpadPrefs.PREF_USAGE_WAS_GRANTED, false).apply()
+            TamperMonitor.triggerLockdown(
+                this,
+                LaunchpadConstants.AUDIT_USAGE_ACCESS_REVOKED,
+                "Nutzungszugriff wurde entzogen — Zeit kann nicht mehr gemessen werden"
+            )
         }
     }
 

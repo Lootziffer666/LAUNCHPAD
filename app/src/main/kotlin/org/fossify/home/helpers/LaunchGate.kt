@@ -49,6 +49,18 @@ class LaunchGate(
             return LaunchDecision(true, null, null)
         }
 
+        // Check 0: Protective lockdown after a tamper signal. Coin-gated apps are paused until
+        // a parent reviews; free/neutral apps stay available so the device isn't bricked.
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE &&
+            TamperMonitor.isLockdownActive(context)
+        ) {
+            return LaunchDecision(
+                false,
+                "Protective lockdown active (tamper detected)",
+                "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben."
+            )
+        }
+
         // Check 2: Cool-down phase
         if (timeBudget.inCooldown) {
             val minutesRemaining = timeBudget.minutesUntilCooldownExpires() ?: 0

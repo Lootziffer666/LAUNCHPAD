@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppTimeLimit
+import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
@@ -72,6 +73,32 @@ interface AppTimeLimitDao {
 
     @Query("DELETE FROM app_time_limits")
     suspend fun deleteAll()
+}
+
+// ─── AuditEvent DAO ───────────────────────────────────────────────────────────
+
+@Dao
+interface AuditEventDao {
+    @Query("SELECT * FROM audit_events ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 100): List<AuditEvent>
+
+    @Query("SELECT * FROM audit_events WHERE acknowledged = 0 ORDER BY createdAt DESC")
+    suspend fun getUnacknowledged(): List<AuditEvent>
+
+    @Query("SELECT COUNT(*) FROM audit_events WHERE acknowledged = 0 AND severity = 'CRITICAL'")
+    suspend fun countUnacknowledgedCritical(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(event: AuditEvent)
+
+    @Query("UPDATE audit_events SET acknowledged = 1 WHERE id = :id")
+    suspend fun acknowledge(id: String)
+
+    @Query("UPDATE audit_events SET acknowledged = 1")
+    suspend fun acknowledgeAll()
+
+    @Query("DELETE FROM audit_events WHERE createdAt < :before")
+    suspend fun deleteOlderThan(before: Long)
 }
 
 // ─── CryptoCash DAO ───────────────────────────────────────────────────────────

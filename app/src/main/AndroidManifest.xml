@@ -213,6 +213,12 @@
             android:exported="false"
             android:theme="@style/LauncherTheme" />
 
+        <!-- LAUNCHPAD: audit log / event timeline -->
+        <activity
+            android:name=".activities.AuditLogActivity"
+            android:exported="false"
+            android:theme="@style/LauncherTheme" />
+
         <activity-alias
             android:name=".activities.SplashActivity.Red"
             android:clearTaskOnLaunch="true"

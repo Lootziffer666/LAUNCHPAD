@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.LaunchpadServer
+import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
 import org.fossify.home.services.TimeTrackingService
 
@@ -110,6 +111,12 @@ class PermissionHealthActivity : AppCompatActivity() {
 
     private fun loadChecks() {
         listContainer.removeAllViews()
+
+        // Tamper banner — only when protective lockdown is active.
+        if (TamperMonitor.isLockdownActive(this)) {
+            listContainer.addView(tamperBanner())
+        }
+
         listContainer.addView(sectionLabel("KRITISCH"))
 
         // 1 — Usage Stats
@@ -217,6 +224,77 @@ class PermissionHealthActivity : AppCompatActivity() {
                 "Wird beim nächsten Launcher-Start automatisch gestartet.",
             status = if (serverRunning) Status.OK else Status.WARNING
         ))
+    }
+
+    private fun tamperBanner(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FDECEA"))
+                cornerRadius = 8f
+                setStroke(2, Color.parseColor("#D32F2F"))
+            }
+            setPadding(20, 18, 20, 18)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 8, 0, 8) }
+
+            addView(TextView(this@PermissionHealthActivity).apply {
+                text = "⚠️ Aufmerksamkeit nötig"
+                textSize = 17f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor("#D32F2F"))
+            })
+            addView(TextView(this@PermissionHealthActivity).apply {
+                text = "Ein wichtiger Zugriff wurde geändert. Freizeit-Apps sind pausiert, " +
+                    "bis du das geprüft hast. Freie Apps bleiben verfügbar."
+                textSize = 13f
+                setTextColor(Color.parseColor("#555555"))
+                setPadding(0, 8, 0, 0)
+            })
+
+            addView(Button(this@PermissionHealthActivity).apply {
+                text = "Ereignisse ansehen"
+                setTextColor(Color.parseColor("#0D2847"))
+                background = GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = 6f
+                    setStroke(1, Color.parseColor("#E0E0E0"))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 12 }
+                setOnClickListener {
+                    startActivity(Intent(this@PermissionHealthActivity, AuditLogActivity::class.java))
+                }
+            })
+            addView(Button(this@PermissionHealthActivity).apply {
+                text = "Schutzmodus aufheben"
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#D32F2F"))
+                    cornerRadius = 6f
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 8 }
+                setOnClickListener {
+                    androidx.appcompat.app.AlertDialog.Builder(this@PermissionHealthActivity)
+                        .setTitle("Schutzmodus aufheben?")
+                        .setMessage("Freizeit-Apps werden wieder freigegeben. " +
+                            "Stelle sicher, dass alle Berechtigungen wieder korrekt sind.")
+                        .setPositiveButton("Aufheben") { _, _ ->
+                            TamperMonitor.clearLockdown(this@PermissionHealthActivity)
+                            loadChecks()
+                        }
+                        .setNegativeButton("Abbrechen", null)
+                        .show()
+                }
+            })
+        }
     }
 
     // ─── Layout helpers ──────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
 import org.fossify.home.services.TimeTrackingService
 import java.text.SimpleDateFormat
@@ -56,6 +57,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var usageStatus: android.widget.TextView
     private lateinit var pairStatus: android.widget.TextView
     private lateinit var healthStatus: android.widget.TextView
+    private lateinit var auditStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -133,6 +135,7 @@ class ElternModusActivity : AppCompatActivity() {
         usageStatus = findViewById(R.id.em_usage_status)
         pairStatus = findViewById(R.id.em_pair_status)
         healthStatus = findViewById(R.id.em_health_status)
+        auditStatus = findViewById(R.id.em_audit_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -157,6 +160,9 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_hinweise to { showHinweiseDialog() },
             R.id.em_row_health to {
                 startActivity(Intent(this, PermissionHealthActivity::class.java))
+            },
+            R.id.em_row_audit to {
+                startActivity(Intent(this, AuditLogActivity::class.java))
             },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
@@ -195,6 +201,8 @@ class ElternModusActivity : AppCompatActivity() {
             val appCount = withContext(Dispatchers.IO) { db.allowedAppDao().getAllEnabledApps().size }
             val zusagenPending = withContext(Dispatchers.IO) { db.zusageDao().getZusagenByStatus("ACTIVE").size }
             val dogePending = withContext(Dispatchers.IO) { db.dogeRequestDao().getPending().size }
+            val openEvents = withContext(Dispatchers.IO) { db.auditEventDao().getUnacknowledged().size }
+            val lockdown = TamperMonitor.isLockdownActive(this@ElternModusActivity)
             val paired = PairingManager(this@ElternModusActivity).isPaired()
             val usageGranted = UsageTracker.hasUsageAccess(this@ElternModusActivity)
             val enforcement = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
@@ -234,6 +242,14 @@ class ElternModusActivity : AppCompatActivity() {
             healthStatus.text = if (issues.isEmpty()) "Alles OK ✓" else "⚠️ ${issues.joinToString(", ")}"
             healthStatus.setTextColor(
                 android.graphics.Color.parseColor(if (issues.isEmpty()) "#4CAF50" else "#F2994A")
+            )
+            auditStatus.text = when {
+                lockdown -> "🔒 Schutzmodus aktiv — Prüfung nötig"
+                openEvents > 0 -> "$openEvents neue Ereignisse"
+                else -> "Keine besonderen Ereignisse"
+            }
+            auditStatus.setTextColor(
+                android.graphics.Color.parseColor(if (lockdown) "#D32F2F" else "#828282")
             )
         }
     }
