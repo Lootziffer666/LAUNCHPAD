@@ -24,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.ChangeLogEntity
 import org.fossify.home.helpers.CategorySuggester
@@ -44,6 +45,8 @@ class AppsManagementActivity : AppCompatActivity() {
 
     // packageName → (label, category): category is null when not whitelisted
     private var allApps: List<Triple<String, String, String?>> = emptyList()
+    // packageName → dailyMinutes (0 = no limit)
+    private var appLimits: Map<String, Int> = emptyMap()
     private var filter = ""
 
     private var selectionMode = false
@@ -130,7 +133,8 @@ class AppsManagementActivity : AppCompatActivity() {
 
         val hint = TextView(this).apply {
             text = "Häkchen = Jake darf die App sehen.\n" +
-                "Tippe auf „Frei\" / „🪙 Coins\", um zu wählen, ob die App Doge-Coins kostet."
+                "Tippe auf „Frei\" / „🪙 Coins\", um zu wählen, ob die App Doge-Coins kostet.\n" +
+                "⏱ = Tageslimit pro App (nur für 🪙-Apps)."
             textSize = 12f
             setPadding(32, 8, 32, 16)
             setTextColor(android.graphics.Color.parseColor("#888888"))
@@ -334,9 +338,13 @@ class AppsManagementActivity : AppCompatActivity() {
             val pm = packageManager
             val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val resolved = pm.queryIntentActivities(intent, 0)
-            val allowedMap = withContext(Dispatchers.IO) {
-                db.allowedAppDao().getAll().associate { it.packageName to it.category }
+            val (allowedMap, limitsMap) = withContext(Dispatchers.IO) {
+                Pair(
+                    db.allowedAppDao().getAll().associate { it.packageName to it.category },
+                    db.appTimeLimitDao().getAll().associate { it.packageName to it.dailyMinutes }
+                )
             }
+            appLimits = limitsMap
 
             allApps = resolved
                 .map { ri ->
@@ -429,6 +437,24 @@ class AppsManagementActivity : AppCompatActivity() {
                     setOnClickListener { toggleCategory(pkg, category!!) }
                 }
                 row.addView(catBtn)
+
+                if (isLeisure) {
+                    val limitMins = appLimits[pkg] ?: 0
+                    val limitLabel = if (limitMins > 0) "⏱ ${limitMins}m" else "⏱ ∞"
+                    row.addView(Button(this).apply {
+                        text = limitLabel
+                        textSize = 12f
+                        isAllCaps = false
+                        setTextColor(android.graphics.Color.parseColor("#CCCCCC"))
+                        setBackgroundColor(android.graphics.Color.parseColor("#1A3A5C"))
+                        setPadding(16, 8, 16, 8)
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                        setOnClickListener { showTimeLimitDialog(pkg) }
+                    })
+                }
             }
             listHolder.addView(row)
         }
@@ -438,6 +464,33 @@ class AppsManagementActivity : AppCompatActivity() {
                 setPadding(32, 32, 32, 32)
             })
         }
+    }
+
+    private fun showTimeLimitDialog(pkg: String) {
+        val options = listOf(0, 15, 30, 45, 60, 90, 120)
+        val labels = options.map { if (it == 0) "Kein Tageslimit" else "$it Minuten" }.toTypedArray()
+        val current = appLimits[pkg] ?: 0
+        val checked = options.indexOf(current).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle("Tageslimit")
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                val chosen = options[which]
+                scope.launch(Dispatchers.IO) {
+                    if (chosen == 0) {
+                        db.appTimeLimitDao().delete(pkg)
+                    } else {
+                        db.appTimeLimitDao().upsert(AppTimeLimit(pkg, chosen))
+                    }
+                    appLimits = db.appTimeLimitDao().getAll()
+                        .associate { it.packageName to it.dailyMinutes }
+                    withContext(Dispatchers.Main) {
+                        renderList()
+                    }
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
     }
 
     private fun toggleApp(pkg: String, enable: Boolean, currentCategory: String?) {
