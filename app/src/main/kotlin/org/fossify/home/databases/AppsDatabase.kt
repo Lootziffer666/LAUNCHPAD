@@ -25,12 +25,14 @@ import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
 import org.fossify.home.databases.DogeRequest
+import org.fossify.home.databases.ChangeLogEntity
 import org.fossify.home.databases.ExploreAllowlistEntry
 import org.fossify.home.databases.ExploreBlocklistEntry
 import org.fossify.home.databases.ExploreSuggestion
 
 // LAUNCHPAD DAOs
 import org.fossify.home.interfaces.AllowedAppDao
+import org.fossify.home.interfaces.ChangeLogDao
 import org.fossify.home.interfaces.AppTimeLimitDao
 import org.fossify.home.interfaces.AuditEventDao
 import org.fossify.home.interfaces.CryptoCashDao
@@ -57,9 +59,11 @@ import org.fossify.home.interfaces.DogeRequestDao
         DogeRequest::class,
         // LAUNCHPAD M3 entities
         AppTimeLimit::class,
-        AuditEvent::class
+        AuditEvent::class,
+        // LAUNCHPAD M4 entities
+        ChangeLogEntity::class
     ],
-    version = 8
+    version = 9
 )
 @TypeConverters(Converters::class)
 @Suppress("TooManyFunctions") // one abstract accessor per DAO
@@ -79,6 +83,7 @@ abstract class AppsDatabase : RoomDatabase() {
     abstract fun exploreDao(): ExploreDao
     abstract fun zusageDao(): ZusageDao
     abstract fun dogeRequestDao(): DogeRequestDao
+    abstract fun changeLogDao(): ChangeLogDao
 
     companion object {
         private var db: AppsDatabase? = null
@@ -171,6 +176,18 @@ abstract class AppsDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `change_log` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`batchId` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, " +
+                        "`packageName` TEXT NOT NULL, `label` TEXT NOT NULL, " +
+                        "`prevCategory` TEXT, `newCategory` TEXT)"
+                )
+            }
+        }
+
         private fun seedExploreDefaults(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
 
@@ -219,7 +236,7 @@ abstract class AppsDatabase : RoomDatabase() {
                             AppsDatabase::class.java,
                             "apps.db"
                         )
-                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                             .addCallback(seedCallback)
                             .build()
                     }

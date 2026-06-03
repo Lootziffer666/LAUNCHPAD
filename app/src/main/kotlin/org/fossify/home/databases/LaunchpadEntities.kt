@@ -119,3 +119,16 @@ data class ExploreSuggestion(
     val status: String, // SUGGESTED, APPROVED, REJECTED
     val addedAt: Long = System.currentTimeMillis()
 )
+
+// Änderungsverlauf: one row per app per whitelist-management operation.
+// Multiple rows sharing the same batchId belong to the same logical change (e.g. a bulk action).
+@Entity(tableName = "change_log")
+data class ChangeLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val batchId: String,           // groups rows from the same operation
+    val timestamp: Long = System.currentTimeMillis(),
+    val packageName: String,
+    val label: String,             // human-readable app name captured at log time
+    val prevCategory: String?,     // null = app was not in the whitelist
+    val newCategory: String?       // null = app was removed from the whitelist
+)

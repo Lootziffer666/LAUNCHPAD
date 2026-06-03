@@ -25,9 +25,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.databases.ChangeLogEntity
 import org.fossify.home.helpers.CategorySuggester
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import java.util.UUID
 
 @Suppress("MagicNumber", "TooManyFunctions", "NestedBlockDepth") // UI built programmatically
 class AppsManagementActivity : AppCompatActivity() {
@@ -76,6 +78,22 @@ class AppsManagementActivity : AppCompatActivity() {
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
             setOnClickListener { toggleSelectionMode() }
         }
+        val verlaufBtn = Button(this).apply {
+            text = "Verlauf"
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#CCFFFFFF"))
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setOnClickListener { showChangeLog() }
+        }
+        toolbar.addView(
+            verlaufBtn,
+            androidx.appcompat.widget.Toolbar.LayoutParams(
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.END
+            )
+        )
         toolbar.addView(
             selectModeBtn,
             androidx.appcompat.widget.Toolbar.LayoutParams(
@@ -254,7 +272,18 @@ class AppsManagementActivity : AppCompatActivity() {
 
     private fun applyBulkCategory(category: String) {
         val pkgs = selectedPkgs.toList()
+        val snapshot = allApps
+        val batchId = UUID.randomUUID().toString()
         scope.launch(Dispatchers.IO) {
+            val entries = pkgs.mapNotNull { p ->
+                val cur = snapshot.find { it.first == p } ?: return@mapNotNull null
+                if (cur.third == null) return@mapNotNull null // not whitelisted — skip
+                ChangeLogEntity(
+                    batchId = batchId, packageName = p, label = cur.second,
+                    prevCategory = cur.third, newCategory = category
+                )
+            }
+            if (entries.isNotEmpty()) db.changeLogDao().insertAll(entries)
             for (pkg in pkgs) {
                 db.allowedAppDao().deleteApp(pkg)
                 db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = category))
@@ -266,14 +295,27 @@ class AppsManagementActivity : AppCompatActivity() {
                 selectedPkgs.clear()
                 updateBottomBarLabel()
                 renderList()
-                Toast.makeText(this@AppsManagementActivity, "${pkgs.size} App(s) aktualisiert", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@AppsManagementActivity, "${pkgs.size} App(s) aktualisiert", Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
     private fun applyBulkRemove() {
         val pkgs = selectedPkgs.toList()
+        val snapshot = allApps
+        val batchId = UUID.randomUUID().toString()
         scope.launch(Dispatchers.IO) {
+            val entries = pkgs.mapNotNull { p ->
+                val cur = snapshot.find { it.first == p } ?: return@mapNotNull null
+                if (cur.third == null) return@mapNotNull null // already not whitelisted
+                ChangeLogEntity(
+                    batchId = batchId, packageName = p, label = cur.second,
+                    prevCategory = cur.third, newCategory = null
+                )
+            }
+            if (entries.isNotEmpty()) db.changeLogDao().insertAll(entries)
             for (pkg in pkgs) db.allowedAppDao().deleteApp(pkg)
             allApps = allApps.map { (p, l, c) -> Triple(p, l, if (p in pkgs) null else c) }
             withContext(Dispatchers.Main) {
@@ -403,7 +445,18 @@ class AppsManagementActivity : AppCompatActivity() {
         val newCategory = if (enable) {
             currentCategory ?: suggested ?: LaunchpadConstants.CATEGORY_NEUTRAL
         } else null
+        val appLabel = allApps.find { it.first == pkg }?.second ?: pkg
+        val batchId = UUID.randomUUID().toString()
         scope.launch(Dispatchers.IO) {
+            db.changeLogDao().insertAll(listOf(
+                ChangeLogEntity(
+                    batchId = batchId,
+                    packageName = pkg,
+                    label = appLabel,
+                    prevCategory = currentCategory,
+                    newCategory = newCategory
+                )
+            ))
             if (enable) {
                 db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = newCategory!!))
             } else {
@@ -439,11 +492,108 @@ class AppsManagementActivity : AppCompatActivity() {
         } else {
             LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
         }
+        val appLabel = allApps.find { it.first == pkg }?.second ?: pkg
+        val batchId = UUID.randomUUID().toString()
         scope.launch(Dispatchers.IO) {
+            db.changeLogDao().insertAll(listOf(
+                ChangeLogEntity(
+                    batchId = batchId,
+                    packageName = pkg,
+                    label = appLabel,
+                    prevCategory = currentCategory,
+                    newCategory = newCategory
+                )
+            ))
             db.allowedAppDao().deleteApp(pkg)
             db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = newCategory))
             allApps = allApps.map { (p, l, c) -> Triple(p, l, if (p == pkg) newCategory else c) }
             withContext(Dispatchers.Main) { renderList() }
+        }
+    }
+
+    // ─── Verlauf / Undo ─────────────────────────────────────────────────────────
+
+    private fun showChangeLog() {
+        scope.launch {
+            val batchIds = withContext(Dispatchers.IO) { db.changeLogDao().getRecentBatchIds(5) }
+            if (batchIds.isEmpty()) {
+                AlertDialog.Builder(this@AppsManagementActivity)
+                    .setTitle("Verlauf")
+                    .setMessage("Keine Änderungen aufgezeichnet.")
+                    .setPositiveButton("OK", null)
+                    .show()
+                return@launch
+            }
+
+            val batches = withContext(Dispatchers.IO) {
+                batchIds.map { id -> id to db.changeLogDao().getByBatch(id) }
+            }
+
+            val message = batches.joinToString("\n\n") { (_, entries) ->
+                val time = formatLogAge(entries.first().timestamp)
+                "$time: ${batchSummary(entries)}"
+            }
+
+            AlertDialog.Builder(this@AppsManagementActivity)
+                .setTitle("Letzte Änderungen")
+                .setMessage(message)
+                .setPositiveButton("Rückgängig (letzte)") { _, _ -> undoBatch(batches.first().first) }
+                .setNegativeButton("Schließen", null)
+                .show()
+        }
+    }
+
+    private fun undoBatch(batchId: String) {
+        scope.launch(Dispatchers.IO) {
+            val entries = db.changeLogDao().getByBatch(batchId)
+            for (entry in entries) {
+                if (entry.prevCategory == null) {
+                    db.allowedAppDao().deleteApp(entry.packageName)
+                } else {
+                    db.allowedAppDao().deleteApp(entry.packageName)
+                    db.allowedAppDao().insertApp(
+                        AllowedApp(packageName = entry.packageName, category = entry.prevCategory)
+                    )
+                }
+                allApps = allApps.map { (p, l, c) ->
+                    Triple(p, l, if (p == entry.packageName) entry.prevCategory else c)
+                }
+            }
+            db.changeLogDao().deleteByBatch(batchId)
+            withContext(Dispatchers.Main) {
+                renderList()
+                Toast.makeText(this@AppsManagementActivity, "Rückgängig gemacht", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun batchSummary(entries: List<ChangeLogEntity>): String {
+        if (entries.size == 1) {
+            val e = entries.first()
+            val from = categoryLabel(e.prevCategory ?: "")
+            val to = categoryLabel(e.newCategory ?: "")
+            return when {
+                e.prevCategory == null -> "${e.label} hinzugefügt ($to)"
+                e.newCategory == null -> "${e.label} entfernt (war: $from)"
+                else -> "${e.label}: $from → $to"
+            }
+        }
+        val op = when {
+            entries.all { it.newCategory == null } -> "entfernt"
+            entries.all { it.newCategory == entries.first().newCategory } ->
+                "→ ${categoryLabel(entries.first().newCategory ?: "")}"
+            else -> "geändert"
+        }
+        return "${entries.size} Apps $op"
+    }
+
+    private fun formatLogAge(timestamp: Long): String {
+        val mins = ((System.currentTimeMillis() - timestamp) / 60_000).toInt()
+        return when {
+            mins < 1 -> "gerade eben"
+            mins < 60 -> "vor $mins Min"
+            mins < 24 * 60 -> "vor ${mins / 60} Std"
+            else -> "vor ${mins / 1440} Tag(en)"
         }
     }
 
