@@ -149,6 +149,10 @@ object LaunchpadPrefs {
     const val PREF_HEARTBEAT_WALL = "heartbeat_wall"
     const val PREF_HEARTBEAT_ELAPSED = "heartbeat_elapsed"
 
+    // PIN rate limiting: consecutive wrong attempts and the epoch-ms lockout end time.
+    const val PREF_PIN_FAIL_COUNT = "pin_fail_count"
+    const val PREF_PIN_LOCKED_UNTIL = "pin_locked_until"
+
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64
     const val PREF_PAIR_PUBLIC_KEY = "pair_public_key" // X509 Base64

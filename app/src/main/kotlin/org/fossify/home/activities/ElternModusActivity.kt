@@ -91,6 +91,13 @@ class ElternModusActivity : AppCompatActivity() {
     }
 
     private fun requestPin() {
+        // Pre-check: if still locked out, don't even show the input dialog.
+        if (pinGate.isLockedOut()) {
+            val secs = pinGate.lockoutSecondsRemaining()
+            toast("Zu viele Fehlversuche. Bitte warte ${secs}s.")
+            finish()
+            return
+        }
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             hint = "Eltern-PIN"
@@ -100,13 +107,24 @@ class ElternModusActivity : AppCompatActivity() {
             .setMessage("PIN eingeben:")
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
-                if (pinGate.verifyPin(input.text.toString())) {
-                    pinGate.activateParentMode(30)
-                    initUi()
-                    refresh()
-                } else {
-                    toast("Falscher PIN")
-                    finish()
+                when (val result = pinGate.verifyPin(input.text.toString())) {
+                    is PinGateHelper.VerifyResult.Success -> {
+                        pinGate.activateParentMode(30)
+                        initUi()
+                        refresh()
+                    }
+                    is PinGateHelper.VerifyResult.Wrong -> {
+                        if (result.newLockoutSeconds > 0) {
+                            toast("Zu viele Fehlversuche. Bitte warte ${result.newLockoutSeconds}s.")
+                        } else {
+                            toast("Falscher PIN (Versuch ${result.failCount})")
+                        }
+                        finish()
+                    }
+                    is PinGateHelper.VerifyResult.LockedOut -> {
+                        toast("Zu viele Fehlversuche. Bitte warte ${result.secondsRemaining}s.")
+                        finish()
+                    }
                 }
             }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
