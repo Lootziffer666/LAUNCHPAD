@@ -1,8 +1,9 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/AppsManagementActivity.kt
-// LAUNCHPAD: Whitelist app management — searchable list with checkboxes.
+// LAUNCHPAD: Whitelist app management — searchable list with checkboxes + bulk actions.
 
 package org.fossify.home.activities
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -14,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,17 +36,22 @@ class AppsManagementActivity : AppCompatActivity() {
     private lateinit var db: AppsDatabase
     private lateinit var listHolder: LinearLayout
     private lateinit var searchBox: EditText
+    private lateinit var bottomBar: LinearLayout
+    private lateinit var bottomBarLabel: TextView
+    private lateinit var selectModeBtn: Button
 
     // packageName → (label, category): category is null when not whitelisted
     private var allApps: List<Triple<String, String, String?>> = emptyList()
     private var filter = ""
+
+    private var selectionMode = false
+    private val selectedPkgs = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         db = AppsDatabase.getInstance(this)
 
-        // Build layout programmatically — avoids any layout-id conflict risk
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = FrameLayout.LayoutParams(
@@ -61,6 +68,22 @@ class AppsManagementActivity : AppCompatActivity() {
             setNavigationOnClickListener { finish() }
             navigationIcon?.setTint(android.graphics.Color.WHITE)
         }
+        selectModeBtn = Button(this).apply {
+            text = "Auswählen"
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setOnClickListener { toggleSelectionMode() }
+        }
+        toolbar.addView(
+            selectModeBtn,
+            androidx.appcompat.widget.Toolbar.LayoutParams(
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.END
+            )
+        )
         root.addView(
             toolbar,
             LinearLayout.LayoutParams(
@@ -115,6 +138,15 @@ class AppsManagementActivity : AppCompatActivity() {
         scroll.addView(listHolder)
         root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
+        bottomBar = buildBottomBar()
+        root.addView(
+            bottomBar,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
         setContentView(root)
         setSupportActionBar(toolbar)
 
@@ -125,6 +157,135 @@ class AppsManagementActivity : AppCompatActivity() {
         super.onDestroy()
         scope.cancel()
     }
+
+    // ─── Selection mode ─────────────────────────────────────────────────────────
+
+    private fun toggleSelectionMode() {
+        selectionMode = !selectionMode
+        if (!selectionMode) selectedPkgs.clear()
+        selectModeBtn.text = if (selectionMode) "Fertig" else "Auswählen"
+        bottomBar.visibility = if (selectionMode) android.view.View.VISIBLE else android.view.View.GONE
+        renderList()
+    }
+
+    private fun toggleRowSelection(pkg: String) {
+        if (selectedPkgs.contains(pkg)) selectedPkgs.remove(pkg) else selectedPkgs.add(pkg)
+        updateBottomBarLabel()
+        renderList()
+    }
+
+    private fun updateBottomBarLabel() {
+        bottomBarLabel.text = "${selectedPkgs.size} ausgewählt"
+    }
+
+    private fun buildBottomBar(): LinearLayout {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
+            visibility = android.view.View.GONE
+        }
+        bottomBarLabel = TextView(this).apply {
+            text = "0 ausgewählt"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#CCFFFFFF"))
+            setPadding(32, 16, 32, 4)
+        }
+        bar.addView(bottomBarLabel)
+        val btnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(24, 4, 24, 16)
+        }
+        btnRow.addView(bulkActionButton("🪙 Coins") {
+            if (selectedPkgs.isEmpty()) {
+                Toast.makeText(this, "Keine Apps ausgewählt", Toast.LENGTH_SHORT).show()
+            } else {
+                confirmBulkCategory(LaunchpadConstants.CATEGORY_ACTIVE_LEISURE)
+            }
+        })
+        btnRow.addView(bulkActionButton("Frei") {
+            if (selectedPkgs.isEmpty()) {
+                Toast.makeText(this, "Keine Apps ausgewählt", Toast.LENGTH_SHORT).show()
+            } else {
+                confirmBulkCategory(LaunchpadConstants.CATEGORY_NEUTRAL)
+            }
+        })
+        btnRow.addView(bulkActionButton("Entfernen") {
+            if (selectedPkgs.isEmpty()) {
+                Toast.makeText(this, "Keine Apps ausgewählt", Toast.LENGTH_SHORT).show()
+            } else {
+                confirmBulkRemove()
+            }
+        })
+        bar.addView(btnRow)
+        return bar
+    }
+
+    private fun bulkActionButton(label: String, onClick: () -> Unit) = Button(this).apply {
+        text = label
+        isAllCaps = false
+        textSize = 13f
+        setTextColor(android.graphics.Color.WHITE)
+        setBackgroundColor(android.graphics.Color.parseColor("#1A4A7A"))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 0, 12, 0) }
+        setOnClickListener { onClick() }
+    }
+
+    private fun confirmBulkCategory(category: String) {
+        val label = categoryLabel(category)
+        AlertDialog.Builder(this)
+            .setTitle("Kategorie setzen")
+            .setMessage("${selectedPkgs.size} App(s) auf „$label" setzen?")
+            .setPositiveButton("Setzen") { _, _ -> applyBulkCategory(category) }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun confirmBulkRemove() {
+        AlertDialog.Builder(this)
+            .setTitle("Apps entfernen")
+            .setMessage("${selectedPkgs.size} App(s) aus Jakes Liste entfernen?")
+            .setPositiveButton("Entfernen") { _, _ -> applyBulkRemove() }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun applyBulkCategory(category: String) {
+        val pkgs = selectedPkgs.toList()
+        scope.launch(Dispatchers.IO) {
+            for (pkg in pkgs) {
+                db.allowedAppDao().deleteApp(pkg)
+                db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = category))
+            }
+            allApps = allApps.map { (p, l, c) ->
+                Triple(p, l, if (p in pkgs && c != null) category else c)
+            }
+            withContext(Dispatchers.Main) {
+                selectedPkgs.clear()
+                updateBottomBarLabel()
+                renderList()
+                Toast.makeText(this@AppsManagementActivity, "${pkgs.size} App(s) aktualisiert", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun applyBulkRemove() {
+        val pkgs = selectedPkgs.toList()
+        scope.launch(Dispatchers.IO) {
+            for (pkg in pkgs) db.allowedAppDao().deleteApp(pkg)
+            allApps = allApps.map { (p, l, c) -> Triple(p, l, if (p in pkgs) null else c) }
+            withContext(Dispatchers.Main) {
+                selectedPkgs.clear()
+                updateBottomBarLabel()
+                renderList()
+                Toast.makeText(this@AppsManagementActivity, "${pkgs.size} App(s) entfernt", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // ─── List rendering ──────────────────────────────────────────────────────────
 
     private fun loadApps() {
         scope.launch {
@@ -161,21 +322,50 @@ class AppsManagementActivity : AppCompatActivity() {
         }
         for ((pkg, label, category) in filtered) {
             val enabled = category != null
+            val isSelected = selectedPkgs.contains(pkg)
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 setPadding(32, 0, 32, 0)
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 88.dp)
+                if (selectionMode) {
+                    setBackgroundColor(
+                        if (isSelected) android.graphics.Color.parseColor("#1A4A7A")
+                        else android.graphics.Color.TRANSPARENT
+                    )
+                    setOnClickListener { toggleRowSelection(pkg) }
+                }
             }
+
+            if (selectionMode) {
+                val selCb = CheckBox(this).apply {
+                    isChecked = isSelected
+                    isClickable = false
+                    isFocusable = false
+                    setPadding(0, 0, 16, 0)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                row.addView(selCb)
+            }
+
             val cb = CheckBox(this).apply {
                 text = label
                 isChecked = enabled
                 setPadding(8, 0, 8, 0)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setOnCheckedChangeListener { _, checked -> toggleApp(pkg, checked, category) }
+                if (selectionMode) {
+                    isClickable = false
+                    isFocusable = false
+                } else {
+                    setOnCheckedChangeListener { _, checked -> toggleApp(pkg, checked, category) }
+                }
             }
             row.addView(cb)
-            if (enabled) {
+
+            if (enabled && !selectionMode) {
                 val isLeisure = category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
                 val catBtn = Button(this).apply {
                     text = if (isLeisure) "🪙 Coins" else "Frei"
@@ -184,9 +374,9 @@ class AppsManagementActivity : AppCompatActivity() {
                     setTextColor(android.graphics.Color.WHITE)
                     setBackgroundColor(
                         if (isLeisure) {
-                            android.graphics.Color.parseColor("#E8A317") // gold = needs coins
+                            android.graphics.Color.parseColor("#E8A317")
                         } else {
-                            android.graphics.Color.parseColor("#4CAF50") // green = free
+                            android.graphics.Color.parseColor("#4CAF50")
                         }
                     )
                     setPadding(24, 8, 24, 8)
@@ -223,10 +413,10 @@ class AppsManagementActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 if (suggested != null) {
                     val label = categoryLabel(suggested)
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         this@AppsManagementActivity,
                         "Kategorie-Vorschlag: $label",
-                        android.widget.Toast.LENGTH_SHORT
+                        Toast.LENGTH_SHORT
                     ).show()
                 }
                 renderList()
