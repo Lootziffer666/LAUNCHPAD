@@ -1,4 +1,8 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/PairingActivity.kt
+// M4: launcher-side pairing screen. Renders the pairing QR (parent app scans it), accepts the
+// returned RSA-encrypted session key, and applies commands (encrypted via the session key, or
+// plaintext for testing) through CommandProcessor. UI is built programmatically.
+
 package org.fossify.home.activities
 
 import android.graphics.Bitmap
@@ -22,13 +26,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.fossify.home.BuildConfig
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.CommandProcessor
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.TestModeManager
 
-@Suppress("MagicNumber", "TooManyFunctions")
+@Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 class PairingActivity : AppCompatActivity() {
     private lateinit var database: AppsDatabase
     private lateinit var pairing: PairingManager
@@ -50,6 +53,7 @@ class PairingActivity : AppCompatActivity() {
 
         content.addView(heading("Kopplung mit Eltern-Gerät"))
 
+        // Show local IP so parent can enter it in the companion app
         val localIp = org.fossify.home.helpers.LaunchpadServer.getLocalIp(this)
         if (localIp != null) {
             content.addView(TextView(this).apply {
@@ -74,12 +78,10 @@ class PairingActivity : AppCompatActivity() {
             toast("Kopplung zurückgesetzt")
         })
 
-        if (BuildConfig.DEBUG) {
-            content.addView(button("🧪 Test-Modus (gleiches Gerät)") {
-                activateTestMode()
-            })
-        }
+        // LAUNCHPAD M4: Test Mode — same-device testing via local HTTP (no permissions needed)
+        content.addView(button("🧪 Test-Modus (gleiches Gerät)") { activateTestMode() })
 
+        // Step 2: receive the parent's encrypted session key.
         content.addView(heading("Sitzungsschlüssel (vom Eltern-Gerät)", 16f))
         val sessionInput = editText("Base64 des verschlüsselten Schlüssels")
         content.addView(sessionInput)
@@ -89,6 +91,7 @@ class PairingActivity : AppCompatActivity() {
             refreshStatus()
         })
 
+        // Step 3: apply commands.
         content.addView(heading("Befehl anwenden", 16f))
         val commandInput = editText("Verschlüsselter Befehl (Base64) oder Klartext-JSON").apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -110,11 +113,18 @@ class PairingActivity : AppCompatActivity() {
         showQr(reset = false)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The Companion may have completed test-mode pairing while we were backgrounded.
+        if (::statusView.isInitialized) refreshStatus()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
     }
 
+    @Suppress("TooGenericExceptionCaught") // broad catch: intentional fail-safe on QR render
     private fun showQr(reset: Boolean) {
         val payload = pairing.getOrCreateQrPayload(reset)
         try {
@@ -148,14 +158,23 @@ class PairingActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Test Mode: publish the QR payload via the local LaunchpadServer (port 7391). The Companion
+     * fetches it over 127.0.0.1, encrypts a session key with our public key, and POSTs it back —
+     * at which point the server completes the pairing directly (see LaunchpadServer /api/test-pair).
+     * When the user returns to this screen, onResume() refreshes the status to "gekoppelt".
+     */
     private fun activateTestMode() {
         scope.launch {
             val payload = pairing.getOrCreateQrPayload(reset = false)
             val success = withContext(Dispatchers.IO) {
-                TestModeManager.writeTestQrPayload(this@PairingActivity, payload)
+                TestModeManager.writeTestQrPayload(payload)
             }
             if (success) {
-                toast("🧪 Test-Modus aktiviert\nCompanion: \"Test auf diesem Gerät\" drücken")
+                toast(
+                    "🧪 Test-Modus aktiviert\n" +
+                        "Companion öffnen → \"Test auf diesem Gerät\" drücken"
+                )
                 refreshStatus()
             } else {
                 toast("Test-Modus Aktivierung fehlgeschlagen")
