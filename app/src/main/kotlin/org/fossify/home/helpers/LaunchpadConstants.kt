@@ -79,6 +79,7 @@ object LaunchpadConstants {
     const val AUDIT_SERVICE_GAP = "SERVICE_GAP"
     const val AUDIT_LOCKDOWN_TRIGGERED = "LOCKDOWN_TRIGGERED"
     const val AUDIT_LOCKDOWN_CLEARED = "LOCKDOWN_CLEARED"
+    const val AUDIT_EXCEPTION_GRANTED = "EXCEPTION_GRANTED"
 
     // Audit severities
     const val SEVERITY_INFO = "INFO"

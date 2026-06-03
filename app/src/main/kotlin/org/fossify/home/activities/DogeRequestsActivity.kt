@@ -33,7 +33,7 @@ import org.fossify.home.models.DogeRequest
  * Parent: reviews pending requests, approves with a duration (pre-filled by a content
  * heuristic) or rejects.
  */
-@Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
+@Suppress("MagicNumber", "TooManyFunctions", "CyclomaticComplexMethod") // UI built programmatically
 class DogeRequestsActivity : AppCompatActivity() {
     private lateinit var database: AppsDatabase
     private val manager = DogeManager()
@@ -99,28 +99,76 @@ class DogeRequestsActivity : AppCompatActivity() {
     }
 
     private fun renderPendingRow(r: DogeRequest): LinearLayout {
+        val age = formatAge(r.requestedAt)
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 12, 0, 12)
+            setPadding(0, 12, 0, 16)
         }
         row.addView(TextView(this).apply {
             text = r.contentDescription
             textSize = 15f
+            setTypeface(null, android.graphics.Typeface.BOLD)
         })
-        val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        buttons.addView(Button(this).apply {
-            text = "Genehmigen"
-            setOnClickListener { promptApprove(r) }
+        row.addView(TextView(this).apply {
+            text = "Angefragt $age"
+            textSize = 12f
+            setTextColor(android.graphics.Color.parseColor("#888888"))
+            setPadding(0, 2, 0, 8)
         })
-        buttons.addView(Button(this).apply {
-            text = "Ablehnen"
-            setOnClickListener { decide(r, approve = false, durationMinutes = 0) }
+        // Quick-approve chips
+        val chips = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, 4)
+        }
+        listOf(30, 60, 90).forEach { mins ->
+            chips.addView(Button(this).apply {
+                text = "+$mins Min"
+                isAllCaps = false
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(0, 0, 8, 0) }
+                setOnClickListener { decide(r, approve = true, durationMinutes = mins) }
+            })
+        }
+        chips.addView(Button(this).apply {
+            text = "⚙"
+            isAllCaps = false
+            textSize = 14f
+            setOnClickListener { promptCustomDuration(r) }
         })
-        row.addView(buttons)
+        row.addView(chips)
+        // Reject options
+        val rejectRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        rejectRow.addView(Button(this).apply {
+            text = "Nicht jetzt"
+            isAllCaps = false
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 0, 8, 0) }
+            setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Nicht jetzt") }
+        })
+        rejectRow.addView(Button(this).apply {
+            text = "Heute nicht"
+            isAllCaps = false
+            textSize = 12f
+            setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Heute nicht") }
+        })
+        row.addView(rejectRow)
+        // Divider
+        row.addView(android.view.View(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#EEEEEE"))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1
+            ).apply { setMargins(0, 8, 0, 0) }
+        })
         return row
     }
 
-    private fun promptApprove(r: DogeRequest) {
+    private fun promptCustomDuration(r: DogeRequest) {
         val suggested = manager.suggestApprovalDuration(r.contentDescription)
         val durationInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
@@ -142,18 +190,34 @@ class DogeRequestsActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun decide(r: DogeRequest, approve: Boolean, durationMinutes: Int) {
+    private fun formatAge(requestedAt: Long): String {
+        val ageMs = System.currentTimeMillis() - requestedAt
+        val mins = (ageMs / 60_000).toInt()
+        return when {
+            mins < 1 -> "gerade eben"
+            mins < 60 -> "vor $mins Min"
+            mins < 24 * 60 -> "vor ${mins / 60} Std"
+            else -> "vor ${mins / 1440} Tag(en)"
+        }
+    }
+
+    private fun decide(
+        r: DogeRequest,
+        approve: Boolean,
+        durationMinutes: Int,
+        reason: String = "Nicht jetzt"
+    ) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     val updated = if (approve) {
                         manager.approveRequest(r, "Eltern", durationMinutes)
                     } else {
-                        manager.rejectRequest(r, "Eltern", "Nicht jetzt")
+                        manager.rejectRequest(r, "Eltern", reason)
                     }
                     database.dogeRequestDao().updateRequest(updated.toEntity())
                 }
-                toast(if (approve) "Genehmigt: $durationMinutes Min" else "Abgelehnt")
+                toast(if (approve) "Genehmigt: $durationMinutes Min" else "Abgelehnt — $reason")
             } catch (e: IllegalStateException) {
                 toast("Nicht möglich: ${e.message}")
             }
@@ -167,11 +231,18 @@ class DogeRequestsActivity : AppCompatActivity() {
         content.removeAllViews()
         content.addView(label("Was möchtest du sehen?", size = 20f, topPad = 0))
 
+        val prefillText = prefillPkg?.let { pkg ->
+            try {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                android.util.Log.w("DogeRequests", "Package not found for prefill: $pkg", e)
+                pkg
+            }
+        }
         val input = EditText(this).apply {
             hint = "z.B. 'YouTube – Minecraft Tutorials'"
             inputType = InputType.TYPE_CLASS_TEXT
-            // Pre-fill if launched from a denied launch
-            prefillPkg?.let { pkg -> setText(pkg) }
+            prefillText?.let { setText(it) }
         }
         content.addView(input)
         content.addView(Button(this).apply {

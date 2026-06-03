@@ -6,9 +6,12 @@ package org.fossify.home.activities
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -276,36 +279,61 @@ class ElternModusActivity : AppCompatActivity() {
 
     private fun showAddTimeDialog() {
         val mins = EditText(this).apply {
-            hint = "Minuten (z.B. 30)"
+            hint = "Eigene Minutenzahl"
             inputType = InputType.TYPE_CLASS_NUMBER
         }
         val reason = EditText(this).apply {
-            hint = "Grund (z.B. Hausaufgaben)"
+            hint = "Grund (optional)"
             inputType = InputType.TYPE_CLASS_TEXT
+        }
+        val presets = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, 8)
+        }
+        listOf(15, 30, 60).forEach { preset ->
+            presets.addView(Button(this).apply {
+                text = "+$preset"
+                isAllCaps = false
+                textSize = 13f
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#0D2847"))
+                    cornerRadius = 8f
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { setMargins(0, 0, 8, 0) }
+                setOnClickListener { mins.setText(preset.toString()) }
+            })
         }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 16, 48, 0)
-            addView(mins); addView(reason)
+            addView(presets); addView(mins); addView(reason)
         }
         AlertDialog.Builder(this)
-            .setTitle("Zeit hinzufügen")
+            .setTitle("Heute Ausnahme")
             .setView(box)
             .setPositiveButton("Hinzufügen") { _, _ ->
                 val m = mins.text.toString().toIntOrNull()
                 if (m == null || m <= 0) { toast("Ungültige Minutenzahl"); return@setPositiveButton }
-                val r = reason.text.toString().ifBlank { "Manuelle Anpassung" }
+                val r = reason.text.toString().ifBlank { "Heute Ausnahme" }
                 scope.launch {
                     withContext(Dispatchers.IO) {
                         val cur = db.cryptoCashDao().getCurrentBalance()
                         db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
-                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_EARN,
-                            actor = "parent", reasonType = "manual", reasonText = r,
-                            childVisibleText = "$r +$m Min", source = "parent_app",
+                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
+                            actor = "parent", reasonType = "today_exception", reasonText = r,
+                            childVisibleText = "+$m Min (${r})", source = "parent_app",
                             balanceAfter = cur + m
                         ))
+                        TamperMonitor.recordSuspend(
+                            this@ElternModusActivity,
+                            LaunchpadConstants.AUDIT_EXCEPTION_GRANTED,
+                            LaunchpadConstants.SEVERITY_INFO,
+                            "Heute Ausnahme: +$m Min — $r"
+                        )
                     }
-                    toast("+$m Minuten hinzugefügt")
+                    toast("+$m Minuten für heute")
                     refresh()
                     LaunchpadWidgetProvider.requestUpdate(this@ElternModusActivity)
                 }

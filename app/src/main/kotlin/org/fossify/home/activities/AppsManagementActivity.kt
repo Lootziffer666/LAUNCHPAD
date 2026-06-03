@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.helpers.CategorySuggester
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 
@@ -208,7 +209,10 @@ class AppsManagementActivity : AppCompatActivity() {
     }
 
     private fun toggleApp(pkg: String, enable: Boolean, currentCategory: String?) {
-        val newCategory = if (enable) (currentCategory ?: LaunchpadConstants.CATEGORY_NEUTRAL) else null
+        val suggested = if (enable && currentCategory == null) CategorySuggester.suggest(pkg) else null
+        val newCategory = if (enable) {
+            currentCategory ?: suggested ?: LaunchpadConstants.CATEGORY_NEUTRAL
+        } else null
         scope.launch(Dispatchers.IO) {
             if (enable) {
                 db.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = newCategory!!))
@@ -216,8 +220,27 @@ class AppsManagementActivity : AppCompatActivity() {
                 db.allowedAppDao().deleteApp(pkg)
             }
             allApps = allApps.map { (p, l, c) -> Triple(p, l, if (p == pkg) newCategory else c) }
-            withContext(Dispatchers.Main) { renderList() }
+            withContext(Dispatchers.Main) {
+                if (suggested != null) {
+                    val label = categoryLabel(suggested)
+                    android.widget.Toast.makeText(
+                        this@AppsManagementActivity,
+                        "Kategorie-Vorschlag: $label",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+                renderList()
+            }
         }
+    }
+
+    private fun categoryLabel(category: String): String = when (category) {
+        LaunchpadConstants.CATEGORY_ACTIVE_LEISURE -> "🪙 Coins (Aktive Freizeit)"
+        LaunchpadConstants.CATEGORY_CREATIVE -> "🎨 Kreativ"
+        LaunchpadConstants.CATEGORY_LEARNING -> "📚 Lernen"
+        LaunchpadConstants.CATEGORY_COMMUNICATION -> "💬 Kommunikation"
+        LaunchpadConstants.CATEGORY_COOLDOWN -> "😌 Erholung"
+        else -> "Neutral"
     }
 
     private fun toggleCategory(pkg: String, currentCategory: String) {
