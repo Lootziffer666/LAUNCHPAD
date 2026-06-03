@@ -39,7 +39,10 @@ class LaunchGate(
     ): LaunchDecision {
         // Check 1: Whitelist
         if (!database.allowedAppDao().isAppAllowed(packageName)) {
-            return LaunchDecision(false, "App not in whitelist", "Diese App ist nicht erlaubt.")
+            return LaunchDecision(
+                false, LaunchpadConstants.REASON_NOT_ALLOWED,
+                "Diese App ist nicht erlaubt."
+            )
         }
 
         val category = database.allowedAppDao().getAppCategory(packageName)
@@ -58,7 +61,7 @@ class LaunchGate(
         ) {
             return LaunchDecision(
                 false,
-                "Protective lockdown active (tamper detected)",
+                LaunchpadConstants.REASON_LOCKDOWN,
                 "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben.",
                 category
             )
@@ -69,7 +72,7 @@ class LaunchGate(
             val minutesRemaining = timeBudget.minutesUntilCooldownExpires() ?: 0
             return LaunchDecision(
                 false,
-                "In cool-down phase ($minutesRemaining min remaining)",
+                LaunchpadConstants.REASON_COOLDOWN,
                 "Bildschirmpause! Noch $minutesRemaining Minuten. Audiobook, Zeichnen oder LEGO?",
                 category
             )
@@ -79,7 +82,7 @@ class LaunchGate(
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes <= 0) {
             return LaunchDecision(
                 false,
-                "Time budget exhausted",
+                LaunchpadConstants.REASON_NO_BUDGET,
                 "Keine Zeit mehr. Erst wieder Zeit verdienen!",
                 category
             )
@@ -89,7 +92,7 @@ class LaunchGate(
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes < 5) {
             return LaunchDecision(
                 false,
-                "Insufficient time for high-stimulation app (minimum 5 min)",
+                LaunchpadConstants.REASON_MIN_THRESHOLD,
                 "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?",
                 category
             )

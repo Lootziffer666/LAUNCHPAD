@@ -64,6 +64,13 @@ object LaunchpadConstants {
     const val DOGE_REJECTED = "REJECTED"
     const val DOGE_EXPIRED = "EXPIRED"
 
+    // Block reason codes — used in LaunchDecision.reason and AppBlockedActivity.
+    const val REASON_NOT_ALLOWED = "not_allowed"
+    const val REASON_COOLDOWN = "cooldown"
+    const val REASON_NO_BUDGET = "no_budget"
+    const val REASON_MIN_THRESHOLD = "min_threshold"
+    const val REASON_LOCKDOWN = "lockdown"
+
     // Audit / tamper event types
     const val AUDIT_TIME_CHANGED = "TIME_CHANGED"
     const val AUDIT_TIMEZONE_CHANGED = "TIMEZONE_CHANGED"

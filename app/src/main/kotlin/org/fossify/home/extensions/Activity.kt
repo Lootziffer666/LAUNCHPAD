@@ -1,7 +1,6 @@
 package org.fossify.home.extensions
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -31,6 +30,7 @@ import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.isQPlus
 import org.fossify.commons.helpers.isSPlus
 import org.fossify.home.R
+import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.SettingsActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.ITEM_TYPE_FOLDER
@@ -39,7 +39,6 @@ import org.fossify.home.helpers.ITEM_TYPE_WIDGET
 import org.fossify.home.helpers.LaunchGate
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.TimeBudgetManager
-import org.fossify.home.models.TimeBudget
 import org.fossify.home.helpers.UNINSTALL_APP_REQUEST_CODE
 import org.fossify.home.interfaces.ItemMenuListener
 import org.fossify.home.models.HomeScreenGridItem
@@ -55,7 +54,15 @@ fun Activity.launchApp(packageName: String, activityName: String) {
             val budget = runBlocking { TimeBudgetManager(this@launchApp, db).getCurrentBudget() }
             val decision = runBlocking { LaunchGate(this@launchApp, db).canLaunch(packageName, budget) }
             if (!decision.allowed) {
-                showDenialDialog(this@launchApp, packageName, decision.childVisibleMessage, budget)
+                startActivity(
+                    Intent(this@launchApp, AppBlockedActivity::class.java)
+                        .putExtra(AppBlockedActivity.EXTRA_PACKAGE, packageName)
+                        .putExtra(AppBlockedActivity.EXTRA_REASON, decision.reason)
+                        .putExtra(AppBlockedActivity.EXTRA_MESSAGE, decision.childVisibleMessage)
+                        .putExtra(AppBlockedActivity.EXTRA_BALANCE_MINUTES, budget.balanceMinutes)
+                        .putExtra(AppBlockedActivity.EXTRA_COOLDOWN_UNTIL, budget.cooldownExpiresAt ?: 0L)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
                 return
             }
             // Impulsbremse: calming countdown before a rapid re-open of a high-stimulation app.
@@ -125,29 +132,6 @@ fun Activity.launchAppDirect(packageName: String, activityName: String) {
     }
 }
 
-private fun showDenialDialog(
-    activity: android.app.Activity,
-    packageName: String,
-    message: String?,
-    @Suppress("UnusedParameter") budget: org.fossify.home.models.TimeBudget
-) {
-    val displayMessage = message ?: "Diese App ist gerade nicht verfügbar."
-
-    AlertDialog.Builder(activity)
-        .setTitle("Nicht verfügbar")
-        .setMessage(displayMessage)
-        .setPositiveButton("OK", null)
-        .setNeutralButton("Anfragen") { _, _ ->
-            val intent = android.content.Intent(
-                activity,
-                org.fossify.home.activities.DogeRequestsActivity::class.java
-            )
-                .putExtra("isParentMode", false)
-                .putExtra("prefill_package", packageName)
-            activity.startActivity(intent)
-        }
-        .show()
-}
 
 fun Activity.launchAppInfo(packageName: String) {
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
