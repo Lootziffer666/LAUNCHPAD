@@ -1,5 +1,5 @@
 // File: app/src/main/kotlin/org/fossify/home/helpers/LaunchpadWidgetProvider.kt
-// LAUNCHPAD: 2×1 home screen widget showing live balance.
+// LAUNCHPAD: 4×2 home screen widget — live balance + Jake's quick actions (request media / coins).
 
 @file:Suppress("MagicNumber") // widget presentation literals
 
@@ -16,7 +16,9 @@ import android.os.Build
 import android.widget.RemoteViews
 import kotlinx.coroutines.runBlocking
 import org.fossify.home.R
+import org.fossify.home.activities.DogeRequestsActivity
 import org.fossify.home.activities.JakeDashboardActivity
+import org.fossify.home.activities.ZusagenActivity
 import org.fossify.home.databases.AppsDatabase
 
 class LaunchpadWidgetProvider : AppWidgetProvider() {
@@ -76,12 +78,33 @@ private suspend fun render(context: Context, manager: AppWidgetManager, widgetId
         )
     }
 
-    val pi = PendingIntent.getActivity(
-        context, widgetId,
-        Intent(context, JakeDashboardActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    // Balance area → full status view (details). Action buttons → Jake's request flows so he
+    // can claim/trade coins straight from the home screen without opening a separate screen.
+    views.setOnClickPendingIntent(
+        R.id.widget_balance,
+        activityIntent(context, widgetId, JakeDashboardActivity::class.java)
+    )
+    views.setOnClickPendingIntent(
+        R.id.widget_btn_request,
+        activityIntent(context, widgetId + 10_000, DogeRequestsActivity::class.java, isParentMode = false)
+    )
+    views.setOnClickPendingIntent(
+        R.id.widget_btn_coins,
+        activityIntent(context, widgetId + 20_000, ZusagenActivity::class.java, isParentMode = false)
+    )
+    manager.updateAppWidget(widgetId, views)
+}
+
+private fun activityIntent(
+    context: Context,
+    requestCode: Int,
+    target: Class<*>,
+    isParentMode: Boolean? = null
+): PendingIntent {
+    val intent = Intent(context, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (isParentMode != null) intent.putExtra("isParentMode", isParentMode)
+    return PendingIntent.getActivity(
+        context, requestCode, intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
-    views.setOnClickPendingIntent(R.id.widget_root, pi)
-    manager.updateAppWidget(widgetId, views)
 }

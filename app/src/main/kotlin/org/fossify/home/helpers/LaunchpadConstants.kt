@@ -22,6 +22,9 @@ object LaunchpadConstants {
     const val DEFAULT_IMPULSE_SECONDS = 7
     const val DEFAULT_IMPULSE_REOPEN_WINDOW_MIN = 3
 
+    // Time-limit warning toast vibration
+    const val DEFAULT_VIBRATION_MS = 300
+
     // Transaction types
     const val TX_TYPE_EARN = "EARN"
     const val TX_TYPE_SPEND = "SPEND"
@@ -113,6 +116,10 @@ object LaunchpadPrefs {
     const val PREF_IMPULSE_ENABLED = "impulse_enabled" // master on/off (default ON)
     const val PREF_IMPULSE_SECONDS = "impulse_seconds" // countdown length
     const val PREF_IMPULSE_REOPEN_WINDOW_MIN = "impulse_reopen_window_min" // "first open free" window
+
+    // Time-limit warning toasts + optional vibration
+    const val PREF_VIBRATION_ENABLED = "vibration_enabled" // reinforce time warnings with a buzz
+    const val PREF_VIBRATION_MS = "vibration_ms" // buzz length = strength
 
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64

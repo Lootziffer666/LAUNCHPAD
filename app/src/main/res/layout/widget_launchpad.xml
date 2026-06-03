@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RemoteViews layout — only standard views allowed, no custom classes -->
+<!-- RemoteViews layout — only standard views allowed, no custom classes.
+     Jake's home surface: live balance + quick actions (request media / coins). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -51,15 +52,41 @@
         android:progress="0"
         android:progressTint="#4CAF50" />
 
-    <TextView
-        android:id="@+id/widget_label"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="LAUNCHPAD"
-        android:textColor="#88FFFFFF"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        android:letterSpacing="0.15"
-        android:layout_marginTop="4dp" />
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:baselineAligned="false">
+
+        <TextView
+            android:id="@+id/widget_btn_request"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/hw_btn_accent"
+            android:gravity="center"
+            android:paddingVertical="8dp"
+            android:text="🎬 Anfragen"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_btn_coins"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/hw_btn_accent"
+            android:gravity="center"
+            android:paddingVertical="8dp"
+            android:text="🪙 Coins"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
 
 </LinearLayout>

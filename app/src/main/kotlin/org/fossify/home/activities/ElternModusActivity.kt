@@ -151,6 +151,7 @@ class ElternModusActivity : AppCompatActivity() {
                 startActivity(Intent(this, DogeRequestsActivity::class.java).putExtra("isParentMode", true))
             },
             R.id.em_row_cooldown_rules to { showCooldownEditor() },
+            R.id.em_row_hinweise to { showHinweiseDialog() },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
@@ -294,6 +295,55 @@ class ElternModusActivity : AppCompatActivity() {
                     prefs.edit().putString(LaunchpadPrefs.PREF_COOLDOWN_RULES_JSON, input.text.toString()).apply()
                     toast("Gespeichert")
                 } else toast("Ungültig: ${v.error}")
+            }
+            .setNegativeButton("Abbrechen", null).show()
+    }
+
+    private fun showHinweiseDialog() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        val enabledCb = android.widget.CheckBox(this).apply {
+            text = "Vibration bei Zeit-Warnungen"
+            isChecked = prefs.getBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, false)
+        }
+        val strengthLabel = android.widget.TextView(this).apply {
+            text = "Stärke (Dauer)"
+            setPadding(0, 24, 0, 0)
+        }
+        val current = prefs.getInt(LaunchpadPrefs.PREF_VIBRATION_MS, LaunchpadConstants.DEFAULT_VIBRATION_MS)
+        val seek = android.widget.SeekBar(this).apply {
+            max = 700 // 100..800 ms
+            progress = (current - 100).coerceIn(0, 700)
+        }
+        val valueLabel = android.widget.TextView(this).apply { text = "${seek.progress + 100} ms" }
+        seek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
+                valueLabel.text = "${p + 100} ms"
+            }
+            override fun onStartTrackingTouch(sb: android.widget.SeekBar?) { /* no-op */ }
+            override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {
+                // Preview the chosen strength immediately.
+                prefs.edit().putInt(LaunchpadPrefs.PREF_VIBRATION_MS, sb!!.progress + 100).apply()
+                if (enabledCb.isChecked) {
+                    prefs.edit().putBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, true).apply()
+                    org.fossify.home.helpers.VibrationHelper.buzz(this@ElternModusActivity)
+                }
+            }
+        })
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+            addView(enabledCb); addView(strengthLabel); addView(seek); addView(valueLabel)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Hinweise & Vibration")
+            .setMessage("Zeit-Warnungen (10/5/0 Min) als Hinweis mit optionaler Vibration.")
+            .setView(box)
+            .setPositiveButton("Speichern") { _, _ ->
+                prefs.edit()
+                    .putBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, enabledCb.isChecked)
+                    .putInt(LaunchpadPrefs.PREF_VIBRATION_MS, seek.progress + 100)
+                    .apply()
+                toast("Gespeichert")
             }
             .setNegativeButton("Abbrechen", null).show()
     }

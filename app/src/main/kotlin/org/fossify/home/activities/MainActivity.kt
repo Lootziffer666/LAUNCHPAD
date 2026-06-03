@@ -136,6 +136,9 @@ class MainActivity : SimpleActivity(), FlingListener {
             ((shortcutId: String, label: String, icon: Drawable) -> Unit)? = null
     private var wasJustPaused: Boolean = false
 
+    // LAUNCHPAD: last balance we warned at, so graduated time warnings fire once per crossing.
+    private var lastWarnBalance: Int = Int.MAX_VALUE
+
     // LAUNCHPAD: periodic status-bar refresh (active only while the launcher is resumed).
     private val statusBarHandler = Handler(Looper.getMainLooper())
     private val statusBarRefresher = object : Runnable {
@@ -1037,6 +1040,19 @@ class MainActivity : SimpleActivity(), FlingListener {
                     bar.setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
                 }
             }
+            if (!budget.inCooldown) maybeWarnTimeLimit(budget.balanceMinutes)
+        }
+    }
+
+    // Graduated time-limit warnings (toast + optional vibration), fired once per downward
+    // crossing of 10 / 5 / 0 minutes so they never repeat on every 5s refresh.
+    private fun maybeWarnTimeLimit(balance: Int) {
+        val crossed = listOf(10, 5, 0).firstOrNull { lastWarnBalance > it && balance <= it }
+        lastWarnBalance = balance
+        if (crossed != null) {
+            val msg = if (crossed == 0) "⏰ Zeit zu Ende!" else "⚡ Noch $balance Min — bald Schluss!"
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            org.fossify.home.helpers.VibrationHelper.buzz(this)
         }
     }
 
