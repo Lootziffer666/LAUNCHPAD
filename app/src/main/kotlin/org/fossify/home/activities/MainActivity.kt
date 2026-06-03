@@ -1019,7 +1019,7 @@ class MainActivity : SimpleActivity(), FlingListener {
                     val rem = budget.minutesUntilCooldownExpires() ?: 0
                     timeIcon.text = "⏸️"
                     timeText.text = "Pause — noch $rem Min"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC1A1A2E"))
+                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC0D2847"))
                 }
                 budget.balanceMinutes <= 0 -> {
                     timeIcon.text = "📵"

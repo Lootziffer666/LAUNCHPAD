@@ -53,7 +53,7 @@ class AppsManagementActivity : AppCompatActivity() {
         }
 
         val toolbar = androidx.appcompat.widget.Toolbar(this).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
             title = "Apps verwalten"
             setTitleTextColor(android.graphics.Color.WHITE)
             setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
@@ -240,7 +240,7 @@ class AppsManagementActivity : AppCompatActivity() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 16, 32, 16)
-            setBackgroundColor(android.graphics.Color.parseColor("#141422"))
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
         }
 
         val enabledCb = CheckBox(this).apply {

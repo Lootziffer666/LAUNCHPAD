@@ -3,44 +3,27 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1A1A2E">
+    android:background="@color/hw_navy">
 
     <com.airbnb.lottie.LottieAnimationView
         android:id="@+id/rocket_animation"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:layout_gravity="center"
-        android:layout_marginBottom="60dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
         app:lottie_rawRes="@raw/rocket_launch"
         app:lottie_autoPlay="true"
         app:lottie_loop="false"
         app:lottie_speed="1.0" />
 
-    <LinearLayout
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="56dp"
-        android:orientation="vertical"
-        android:gravity="center">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="LAUNCHPAD"
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.25" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Jake wird geliebt. Nicht optimiert."
-            android:textColor="#77FFFFFF"
-            android:textSize="12sp"
-            android:textStyle="italic"
-            android:paddingTop="4dp" />
-    </LinearLayout>
+        android:text="LAUNCHPAD"
+        android:textColor="@color/hw_white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.25" />
 
 </FrameLayout>

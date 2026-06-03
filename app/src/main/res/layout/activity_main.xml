@@ -18,47 +18,30 @@
         android:id="@+id/rocket_splash"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#1A1A2E"
+        android:background="@color/hw_navy"
         android:elevation="20dp"
         android:visibility="gone">
 
         <com.airbnb.lottie.LottieAnimationView
             xmlns:app="http://schemas.android.com/apk/res-auto"
             android:id="@+id/rocket_splash_animation"
-            android:layout_width="320dp"
-            android:layout_height="320dp"
-            android:layout_gravity="center"
-            android:layout_marginBottom="80dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
             app:lottie_rawRes="@raw/rocket_launch"
             app:lottie_autoPlay="false"
             app:lottie_loop="false" />
 
-        <LinearLayout
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center_horizontal"
             android:layout_marginBottom="64dp"
-            android:orientation="vertical"
-            android:gravity="center">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="LAUNCHPAD"
-                android:textColor="#FFFFFF"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.25" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Jake wird geliebt. Nicht optimiert."
-                android:textColor="#88FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="italic"
-                android:paddingTop="6dp" />
-        </LinearLayout>
+            android:text="LAUNCHPAD"
+            android:textColor="@color/hw_white"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.25" />
     </FrameLayout>
 
     <include

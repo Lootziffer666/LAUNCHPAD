@@ -56,7 +56,7 @@ class ImpulseDelayActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#1A1A2E"))
+            setBackgroundColor(Color.parseColor("#0D2847"))
             setPadding(64, 64, 64, 64)
         }
 
