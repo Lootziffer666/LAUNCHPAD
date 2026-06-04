@@ -3,8 +3,10 @@
 
 package org.fossify.home.helpers
 
+import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.WeekScheduleEntry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -207,5 +209,38 @@ class WeekScheduleEntryTest {
         val hourEnd = 20
         val blockedAtEnd = hourEnd < entry.allowedFromHour || hourEnd >= entry.allowedUntilHour
         assertTrue("Hour 20 should be blocked (until=20)", blockedAtEnd)
+    }
+}
+
+class AppDailyLimitTest {
+
+    // Mirrors the decision used by LaunchGate (Check 2.5) and TimeTrackingService:
+    // a limit is active when dailyMinutes > 0, and reached when used >= dailyMinutes.
+    private fun reached(limit: AppTimeLimit, usedToday: Int): Boolean =
+        limit.dailyMinutes > 0 && usedToday >= limit.dailyMinutes
+
+    @Test
+    fun zeroMinutesMeansNoLimit() {
+        val limit = AppTimeLimit("com.example.app", 0)
+        assertFalse("0 dailyMinutes must never block", reached(limit, 0))
+        assertFalse("0 dailyMinutes must never block", reached(limit, 999))
+    }
+
+    @Test
+    fun underLimitIsAllowed() {
+        val limit = AppTimeLimit("com.example.app", 30)
+        assertFalse("29 < 30 should be allowed", reached(limit, 29))
+    }
+
+    @Test
+    fun exactLimitIsReached() {
+        val limit = AppTimeLimit("com.example.app", 30)
+        assertTrue("30 >= 30 should be blocked", reached(limit, 30))
+    }
+
+    @Test
+    fun overLimitIsReached() {
+        val limit = AppTimeLimit("com.example.app", 30)
+        assertTrue("31 >= 30 should be blocked", reached(limit, 31))
     }
 }
