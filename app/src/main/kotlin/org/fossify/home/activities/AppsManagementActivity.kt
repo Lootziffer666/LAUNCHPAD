@@ -27,6 +27,7 @@ import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.ChangeLogEntity
+import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.CategorySuggester
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
@@ -471,7 +472,7 @@ class AppsManagementActivity : AppCompatActivity() {
         val labels = options.map { if (it == 0) "Kein Tageslimit" else "$it Minuten" }.toTypedArray()
         val current = appLimits[pkg] ?: 0
         val checked = options.indexOf(current).coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle("Tageslimit")
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 val chosen = options[which]
@@ -490,7 +491,25 @@ class AppsManagementActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+        // A one-off "today only" bonus only makes sense when a permanent limit is set.
+        if (current > 0) {
+            builder.setNeutralButton("Heute +15 Min") { _, _ -> grantTodayBonus(pkg, 15) }
+        }
+        builder.show()
+    }
+
+    private fun grantTodayBonus(pkg: String, minutes: Int) {
+        val total = AppLimitBonus.addTodayBonus(this, pkg, minutes, todayMidnight())
+        Toast.makeText(this, "Heute +$total Min für diese App", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun todayMidnight(): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 
     private fun toggleApp(pkg: String, enable: Boolean, currentCategory: String?) {

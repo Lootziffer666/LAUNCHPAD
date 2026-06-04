@@ -97,16 +97,18 @@ class LaunchGate(
             )
         }
 
-        // Check 2.5: Per-app daily time limit
+        // Check 2.5: Per-app daily time limit (plus any one-off "today" bonus the parent granted)
         val appLimit = database.appTimeLimitDao().getForApp(packageName)
         if (appLimit != null && appLimit.dailyMinutes > 0) {
             val midnight = todayMidnight()
             val usedToday = database.cryptoCashDao().getTodaySpentMinutesForApp(packageName, midnight)
-            if (usedToday >= appLimit.dailyMinutes) {
+            val bonus = AppLimitBonus.getTodayBonus(context, packageName, midnight)
+            val effectiveLimit = AppLimitBonus.effectiveLimit(appLimit.dailyMinutes, bonus)
+            if (usedToday >= effectiveLimit) {
                 return LaunchDecision(
                     false,
                     LaunchpadConstants.REASON_APP_DAILY_LIMIT,
-                    "Tageslimit für diese App erreicht (${appLimit.dailyMinutes} Min).",
+                    "Tageslimit für diese App erreicht ($effectiveLimit Min).",
                     category
                 )
             }

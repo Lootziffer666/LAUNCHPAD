@@ -244,3 +244,34 @@ class AppDailyLimitTest {
         assertTrue("31 >= 30 should be blocked", reached(limit, 31))
     }
 }
+
+class AppLimitBonusTest {
+
+    private val today = 1_700_000_000_000L      // arbitrary "today midnight" stamp
+    private val yesterday = today - 86_400_000L  // one day earlier
+
+    @Test
+    fun effectiveLimitAddsBonus() {
+        assertEquals(30, AppLimitBonus.effectiveLimit(30, 0))
+        assertEquals(45, AppLimitBonus.effectiveLimit(30, 15))
+    }
+
+    @Test
+    fun decodeReturnsMinutesForToday() {
+        val raw = AppLimitBonus.encode(today, 15)
+        assertEquals(15, AppLimitBonus.decode(raw, today))
+    }
+
+    @Test
+    fun decodeExpiresOnNewDay() {
+        val raw = AppLimitBonus.encode(yesterday, 15)
+        assertEquals("Yesterday's bonus must not carry over", 0, AppLimitBonus.decode(raw, today))
+    }
+
+    @Test
+    fun decodeHandlesGarbage() {
+        assertEquals(0, AppLimitBonus.decode("garbage", today))
+        assertEquals(0, AppLimitBonus.decode("123", today))       // missing minutes
+        assertEquals(0, AppLimitBonus.decode("$today:abc", today)) // non-numeric minutes
+    }
+}

@@ -40,6 +40,7 @@ import kotlinx.coroutines.runBlocking
 import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.TamperClock
@@ -313,8 +314,10 @@ class TimeTrackingService : Service() {
     private suspend fun isAppDailyLimitReached(pkg: String): Boolean {
         val limit = database.appTimeLimitDao().getForApp(pkg) ?: return false
         if (limit.dailyMinutes <= 0) return false
-        val used = database.cryptoCashDao().getTodaySpentMinutesForApp(pkg, todayMidnight())
-        return used >= limit.dailyMinutes
+        val midnight = todayMidnight()
+        val used = database.cryptoCashDao().getTodaySpentMinutesForApp(pkg, midnight)
+        val bonus = AppLimitBonus.getTodayBonus(this, pkg, midnight)
+        return used >= AppLimitBonus.effectiveLimit(limit.dailyMinutes, bonus)
     }
 
     private fun todayMidnight(): Long {

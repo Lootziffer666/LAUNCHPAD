@@ -20,6 +20,7 @@ import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.DogeRequest
+import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.TimeBudgetManager
 import java.text.SimpleDateFormat
@@ -72,7 +73,12 @@ class DailyReportActivity : AppCompatActivity() {
             val limits = withContext(Dispatchers.IO) {
                 db.appTimeLimitDao().getAll()
                     .filter { it.dailyMinutes > 0 }
-                    .associate { it.packageName to it.dailyMinutes }
+                    .associate { limit ->
+                        val bonus = AppLimitBonus.getTodayBonus(
+                            this@DailyReportActivity, limit.packageName, midnight
+                        )
+                        limit.packageName to AppLimitBonus.effectiveLimit(limit.dailyMinutes, bonus)
+                    }
             }
 
             renderReport(txs, dogeAll, audits, balance, limits, midnight, now)
