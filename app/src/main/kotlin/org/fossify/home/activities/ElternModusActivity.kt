@@ -61,6 +61,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var appsCount: android.widget.TextView
     private lateinit var zusagenCount: android.widget.TextView
     private lateinit var dogeCount: android.widget.TextView
+    private lateinit var timeRequestsCount: android.widget.TextView
     private lateinit var usageStatus: android.widget.TextView
     private lateinit var pairStatus: android.widget.TextView
     private lateinit var healthStatus: android.widget.TextView
@@ -161,6 +162,7 @@ class ElternModusActivity : AppCompatActivity() {
         appsCount = findViewById(R.id.em_apps_count)
         zusagenCount = findViewById(R.id.em_zusagen_count)
         dogeCount = findViewById(R.id.em_doge_count)
+        timeRequestsCount = findViewById(R.id.em_time_requests_count)
         usageStatus = findViewById(R.id.em_usage_status)
         pairStatus = findViewById(R.id.em_pair_status)
         healthStatus = findViewById(R.id.em_health_status)
@@ -190,6 +192,9 @@ class ElternModusActivity : AppCompatActivity() {
             },
             R.id.em_row_doge to {
                 startActivity(Intent(this, DogeRequestsActivity::class.java).putExtra("isParentMode", true))
+            },
+            R.id.em_row_time_requests to {
+                startActivity(Intent(this, AppTimeRequestsActivity::class.java))
             },
             R.id.em_row_cooldown_rules to { showCooldownEditor() },
             R.id.em_row_hinweise to { showHinweiseDialog() },
@@ -261,6 +266,7 @@ class ElternModusActivity : AppCompatActivity() {
             val appCount = withContext(Dispatchers.IO) { db.allowedAppDao().getAllEnabledApps().size }
             val zusagenPending = withContext(Dispatchers.IO) { db.zusageDao().getZusagenByStatus("ACTIVE").size }
             val dogePending = withContext(Dispatchers.IO) { db.dogeRequestDao().getPending().size }
+            val timeReqPending = withContext(Dispatchers.IO) { db.appTimeRequestDao().countPending() }
             val openEvents = withContext(Dispatchers.IO) { db.auditEventDao().getUnacknowledged().size }
             val lockdown = TamperMonitor.isLockdownActive(this@ElternModusActivity)
             val paired = PairingManager(this@ElternModusActivity).isPaired()
@@ -294,6 +300,11 @@ class ElternModusActivity : AppCompatActivity() {
                 "Keine aktiven Versprechen"
             }
             dogeCount.text = if (dogePending > 0) "$dogePending offene Anfragen" else "Keine offenen Anfragen"
+            timeRequestsCount.text = if (timeReqPending > 0) {
+                "$timeReqPending offene Anfragen"
+            } else {
+                "Keine offenen Anfragen"
+            }
             usageStatus.text = if (usageGranted) "Erteilt ✓" else "Nicht erteilt — Tippe zum Öffnen"
             pairStatus.text = if (paired) "Gekoppelt ✓" else "Nicht gekoppelt"
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager

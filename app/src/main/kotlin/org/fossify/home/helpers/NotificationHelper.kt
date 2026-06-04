@@ -44,6 +44,18 @@ object NotificationHelper {
         )
     }
 
+    fun notifyTimeRequest(context: Context, appLabel: String) {
+        notify(
+            context,
+            id = 1003,
+            channel = CHANNEL_REQUESTS,
+            title = "⏱ Jake möchte mehr Zeit",
+            text = "$appLabel — Tageslimit erreicht",
+            targetClass = "org.fossify.home.activities.AppTimeRequestsActivity",
+            extras = emptyMap()
+        )
+    }
+
     fun notifyZusageRequest(context: Context, text: String) {
         notify(
             context,

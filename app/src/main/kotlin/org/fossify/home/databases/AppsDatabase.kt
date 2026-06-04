@@ -20,6 +20,7 @@ import org.fossify.home.models.HomeScreenGridItem
 // LAUNCHPAD entities
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppTimeLimit
+import org.fossify.home.databases.AppTimeRequest
 import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
@@ -36,6 +37,7 @@ import org.fossify.home.interfaces.AllowedAppDao
 import org.fossify.home.interfaces.ChangeLogDao
 import org.fossify.home.interfaces.WeekScheduleDao
 import org.fossify.home.interfaces.AppTimeLimitDao
+import org.fossify.home.interfaces.AppTimeRequestDao
 import org.fossify.home.interfaces.AuditEventDao
 import org.fossify.home.interfaces.CryptoCashDao
 import org.fossify.home.interfaces.ParentCommandDao
@@ -64,9 +66,10 @@ import org.fossify.home.interfaces.DogeRequestDao
         AuditEvent::class,
         // LAUNCHPAD M4 entities
         ChangeLogEntity::class,
-        WeekScheduleEntry::class
+        WeekScheduleEntry::class,
+        AppTimeRequest::class
     ],
-    version = 11
+    version = 12
 )
 @TypeConverters(Converters::class)
 @Suppress("TooManyFunctions") // one abstract accessor per DAO
@@ -88,6 +91,7 @@ abstract class AppsDatabase : RoomDatabase() {
     abstract fun dogeRequestDao(): DogeRequestDao
     abstract fun changeLogDao(): ChangeLogDao
     abstract fun weekScheduleDao(): WeekScheduleDao
+    abstract fun appTimeRequestDao(): AppTimeRequestDao
 
     companion object {
         private var db: AppsDatabase? = null
@@ -214,6 +218,17 @@ abstract class AppsDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `app_time_requests` (" +
+                        "`id` TEXT NOT NULL, `packageName` TEXT NOT NULL, `label` TEXT NOT NULL, " +
+                        "`requestedAt` INTEGER NOT NULL, `decision` TEXT, `decidedAt` INTEGER, " +
+                        "`grantedMinutes` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
         private fun seedExploreDefaults(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
 
@@ -264,7 +279,7 @@ abstract class AppsDatabase : RoomDatabase() {
                         )
                             .addMigrations(
                                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-                                MIGRATION_9_10, MIGRATION_10_11
+                                MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
                             )
                             .addCallback(seedCallback)
                             .build()

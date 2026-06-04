@@ -244,6 +244,12 @@
             android:exported="false"
             android:theme="@style/LauncherTheme" />
 
+        <!-- LAUNCHPAD: Child "more time" requests (parent approval) -->
+        <activity
+            android:name=".activities.AppTimeRequestsActivity"
+            android:exported="false"
+            android:theme="@style/LauncherTheme" />
+
         <activity-alias
             android:name=".activities.SplashActivity.Red"
             android:clearTaskOnLaunch="true"

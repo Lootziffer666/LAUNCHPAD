@@ -1,7 +1,7 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/AppBlockedActivity.kt
 // Context-aware block screen: tells Jake WHY an app is blocked and what he can do.
 
-@file:Suppress("MagicNumber") // UI built programmatically
+@file:Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 
 package org.fossify.home.activities
 
@@ -14,10 +14,22 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.fossify.home.databases.AppTimeRequest
+import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
+import org.fossify.home.helpers.NotificationHelper
 
 class AppBlockedActivity : AppCompatActivity() {
+
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     companion object {
         const val EXTRA_PACKAGE = "pkg"
@@ -62,6 +74,11 @@ class AppBlockedActivity : AppCompatActivity() {
 
         body.addView(buildReasonCard(reason, message, balanceMinutes, cooldownUntil))
         body.addView(buildActions(pkg, reason, cooldownUntil))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
     }
 
     private fun buildHeader(pkg: String, reason: String): LinearLayout {
@@ -187,10 +204,16 @@ class AppBlockedActivity : AppCompatActivity() {
                 })
             }
 
-            // "Anfragen" shown for all reasons except lockdown (parent must act, not child)
-            // and cool-down (the answer is simply "wait").
+            // App daily-limit: a dedicated "ask for more time" request, not a media request.
+            if (reason == LaunchpadConstants.REASON_APP_DAILY_LIMIT) {
+                addView(primaryButton("Mehr Zeit anfragen") { requestMoreTime(pkg) })
+            }
+
+            // "Anfragen" (media request) for the remaining reasons except lockdown
+            // (parent must act), cool-down (just wait), and app-limit (handled above).
             if (reason != LaunchpadConstants.REASON_LOCKDOWN &&
-                reason != LaunchpadConstants.REASON_COOLDOWN
+                reason != LaunchpadConstants.REASON_COOLDOWN &&
+                reason != LaunchpadConstants.REASON_APP_DAILY_LIMIT
             ) {
                 addView(primaryButton("Anfragen") {
                     startActivity(
@@ -204,6 +227,36 @@ class AppBlockedActivity : AppCompatActivity() {
 
             addView(secondaryButton("Schließen") { finish() })
         }
+    }
+
+    /** Persist a child time-request for [pkg] (deduped) and ping the parent. */
+    private fun requestMoreTime(pkg: String) {
+        val label = resolveLabel(pkg)
+        scope.launch {
+            val created = withContext(Dispatchers.IO) {
+                val dao = AppsDatabase.getInstance(applicationContext).appTimeRequestDao()
+                if (dao.hasPendingFor(pkg)) {
+                    false
+                } else {
+                    dao.insert(AppTimeRequest(packageName = pkg, label = label))
+                    true
+                }
+            }
+            if (created) NotificationHelper.notifyTimeRequest(this@AppBlockedActivity, label)
+            Toast.makeText(
+                this@AppBlockedActivity,
+                if (created) "Anfrage an Mama/Papa gesendet" else "Deine Anfrage läuft schon",
+                Toast.LENGTH_SHORT
+            ).show()
+            finish()
+        }
+    }
+
+    private fun resolveLabel(pkg: String): String = try {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+        android.util.Log.w("AppBlockedActivity", "Label not found: $pkg", e)
+        pkg
     }
 
     private fun primaryButton(label: String, onClick: () -> Unit): Button =

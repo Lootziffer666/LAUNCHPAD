@@ -49,6 +49,19 @@ data class AuditEvent(
     val acknowledged: Boolean = false // parent has seen/resolved it
 )
 
+// Child request for more time on a specific app after hitting its daily cap.
+// Parent approves (PIN-gated) → a one-off "today" bonus is granted for that app.
+@Entity(tableName = "app_time_requests")
+data class AppTimeRequest(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val packageName: String,
+    val label: String,                 // app label captured at request time
+    val requestedAt: Long = System.currentTimeMillis(),
+    val decision: String? = null,      // null = pending, APPROVED, REJECTED
+    val decidedAt: Long? = null,
+    val grantedMinutes: Int = 0        // minutes the parent actually granted
+)
+
 // Krypto-Cash ledger: immutable transaction log, no-regression enforcement
 @Entity(tableName = "crypto_cash_tx")
 data class CryptoCashTransaction(

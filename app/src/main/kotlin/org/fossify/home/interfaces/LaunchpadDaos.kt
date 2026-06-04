@@ -8,6 +8,7 @@ import androidx.room.Update
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.WeekScheduleEntry
 import org.fossify.home.databases.AppTimeLimit
+import org.fossify.home.databases.AppTimeRequest
 import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
@@ -117,6 +118,36 @@ interface AuditEventDao {
 
     @Query("DELETE FROM audit_events WHERE createdAt < :before")
     suspend fun deleteOlderThan(before: Long)
+}
+
+// ─── AppTimeRequest DAO ─────────────────────────────────────────────────────────
+
+@Dao
+interface AppTimeRequestDao {
+    @Query("SELECT * FROM app_time_requests WHERE decision IS NULL ORDER BY requestedAt ASC")
+    suspend fun getPending(): List<AppTimeRequest>
+
+    @Query("SELECT * FROM app_time_requests ORDER BY requestedAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 50): List<AppTimeRequest>
+
+    @Query("SELECT COUNT(*) FROM app_time_requests WHERE decision IS NULL")
+    suspend fun countPending(): Int
+
+    // Avoid stacking duplicates: a still-pending request for the same app.
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM app_time_requests " +
+            "WHERE packageName = :pkg AND decision IS NULL)"
+    )
+    suspend fun hasPendingFor(pkg: String): Boolean
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(request: AppTimeRequest)
+
+    @Query(
+        "UPDATE app_time_requests SET decision = :decision, decidedAt = :at, " +
+            "grantedMinutes = :granted WHERE id = :id"
+    )
+    suspend fun decide(id: String, decision: String, granted: Int, at: Long)
 }
 
 // ─── CryptoCash DAO ───────────────────────────────────────────────────────────
