@@ -5,6 +5,7 @@
 
 package org.fossify.home.activities
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -115,8 +116,43 @@ class AuditLogActivity : AppCompatActivity() {
                     }
                 }
             })
+            listContainer.addView(Button(this@AuditLogActivity).apply {
+                text = "Verlauf teilen"
+                setTextColor(Color.parseColor("#0D2847"))
+                background = GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = 8f
+                    setStroke(1, Color.parseColor("#E0E0E0"))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(0, 0, 0, 8) }
+                setOnClickListener { shareEvents(events) }
+            })
             events.forEach { listContainer.addView(eventRow(it)) }
         }
+    }
+
+    private fun shareEvents(events: List<AuditEvent>) {
+        val body = buildString {
+            append("LAUNCHPAD Verlauf & Ereignisse\n\n")
+            events.forEach { ev ->
+                val mark = when (ev.severity) {
+                    LaunchpadConstants.SEVERITY_CRITICAL -> "[!]"
+                    LaunchpadConstants.SEVERITY_WARNING -> "[*]"
+                    else -> "[-]"
+                }
+                append(fmt.format(Date(ev.createdAt)))
+                append("  ").append(mark).append("  ").append(ev.message).append("\n")
+            }
+        }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "LAUNCHPAD Verlauf")
+            putExtra(Intent.EXTRA_TEXT, body.trim())
+        }
+        startActivity(Intent.createChooser(send, "Verlauf teilen"))
     }
 
     private fun eventRow(event: AuditEvent): LinearLayout {
