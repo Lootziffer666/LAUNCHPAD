@@ -18,6 +18,36 @@ object CategorySuggester {
         return null
     }
 
+    /**
+     * True if [packageName] is a known general-purpose web browser. LAUNCHPAD's web filter
+     * (Entdecken-Modus blocklist) only applies to the built-in browser, so the parent should
+     * be warned that a third-party browser gives unfiltered web access.
+     */
+    fun isKnownBrowser(packageName: String): Boolean {
+        if (packageName in BROWSER_EXACT) return true
+        return BROWSER_PREFIXES.any { packageName.startsWith(it) }
+    }
+
+    private val BROWSER_EXACT: Set<String> = setOf(
+        "com.android.chrome",
+        "com.sec.android.app.sbrowser",   // Samsung Internet
+        "com.microsoft.emmx",             // Edge
+        "com.brave.browser",
+        "com.duckduckgo.mobile.android",
+        "com.UCMobile.intl",              // UC Browser
+        "com.kiwibrowser.browser",
+        "com.vivaldi.browser",
+        "com.yandex.browser",
+        "mark.via.gp",                    // Via
+        "com.ecosia.android"
+    )
+
+    private val BROWSER_PREFIXES: List<String> = listOf(
+        "com.chrome.",        // beta/dev/canary
+        "org.mozilla.",       // Firefox / Fenix / Focus
+        "com.opera.",         // Opera / Opera Mini / GX
+    )
+
     private val C = LaunchpadConstants
 
     // ─── Exact matches ────────────────────────────────────────────────────────

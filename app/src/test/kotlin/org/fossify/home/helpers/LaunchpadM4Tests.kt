@@ -119,6 +119,21 @@ class CategorySuggesterTest {
         // "com.supercell" should match "com.supercell.anything" but NOT a different root
         assertNull(CategorySuggester.suggest("com.supercellother.game"))
     }
+
+    @Test
+    fun knownBrowsersAreDetected() {
+        assertTrue(CategorySuggester.isKnownBrowser("com.android.chrome"))
+        assertTrue(CategorySuggester.isKnownBrowser("org.mozilla.firefox"))   // prefix
+        assertTrue(CategorySuggester.isKnownBrowser("com.opera.mini.native")) // prefix
+        assertTrue(CategorySuggester.isKnownBrowser("com.sec.android.app.sbrowser"))
+    }
+
+    @Test
+    fun nonBrowsersAreNotFlagged() {
+        assertFalse(CategorySuggester.isKnownBrowser("com.mojang.minecraftpe"))
+        assertFalse(CategorySuggester.isKnownBrowser("com.whatsapp"))
+        assertFalse(CategorySuggester.isKnownBrowser(""))
+    }
 }
 
 class LaunchpadConstantsGuardTest {

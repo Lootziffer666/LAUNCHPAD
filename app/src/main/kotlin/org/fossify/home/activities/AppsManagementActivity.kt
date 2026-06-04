@@ -567,9 +567,25 @@ class AppsManagementActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+                if (enable && CategorySuggester.isKnownBrowser(pkg)) {
+                    warnBrowserUnfiltered(appLabel)
+                }
                 renderList()
             }
         }
+    }
+
+    /** Inform the parent that a third-party browser is not covered by the web filter. */
+    private fun warnBrowserUnfiltered(appLabel: String) {
+        AlertDialog.Builder(this)
+            .setTitle("$appLabel ist ein Browser")
+            .setMessage(
+                "Der Web-Filter von LAUNCHPAD wirkt nur im eingebauten Entdecken-Modus. " +
+                    "In $appLabel kann Jake ungefiltert surfen.\n\n" +
+                    "Tipp: Statt eines eigenen Browsers den Entdecken-Modus nutzen."
+            )
+            .setPositiveButton("Verstanden", null)
+            .show()
     }
 
     private fun categoryLabel(category: String): String = when (category) {
