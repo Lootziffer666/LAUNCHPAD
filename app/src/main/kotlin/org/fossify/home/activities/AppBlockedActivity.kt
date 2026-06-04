@@ -61,7 +61,7 @@ class AppBlockedActivity : AppCompatActivity() {
         root.addView(scroll)
 
         body.addView(buildReasonCard(reason, message, balanceMinutes, cooldownUntil))
-        body.addView(buildActions(pkg, reason))
+        body.addView(buildActions(pkg, reason, cooldownUntil))
     }
 
     private fun buildHeader(pkg: String, reason: String): LinearLayout {
@@ -168,12 +168,30 @@ class AppBlockedActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildActions(pkg: String, reason: String): LinearLayout {
+    private fun buildActions(pkg: String, reason: String, cooldownUntil: Long): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
 
+            // During cool-down the most helpful action is the calming-apps screen, not a request.
+            if (reason == LaunchpadConstants.REASON_COOLDOWN) {
+                addView(primaryButton("Ruhe-Apps öffnen") {
+                    val remainingMin =
+                        ((cooldownUntil - System.currentTimeMillis()) / 60_000L)
+                            .coerceAtLeast(1L).toInt()
+                    startActivity(
+                        Intent(this@AppBlockedActivity, CooldownActivity::class.java)
+                            .putExtra("cooldown_minutes", remainingMin)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                    finish()
+                })
+            }
+
             // "Anfragen" shown for all reasons except lockdown (parent must act, not child)
-            if (reason != LaunchpadConstants.REASON_LOCKDOWN) {
+            // and cool-down (the answer is simply "wait").
+            if (reason != LaunchpadConstants.REASON_LOCKDOWN &&
+                reason != LaunchpadConstants.REASON_COOLDOWN
+            ) {
                 addView(primaryButton("Anfragen") {
                     startActivity(
                         Intent(this@AppBlockedActivity, DogeRequestsActivity::class.java)
