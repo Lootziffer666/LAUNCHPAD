@@ -30,13 +30,16 @@ kontextbezogene Block-Screen.
 | Aus einer Benachrichtigung heraus | 🟡 | Nicht über das Gate. Backstop: `TimeTrackingService` pollt alle 10s den Vordergrund und wirft **ACTIVE_LEISURE**-Apps bei Cooldown/0-Budget/Tageslimit raus. |
 | „In App öffnen"-Link aus Browser/anderer App | 🟡 | wie oben |
 | Recents/Übersicht (zuletzt genutzte) | 🟡 | wie oben — eine pausierte 🪙-App wird binnen ~10s erneut geblockt |
-| Nicht-Whitelist-App über Seitenkanal | 🟡 | **Restrisiko**: Der Service metert nur ACTIVE_LEISURE. Eine nicht freigegebene App, die über einen Seitenkanal in den Vordergrund kommt, wird vom laufenden Backstop NICHT geblockt (nur am Launcher-Startpunkt). |
+| Nicht-Whitelist-App über Seitenkanal | 🟡→🟢 | Standardmäßig wie zuvor (nur ACTIVE_LEISURE gemetert). Optional schließbar über den **strengen Vordergrund-Block** (s.u.). |
 
-**Empfehlung (offen):** Optionaler, per Default ausgeschalteter „strenger
-Vordergrund-Block" im Service: blockt jede nicht freigegebene, startbare App im
-Vordergrund — mit fester Allowlist (Launcher selbst, System-UI, Telefon/Notruf,
-Berechtigungsdialoge, Tastatur) und **niemals während eines Anrufs**. Bewusst
-noch nicht umgesetzt: ohne Gerätetest zu riskant (Notruf/Systemdialoge).
+**Strenger Vordergrund-Block (umgesetzt, Default AUS):** `ForegroundPolicy` +
+`TimeTrackingService.maybeStrictForegroundBlock` blocken jede nicht freigegebene
+App im Vordergrund (auch über Seitenkanäle). Allowlist nie geblockt: Launcher
+selbst, System-UI, **Telefon/Default-Dialer (dynamisch via TelecomManager) +
+Notruf/Telecom**, Einstellungen, Berechtigungsdialoge, aktive Tastatur. Aktivierung
+in Eltern-Modus → „Strenger Vordergrund-Block" hinter einem Warnhinweis.
+Entscheidungslogik ist unit-getestet (`ForegroundPolicyTest`). **Vor Verlass
+unbedingt auf dem Gerät testen — insbesondere Notruf.**
 
 ## 3. Zeit-/System-Manipulation
 
@@ -73,8 +76,9 @@ M3 (Device-Owner-Setup) ist die Voraussetzung, um Kapitel 4 zu schließen. Siehe
 ## Zusammenfassung
 
 - **Front door (Launcher-Starts): vollständig gegatet** inkl. aller Shortcut-Pfade.
-- **Laufender Backstop**: deckt 🪙-Apps über Seitenkanäle ab; Restlücke bei
-  nicht freigegebenen Apps über Seitenkanäle (Empfehlung in Kap. 2).
+- **Laufender Backstop**: deckt 🪙-Apps über Seitenkanäle ab; nicht freigegebene
+  Apps über Seitenkanäle sind optional über den strengen Vordergrund-Block
+  (Default AUS, Kap. 2) abdeckbar.
 - **Zeit-Manipulation**: breit abgedeckt durch Tamper-Erkennung + Lockdown.
 - **Geräteebene**: erfordert Device Owner (M3) — bewusst außerhalb des
   Soft-Mode-Scopes.

@@ -346,6 +346,25 @@
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/em_row_strict_block"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Strenger Vordergrund-Block" />
+                    <TextView android:id="@+id/em_strict_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Aus"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <LinearLayout android:id="@+id/em_row_usage"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"

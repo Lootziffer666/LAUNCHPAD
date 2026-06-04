@@ -140,6 +140,11 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+    // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
+    // apps that reach the foreground via side channels (links, notifications, recents). Essential
+    // packages (launcher, system UI, phone/dialer, settings, IME) are never blocked. Opt-in
+    // because it must be device-tested (esp. emergency dialling) before being relied upon.
+    const val PREF_STRICT_FOREGROUND_BLOCK = "strict_foreground_block"
 
     // Impulsbremse: short calming countdown before re-opening a high-stimulation (ACTIVE_LEISURE)
     // app. Skips the first open and only fires on a rapid re-open within the reopen window.

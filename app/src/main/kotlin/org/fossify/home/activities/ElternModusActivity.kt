@@ -66,6 +66,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var pairStatus: android.widget.TextView
     private lateinit var healthStatus: android.widget.TextView
     private lateinit var auditStatus: android.widget.TextView
+    private lateinit var strictStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -167,6 +168,7 @@ class ElternModusActivity : AppCompatActivity() {
         pairStatus = findViewById(R.id.em_pair_status)
         healthStatus = findViewById(R.id.em_health_status)
         auditStatus = findViewById(R.id.em_audit_status)
+        strictStatus = findViewById(R.id.em_strict_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -204,6 +206,7 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_audit to {
                 startActivity(Intent(this, AuditLogActivity::class.java))
             },
+            R.id.em_row_strict_block to { showStrictBlockDialog() },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
@@ -325,10 +328,47 @@ class ElternModusActivity : AppCompatActivity() {
             auditStatus.setTextColor(
                 android.graphics.Color.parseColor(if (lockdown) "#D32F2F" else "#828282")
             )
+            val strict = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+                .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
+            strictStatus.text = if (strict) "An — nur freigegebene Apps" else "Aus"
         }
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
+
+    private fun showStrictBlockDialog() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        val on = prefs.getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
+        if (on) {
+            AlertDialog.Builder(this)
+                .setTitle("Strenger Block ist AN")
+                .setMessage("Nicht freigegebene Apps werden auch über Umwege (Links, " +
+                    "Benachrichtigungen, zuletzt genutzt) blockiert. Telefon/Notruf bleibt frei.")
+                .setPositiveButton("Ausschalten") { _, _ ->
+                    prefs.edit().putBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false).apply()
+                    scope.launch { refresh() }
+                }
+                .setNegativeButton("Schließen", null)
+                .show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Strenger Block einschalten?")
+            .setMessage(
+                "Zusätzlich zum Launcher werden dann auch nicht freigegebene Apps blockiert, " +
+                    "die über Umwege geöffnet werden.\n\n" +
+                    "⚠️ Bitte vorher auf dem Gerät testen — besonders, dass Anrufe und der " +
+                    "Notruf weiterhin funktionieren. Telefon, Einstellungen und System sind " +
+                    "ausgenommen."
+            )
+            .setPositiveButton("Einschalten") { _, _ ->
+                prefs.edit().putBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, true).apply()
+                toast("Strenger Block AN — bitte Notruf testen")
+                scope.launch { refresh() }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
 
     private fun showAddTimeDialog() {
         val mins = EditText(this).apply {

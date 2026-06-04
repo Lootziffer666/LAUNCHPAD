@@ -41,6 +41,7 @@ import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.ForegroundPolicy
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.TamperClock
@@ -62,6 +63,7 @@ class TimeTrackingService : Service() {
     private var lastCountedAt = 0L
     @Volatile private var lastCooldownLaunch = 0L
     @Volatile private var lastAppLimitLaunch = 0L
+    @Volatile private var lastStrictBlock = 0L
     // Tracks the last warned balance level so each threshold is announced at most once.
     private var lastWarnedMinutes = Int.MAX_VALUE
 
@@ -176,6 +178,10 @@ class TimeTrackingService : Service() {
         }
 
         runBlocking {
+            // Strict mode (opt-in): block any non-whitelisted app reaching the foreground via a
+            // side channel. Runs before the budget logic, which only handles whitelisted apps.
+            if (maybeStrictForegroundBlock(pkg)) return@runBlocking
+
             val budget = budgetManager.getCurrentBudget()
 
             // If balance is 0 or in cooldown, keep re-launching CooldownActivity when a
@@ -203,7 +209,11 @@ class TimeTrackingService : Service() {
                 val now = System.currentTimeMillis()
                 if (now - lastAppLimitLaunch >= COOLDOWN_RELAUNCH_THROTTLE_MS) {
                     lastAppLimitLaunch = now
-                    launchAppBlocked(pkg)
+                    launchAppBlocked(
+                        pkg,
+                        LaunchpadConstants.REASON_APP_DAILY_LIMIT,
+                        "Tageslimit für diese App erreicht."
+                    )
                 }
                 resetCounter()
                 return@runBlocking
@@ -311,6 +321,26 @@ class TimeTrackingService : Service() {
         return category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
     }
 
+    /**
+     * Strict mode: if enabled, block a non-whitelisted foreground app (throttled). Returns true
+     * if it acted (caller should stop this tick). Essential packages are never blocked.
+     */
+    private suspend fun maybeStrictForegroundBlock(pkg: String): Boolean {
+        val strict = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+            .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
+        if (!strict) return false
+        val whitelisted = database.allowedAppDao().isAppAllowed(pkg)
+        val essentials = ForegroundPolicy.essentialPackages(this)
+        if (!ForegroundPolicy.shouldBlock(pkg, packageName, whitelisted, essentials)) return false
+        val now = System.currentTimeMillis()
+        if (now - lastStrictBlock >= COOLDOWN_RELAUNCH_THROTTLE_MS) {
+            lastStrictBlock = now
+            launchAppBlocked(pkg, LaunchpadConstants.REASON_NOT_ALLOWED, "Diese App ist nicht erlaubt.")
+        }
+        resetCounter()
+        return true
+    }
+
     private suspend fun isAppDailyLimitReached(pkg: String): Boolean {
         val limit = database.appTimeLimitDao().getForApp(pkg) ?: return false
         val dayOfWeek = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
@@ -384,13 +414,13 @@ class TimeTrackingService : Service() {
         }
     }
 
-    private fun launchAppBlocked(pkg: String) {
+    private fun launchAppBlocked(pkg: String, reason: String, message: String) {
         try {
             startActivity(
                 Intent(this, AppBlockedActivity::class.java)
                     .putExtra(AppBlockedActivity.EXTRA_PACKAGE, pkg)
-                    .putExtra(AppBlockedActivity.EXTRA_REASON, LaunchpadConstants.REASON_APP_DAILY_LIMIT)
-                    .putExtra(AppBlockedActivity.EXTRA_MESSAGE, "Tageslimit für diese App erreicht.")
+                    .putExtra(AppBlockedActivity.EXTRA_REASON, reason)
+                    .putExtra(AppBlockedActivity.EXTRA_MESSAGE, message)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (e: Exception) {
