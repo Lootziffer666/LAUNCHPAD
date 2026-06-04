@@ -23,6 +23,9 @@
         <View android:id="@+id/step_dot_3"
             android:layout_width="10dp" android:layout_height="10dp"
             android:background="#55FFFFFF" android:layout_margin="4dp" />
+        <View android:id="@+id/step_dot_4"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:background="#55FFFFFF" android:layout_margin="4dp" />
     </LinearLayout>
 
     <!-- Content area (steps swap in/out programmatically) -->

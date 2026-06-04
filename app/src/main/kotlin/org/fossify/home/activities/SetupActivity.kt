@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.provider.Settings
 import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
@@ -27,6 +28,7 @@ import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.UsageTracker
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically; literals are paddings/colors/sizes
 class SetupActivity : AppCompatActivity() {
@@ -41,6 +43,8 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var dot1: android.view.View
     private lateinit var dot2: android.view.View
     private lateinit var dot3: android.view.View
+    private lateinit var dot4: android.view.View
+    private var coreSaved = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +55,7 @@ class SetupActivity : AppCompatActivity() {
         dot1 = findViewById(R.id.step_dot_1)
         dot2 = findViewById(R.id.step_dot_2)
         dot3 = findViewById(R.id.step_dot_3)
+        dot4 = findViewById(R.id.step_dot_4)
 
         showStep(1)
         nextBtn.setOnClickListener { advance() }
@@ -61,6 +66,12 @@ class SetupActivity : AppCompatActivity() {
         scope.cancel()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The parent may leave to grant Usage Access or pick apps — refresh the checklist.
+        if (currentStep == 4) showStep(4)
+    }
+
     private fun showStep(step: Int) {
         content.removeAllViews()
         currentStep = step
@@ -69,6 +80,7 @@ class SetupActivity : AppCompatActivity() {
             1 -> buildWelcome()
             2 -> buildPin()
             3 -> buildBalance()
+            4 -> buildNextSteps()
         }
     }
 
@@ -78,6 +90,7 @@ class SetupActivity : AppCompatActivity() {
         dot1.setBackgroundColor(if (currentStep >= 1) active else inactive)
         dot2.setBackgroundColor(if (currentStep >= 2) active else inactive)
         dot3.setBackgroundColor(if (currentStep >= 3) active else inactive)
+        dot4.setBackgroundColor(if (currentStep >= 4) active else inactive)
     }
 
     // ─── Step 1: Welcome ──────────────────────────────────────────────────────
@@ -142,7 +155,7 @@ class SetupActivity : AppCompatActivity() {
     private val balanceBtns = mutableMapOf<Int, Button>()
 
     private fun buildBalance() {
-        nextBtn.text = "Fertig ✓"
+        nextBtn.text = "Weiter →"
         title("⏱️ Startguthaben für Jake")
         body("Wie viel Bildschirmzeit bekommt Jake zum Start? Du kannst das jederzeit ändern.")
         content.addView(spacer(24))
@@ -177,31 +190,136 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
-    private fun finishSetup() {
+    /** Persist PIN-step results (balance + setup_done) once, then show the next-steps checklist. */
+    private fun finishCoreSetup() {
+        if (coreSaved) {
+            showStep(4)
+            return
+        }
+        coreSaved = true
+        val balance = chosenBalance
         scope.launch {
             withContext(Dispatchers.IO) {
                 val db = AppsDatabase.getInstance(this@SetupActivity)
                 db.cryptoCashDao().insertTransaction(
                     CryptoCashTransaction(
-                        deltaMinutes = chosenBalance,
+                        deltaMinutes = balance,
                         type = LaunchpadConstants.TX_TYPE_EARN,
                         actor = "setup",
                         reasonType = "initial_balance",
                         reasonText = "Startguthaben",
-                        childVisibleText = "Startguthaben +$chosenBalance Min",
+                        childVisibleText = "Startguthaben +$balance Min",
                         source = "setup",
-                        balanceAfter = chosenBalance
+                        balanceAfter = balance
                     )
                 )
             }
             getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
                 .edit().putBoolean(LaunchpadPrefs.PREF_SETUP_DONE, true).apply()
-            toast("Alles bereit! Kindermodus ist noch AUS — aktiviere ihn in Eltern-Modus wenn du bereit bist.")
-            startActivity(
-                Intent(this@SetupActivity, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            )
+            showStep(4)
         }
+    }
+
+    private fun goToMain() {
+        startActivity(
+            Intent(this@SetupActivity, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        )
+    }
+
+    // ─── Step 4: Next steps checklist ───────────────────────────────────────────
+
+    private fun buildNextSteps() {
+        nextBtn.text = "Los geht's →"
+        title("✅ Fast fertig!")
+        body(
+            "Damit LAUNCHPAD wirkt, fehlen noch diese Schritte. Du kannst sie auch " +
+                "jederzeit später im Eltern-Modus erledigen."
+        )
+        content.addView(spacer(16))
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(list)
+
+        scope.launch {
+            val appCount = withContext(Dispatchers.IO) {
+                AppsDatabase.getInstance(this@SetupActivity).allowedAppDao().getAllEnabledApps().size
+            }
+            val usageOk = UsageTracker.hasUsageAccess(this@SetupActivity)
+            val enforcement = appPrefs().getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
+
+            list.removeAllViews()
+            list.addView(
+                checklistRow(
+                    appCount > 0,
+                    if (appCount > 0) "$appCount Apps freigegeben" else "Apps für Jake freigeben",
+                    "Öffnen"
+                ) { startActivity(Intent(this@SetupActivity, AppsManagementActivity::class.java)) }
+            )
+            list.addView(
+                checklistRow(
+                    usageOk,
+                    if (usageOk) "Bildschirmzeit-Messung aktiv" else "Bildschirmzeit messen erlauben",
+                    if (usageOk) null else "Geben"
+                ) { openUsageAccess() }
+            )
+            list.addView(kindermodusRow(enforcement, appCount))
+        }
+    }
+
+    private fun kindermodusRow(enforcement: Boolean, appCount: Int): LinearLayout = when {
+        enforcement -> checklistRow(true, "Kindermodus ist AN", null, null)
+        appCount == 0 -> checklistRow(false, "Kindermodus (erst Apps freigeben)", null, null)
+        else -> checklistRow(false, "Kindermodus aktivieren", "An") { enableKindermodus() }
+    }
+
+    private fun checklistRow(
+        done: Boolean,
+        label: String,
+        actionLabel: String?,
+        action: (() -> Unit)?
+    ): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        setPadding(0, 14, 0, 14)
+        addView(TextView(this@SetupActivity).apply {
+            text = if (done) "✅" else "⬜"
+            textSize = 18f
+            setPadding(0, 0, 16, 0)
+        })
+        addView(TextView(this@SetupActivity).apply {
+            text = label
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        if (actionLabel != null && action != null) {
+            addView(Button(this@SetupActivity).apply {
+                text = actionLabel
+                isAllCaps = false
+                setTextColor(Color.WHITE)
+                setBackgroundColor(Color.parseColor("#FF6B35"))
+                setPadding(28, 8, 28, 8)
+                setOnClickListener { action() }
+            })
+        }
+    }
+
+    private fun appPrefs() =
+        applicationContext.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+
+    private fun openUsageAccess() {
+        try {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        } catch (e: Exception) {
+            android.util.Log.w("LAUNCHPAD", "Usage-access settings unavailable", e)
+            toast("Einstellungen nicht verfügbar")
+        }
+    }
+
+    private fun enableKindermodus() {
+        appPrefs().edit().putBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, true).apply()
+        toast("Kindermodus AN — du kannst ihn im Eltern-Modus wieder ausschalten")
+        showStep(4)
     }
 
     // ─── Navigation ───────────────────────────────────────────────────────────
@@ -210,7 +328,8 @@ class SetupActivity : AppCompatActivity() {
         when (currentStep) {
             1 -> showStep(2)
             2 -> if (validateAndSavePin()) showStep(3)
-            3 -> finishSetup()
+            3 -> finishCoreSetup()
+            4 -> goToMain()
         }
     }
 
