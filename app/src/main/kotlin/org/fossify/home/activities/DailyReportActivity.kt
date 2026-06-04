@@ -3,7 +3,9 @@
 
 package org.fossify.home.activities
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -30,6 +32,10 @@ class DailyReportActivity : AppCompatActivity() {
     private lateinit var db: AppsDatabase
     private lateinit var content: LinearLayout
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Plain-text mirror of the rendered report, assembled by the view helpers so the
+    // "Teilen" button can hand a copy to the other parent without re-querying.
+    private val reportText = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +84,7 @@ class DailyReportActivity : AppCompatActivity() {
         @Suppress("UNUSED_PARAMETER") now: Long
     ) {
         content.removeAllViews()
+        reportText.setLength(0)
 
         val dateLabel = SimpleDateFormat("EEEE, d. MMMM", Locale.GERMAN).format(midnight)
         content.addView(section("Tagesbericht", 22f, topPad = 0))
@@ -160,52 +167,90 @@ class DailyReportActivity : AppCompatActivity() {
         content.addView(section("Morgen"))
         content.addView(caption("Das Konto wird nicht automatisch zurückgesetzt — " +
             "neues Budget über „Heute Ausnahme" hinzufügen."))
+
+        // ── Teilen ─────────────────────────────────────────────────────────────────
+        content.addView(shareButton())
+    }
+
+    private fun shareButton() = Button(this).apply {
+        text = "Bericht teilen"
+        isAllCaps = false
+        textSize = 15f
+        setTextColor(android.graphics.Color.WHITE)
+        setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        lp.topMargin = 32
+        layoutParams = lp
+        setOnClickListener { shareReport() }
+    }
+
+    private fun shareReport() {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "LAUNCHPAD Tagesbericht")
+            putExtra(Intent.EXTRA_TEXT, reportText.toString().trim())
+        }
+        startActivity(Intent.createChooser(send, "Bericht teilen"))
     }
 
     // ── View helpers ─────────────────────────────────────────────────────────────
 
-    private fun section(text: String, size: Float = 16f, topPad: Int = 24) =
-        TextView(this).apply {
+    private fun section(text: String, size: Float = 16f, topPad: Int = 24): TextView {
+        reportText.append("\n").append(text).append("\n")
+        return TextView(this).apply {
             this.text = text
             textSize = size
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(android.graphics.Color.parseColor("#0D2847"))
             setPadding(0, topPad, 0, 8)
         }
-
-    private fun caption(text: String) = TextView(this).apply {
-        this.text = text
-        textSize = 13f
-        setTextColor(android.graphics.Color.parseColor("#666666"))
-        setPadding(0, 0, 0, 8)
     }
 
-    private fun dataRow(label: String, value: String) = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        setPadding(0, 6, 0, 6)
-        addView(TextView(this@DailyReportActivity).apply {
-            text = label
-            textSize = 15f
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        addView(TextView(this@DailyReportActivity).apply {
-            text = value
-            textSize = 15f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(android.graphics.Color.parseColor("#0D2847"))
-        })
+    private fun caption(text: String): TextView {
+        reportText.append(text).append("\n")
+        return TextView(this).apply {
+            this.text = text
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#666666"))
+            setPadding(0, 0, 0, 8)
+        }
     }
 
-    private fun auditRow(ev: AuditEvent) = TextView(this).apply {
+    private fun dataRow(label: String, value: String): LinearLayout {
+        reportText.append("  ").append(label).append(": ").append(value).append("\n")
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 6, 0, 6)
+            addView(TextView(this@DailyReportActivity).apply {
+                text = label
+                textSize = 15f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(TextView(this@DailyReportActivity).apply {
+                text = value
+                textSize = 15f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(android.graphics.Color.parseColor("#0D2847"))
+            })
+        }
+    }
+
+    private fun auditRow(ev: AuditEvent): TextView {
+        reportText.append("  • ").append(ev.message).append("\n")
         val color = when (ev.severity) {
             LaunchpadConstants.SEVERITY_CRITICAL -> "#D32F2F"
             LaunchpadConstants.SEVERITY_WARNING -> "#E65100"
             else -> "#555555"
         }
-        text = "• ${ev.message}"
-        textSize = 13f
-        setTextColor(android.graphics.Color.parseColor(color))
-        setPadding(0, 4, 0, 4)
+        return TextView(this).apply {
+            text = "• ${ev.message}"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor(color))
+            setPadding(0, 4, 0, 4)
+        }
     }
 
     private fun todayRange(): Pair<Long, Long> {
