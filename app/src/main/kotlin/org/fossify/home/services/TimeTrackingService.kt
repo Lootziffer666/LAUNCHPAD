@@ -37,6 +37,7 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.runBlocking
+import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
@@ -59,6 +60,7 @@ class TimeTrackingService : Service() {
     private var accumulatedMs = 0L
     private var lastCountedAt = 0L
     @Volatile private var lastCooldownLaunch = 0L
+    @Volatile private var lastAppLimitLaunch = 0L
     // Tracks the last warned balance level so each threshold is announced at most once.
     private var lastWarnedMinutes = Int.MAX_VALUE
 
@@ -194,6 +196,18 @@ class TimeTrackingService : Service() {
                 return@runBlocking
             }
 
+            // Per-app daily limit: kick out mid-session once today's usage hits the cap.
+            // Mirrors the cool-down relaunch — throttled so we don't spam the block screen.
+            if (isAppDailyLimitReached(pkg)) {
+                val now = System.currentTimeMillis()
+                if (now - lastAppLimitLaunch >= COOLDOWN_RELAUNCH_THROTTLE_MS) {
+                    lastAppLimitLaunch = now
+                    launchAppBlocked(pkg)
+                }
+                resetCounter()
+                return@runBlocking
+            }
+
             val now = System.currentTimeMillis()
             if (lastCountedAt == 0L) {
                 lastCountedAt = now
@@ -296,6 +310,22 @@ class TimeTrackingService : Service() {
         return category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
     }
 
+    private suspend fun isAppDailyLimitReached(pkg: String): Boolean {
+        val limit = database.appTimeLimitDao().getForApp(pkg) ?: return false
+        if (limit.dailyMinutes <= 0) return false
+        val used = database.cryptoCashDao().getTodaySpentMinutesForApp(pkg, todayMidnight())
+        return used >= limit.dailyMinutes
+    }
+
+    private fun todayMidnight(): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
     private fun maybeWarnTimeRunningLow(balanceMinutes: Int) {
         if (balanceMinutes >= lastWarnedMinutes) return
         val thresholds = WARNING_THRESHOLDS
@@ -346,6 +376,21 @@ class TimeTrackingService : Service() {
             )
         } catch (e: Exception) {
             Log.e(tag, "Could not launch CooldownActivity", e)
+        }
+    }
+
+    private fun launchAppBlocked(pkg: String) {
+        try {
+            startActivity(
+                Intent(this, AppBlockedActivity::class.java)
+                    .putExtra(AppBlockedActivity.EXTRA_PACKAGE, pkg)
+                    .putExtra(AppBlockedActivity.EXTRA_REASON, LaunchpadConstants.REASON_APP_DAILY_LIMIT)
+                    .putExtra(AppBlockedActivity.EXTRA_MESSAGE, "Tageslimit für diese App erreicht.")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Could not launch AppBlockedActivity", e)
+            launchTimesUp()
         }
     }
 
