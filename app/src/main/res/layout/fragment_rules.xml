@@ -13,9 +13,10 @@
         android:padding="32dp">
 
         <TextView
+            android:id="@+id/rules_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Jakes Übersicht"
+            android:text="Übersicht"
             android:textSize="26sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"

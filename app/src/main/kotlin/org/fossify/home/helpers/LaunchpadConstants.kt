@@ -140,6 +140,7 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+    const val PREF_CHILD_NAME = "child_name" // display name shown across the launcher (default "Jake")
     // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
     // apps that reach the foreground via side channels (links, notifications, recents). Essential
     // packages (launcher, system UI, phone/dialer, settings, IME) are never blocked. Opt-in

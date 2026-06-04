@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.R
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PinGateHelper
@@ -99,10 +100,23 @@ class SetupActivity : AppCompatActivity() {
         nextBtn.text = "Einrichten →"
         title("🚀 Willkommen bei LAUNCHPAD")
         body(
-            "Ein fairer Launcher für Jake — mit Zeitlimits, Versprechen und klaren Regeln.\n\n" +
-                "Drücke auf \"Einrichten\" und in 2 Minuten ist alles bereit."
+            "Ein fairer Launcher mit Zeitlimits, Versprechen und klaren Regeln.\n\n" +
+                "Wie heißt dein Kind?"
         )
+        content.addView(spacer(16))
+        nameField = EditText(this).apply {
+            hint = "Name des Kindes"
+            setText(ChildProfile.name(this@SetupActivity))
+            setSingleLine()
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.argb(150, 255, 255, 255))
+            setBackgroundColor(Color.argb(50, 255, 255, 255))
+            setPadding(24, 20, 24, 20)
+        }
+        content.addView(nameField)
     }
+
+    private lateinit var nameField: EditText
 
     // ─── Step 2: PIN ──────────────────────────────────────────────────────────
 
@@ -156,8 +170,9 @@ class SetupActivity : AppCompatActivity() {
 
     private fun buildBalance() {
         nextBtn.text = "Weiter →"
-        title("⏱️ Startguthaben für Jake")
-        body("Wie viel Bildschirmzeit bekommt Jake zum Start? Du kannst das jederzeit ändern.")
+        val name = ChildProfile.name(this@SetupActivity)
+        title("⏱️ Startguthaben für $name")
+        body("Wie viel Bildschirmzeit bekommt $name zum Start? Du kannst das jederzeit ändern.")
         content.addView(spacer(24))
 
         for (minutes in listOf(30, 60, 90, 120)) {
@@ -251,7 +266,11 @@ class SetupActivity : AppCompatActivity() {
             list.addView(
                 checklistRow(
                     appCount > 0,
-                    if (appCount > 0) "$appCount Apps freigegeben" else "Apps für Jake freigeben",
+                    if (appCount > 0) {
+                        "$appCount Apps freigegeben"
+                    } else {
+                        "Apps für ${ChildProfile.name(this@SetupActivity)} freigeben"
+                    },
                     "Öffnen"
                 ) { startActivity(Intent(this@SetupActivity, AppsManagementActivity::class.java)) }
             )
@@ -326,7 +345,10 @@ class SetupActivity : AppCompatActivity() {
 
     private fun advance() {
         when (currentStep) {
-            1 -> showStep(2)
+            1 -> {
+                ChildProfile.setName(this, nameField.text.toString())
+                showStep(2)
+            }
             2 -> if (validateAndSavePin()) showStep(3)
             3 -> finishCoreSetup()
             4 -> goToMain()

@@ -303,6 +303,25 @@
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/em_row_child_name"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Name des Kindes" />
+                    <TextView android:id="@+id/em_child_name"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Jake"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <!-- ── Section: Sicherheit ── -->
             <TextView style="@style/SettingsSectionLabelStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"

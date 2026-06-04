@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AppTimeRequest
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.LaunchpadConstants
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -62,7 +63,7 @@ class AppTimeRequestsActivity : AppCompatActivity() {
                 setPadding(0, 16, 0, 4)
             })
             addView(TextView(this@AppTimeRequestsActivity).apply {
-                text = "Jake möchte länger an einer App bleiben"
+                text = "${ChildProfile.name(this@AppTimeRequestsActivity)} möchte länger an einer App bleiben"
                 textSize = 13f
                 setTextColor(Color.argb(180, 255, 255, 255))
             })

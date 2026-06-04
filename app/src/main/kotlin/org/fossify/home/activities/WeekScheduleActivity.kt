@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.WeekScheduleEntry
+import org.fossify.home.helpers.ChildProfile
 import java.util.Calendar
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
@@ -69,7 +70,7 @@ class WeekScheduleActivity : AppCompatActivity() {
         content.removeAllViews()
         content.addView(header("Wochenplan"))
         content.addView(hint(
-            "Lege fest, von wann bis wann Jake 🪙 Coins-Apps nutzen darf. " +
+            "Lege fest, von wann bis wann ${ChildProfile.name(this)} 🪙 Coins-Apps nutzen darf. " +
                 "Das erste Häkchen aktiviert die Einschränkung für diesen Tag."
         ))
 

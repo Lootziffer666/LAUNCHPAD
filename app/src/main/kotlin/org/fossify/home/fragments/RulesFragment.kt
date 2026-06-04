@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.R
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.CooldownRulesConfig
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
@@ -41,6 +42,8 @@ class RulesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        view.findViewById<TextView>(R.id.rules_title).text =
+            "${ChildProfile.possessiveName(requireContext())} Übersicht"
         val rulesContainer = view.findViewById<LinearLayout>(R.id.rules_container)
         val balanceView = view.findViewById<TextView>(R.id.rules_balance)
         val modeView = view.findViewById<TextView>(R.id.rules_mode)
@@ -59,7 +62,7 @@ class RulesFragment : Fragment() {
             add(Rule("🌐", "Surfen", "Nur sichere Seiten im Entdecken-Modus"))
             add(Rule("🤝", "Versprechen", "Mama und Papa halten ihre Zusagen"))
             add(Rule("🎬", "Medien", "YouTube & Co: immer erst anfragen"))
-            add(Rule("❤️", "Fairness", "Jake wird geliebt. Nicht optimiert."))
+            add(Rule("❤️", "Fairness", "${ChildProfile.name(requireContext())} wird geliebt. Nicht optimiert."))
         }
         rules.forEach { rule -> rulesContainer.addView(buildRuleRow(rule)) }
 

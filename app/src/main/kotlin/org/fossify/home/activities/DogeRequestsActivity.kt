@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.toEntity
 import org.fossify.home.helpers.toModel
 import org.fossify.home.models.DogeManager
@@ -79,7 +80,12 @@ class DogeRequestsActivity : AppCompatActivity() {
     private fun showParentView() {
         content.removeAllViews()
         content.addView(label("Medien-Anfragen", size = 20f, topPad = 0))
-        content.addView(label("Jakes Wünsche – genehmige mit einer Dauer oder lehne ab.", size = 14f))
+        content.addView(
+            label(
+                "${ChildProfile.possessiveName(this)} Wünsche – genehmige mit einer Dauer oder lehne ab.",
+                size = 14f
+            )
+        )
 
         val pending = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(pending)

@@ -57,7 +57,8 @@ class PairingActivity : AppCompatActivity() {
         val localIp = org.fossify.home.helpers.LaunchpadServer.getLocalIp(this)
         if (localIp != null) {
             content.addView(TextView(this).apply {
-                text = "📡 Jakes Gerät IP: $localIp:${org.fossify.home.helpers.LaunchpadServer.PORT}"
+                text = "📡 ${org.fossify.home.helpers.ChildProfile.possessiveName(this@PairingActivity)} " +
+                    "Gerät IP: $localIp:${org.fossify.home.helpers.LaunchpadServer.PORT}"
                 textSize = 15f
                 setPadding(0, 0, 0, 8)
             })

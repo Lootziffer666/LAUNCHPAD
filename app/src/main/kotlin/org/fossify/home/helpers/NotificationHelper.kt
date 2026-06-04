@@ -22,8 +22,12 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             mgr.createNotificationChannel(
-                NotificationChannel(CHANNEL_REQUESTS, "Jakes Anfragen", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "Wenn Jake eine Medien-Anfrage oder ein Versprechen stellt"
+                NotificationChannel(
+                    CHANNEL_REQUESTS,
+                    "${ChildProfile.possessiveName(context)} Anfragen",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Wenn ${ChildProfile.name(context)} eine Anfrage oder ein Versprechen stellt"
                 }
             )
             mgr.createNotificationChannel(
@@ -37,7 +41,7 @@ object NotificationHelper {
             context,
             id = 1001,
             channel = CHANNEL_REQUESTS,
-            title = "🎬 Jake fragt an",
+            title = "🎬 ${ChildProfile.name(context)} fragt an",
             text = contentDescription,
             targetClass = "org.fossify.home.activities.DogeRequestsActivity",
             extras = mapOf("isParentMode" to true)
@@ -49,7 +53,7 @@ object NotificationHelper {
             context,
             id = 1003,
             channel = CHANNEL_REQUESTS,
-            title = "⏱ Jake möchte mehr Zeit",
+            title = "⏱ ${ChildProfile.name(context)} möchte mehr Zeit",
             text = "$appLabel — Tageslimit erreicht",
             targetClass = "org.fossify.home.activities.AppTimeRequestsActivity",
             extras = emptyMap()

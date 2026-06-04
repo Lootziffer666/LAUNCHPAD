@@ -27,6 +27,7 @@ import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadWidgetProvider
 import org.fossify.home.databases.CryptoCashTransaction
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.CooldownRulesConfig
 import org.fossify.home.helpers.CooldownRulesValidator
 import org.fossify.home.helpers.KioskManager
@@ -67,6 +68,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var healthStatus: android.widget.TextView
     private lateinit var auditStatus: android.widget.TextView
     private lateinit var strictStatus: android.widget.TextView
+    private lateinit var childNameStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -169,6 +171,7 @@ class ElternModusActivity : AppCompatActivity() {
         healthStatus = findViewById(R.id.em_health_status)
         auditStatus = findViewById(R.id.em_audit_status)
         strictStatus = findViewById(R.id.em_strict_status)
+        childNameStatus = findViewById(R.id.em_child_name)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -207,6 +210,7 @@ class ElternModusActivity : AppCompatActivity() {
                 startActivity(Intent(this, AuditLogActivity::class.java))
             },
             R.id.em_row_strict_block to { showStrictBlockDialog() },
+            R.id.em_row_child_name to { showChildNameDialog() },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
@@ -331,10 +335,29 @@ class ElternModusActivity : AppCompatActivity() {
             val strict = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
                 .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
             strictStatus.text = if (strict) "An — nur freigegebene Apps" else "Aus"
+            childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
         }
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
+
+    private fun showChildNameDialog() {
+        val input = EditText(this).apply {
+            setText(ChildProfile.name(this@ElternModusActivity))
+            hint = "Name des Kindes"
+            setSingleLine()
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Name des Kindes")
+            .setView(input)
+            .setPositiveButton("Speichern") { _, _ ->
+                ChildProfile.setName(this, input.text.toString())
+                scope.launch { refresh() }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
 
     private fun showStrictBlockDialog() {
         val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
@@ -543,7 +566,8 @@ class ElternModusActivity : AppCompatActivity() {
                 }
                 if (count == 0) {
                     // Don't block activation — just warn. Parent can add apps next.
-                    toast("Kindermodus AN ⚠️ Noch keine Apps freigegeben — unter 'Apps verwalten' Apps hinzufügen")
+                    toast("Kindermodus AN ⚠️ Noch keine Apps freigegeben — " +
+                        "unter 'Apps verwalten' Apps hinzufügen")
                 } else {
                     toast("Kindermodus AN — $count Apps freigegeben")
                 }

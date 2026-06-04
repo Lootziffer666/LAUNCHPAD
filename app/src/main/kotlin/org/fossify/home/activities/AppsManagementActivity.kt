@@ -28,6 +28,7 @@ import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.ChangeLogEntity
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.CategorySuggester
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
@@ -133,7 +134,7 @@ class AppsManagementActivity : AppCompatActivity() {
         )
 
         val hint = TextView(this).apply {
-            text = "Häkchen = Jake darf die App sehen.\n" +
+            text = "Häkchen = ${ChildProfile.name(this@AppsManagementActivity)} darf die App sehen.\n" +
                 "Tippe auf „Frei\" / „🪙 Coins\", um zu wählen, ob die App Doge-Coins kostet.\n" +
                 "⏱ = Tageslimit pro App (nur für 🪙-Apps)."
             textSize = 12f
@@ -269,7 +270,7 @@ class AppsManagementActivity : AppCompatActivity() {
     private fun confirmBulkRemove() {
         AlertDialog.Builder(this)
             .setTitle("Apps entfernen")
-            .setMessage("${selectedPkgs.size} App(s) aus Jakes Liste entfernen?")
+            .setMessage("${selectedPkgs.size} App(s) aus ${ChildProfile.possessiveName(this)} Liste entfernen?")
             .setPositiveButton("Entfernen") { _, _ -> applyBulkRemove() }
             .setNegativeButton("Abbrechen", null)
             .show()
@@ -581,7 +582,7 @@ class AppsManagementActivity : AppCompatActivity() {
             .setTitle("$appLabel ist ein Browser")
             .setMessage(
                 "Der Web-Filter von LAUNCHPAD wirkt nur im eingebauten Entdecken-Modus. " +
-                    "In $appLabel kann Jake ungefiltert surfen.\n\n" +
+                    "In $appLabel kann ${ChildProfile.name(this)} ungefiltert surfen.\n\n" +
                     "Tipp: Statt eines eigenen Browsers den Entdecken-Modus nutzen."
             )
             .setPositiveButton("Verstanden", null)
@@ -726,7 +727,8 @@ class AppsManagementActivity : AppCompatActivity() {
         box.addView(enabledCb)
 
         box.addView(TextView(this).apply {
-            text = "Kurzer Countdown, wenn Jake eine 🪙 Coins-App schnell wieder öffnet. " +
+            text = "Kurzer Countdown, wenn ${ChildProfile.name(this@AppsManagementActivity)} eine " +
+                "🪙 Coins-App schnell wieder öffnet. " +
                 "Das erste Öffnen bleibt immer frei."
             textSize = 12f
             setTextColor(android.graphics.Color.parseColor("#888888"))
