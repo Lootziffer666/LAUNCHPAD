@@ -102,7 +102,11 @@ object LaunchpadServer {
                     method == "POST" && path == "/api/limits" -> handleSetLimit(context, body)
                     method == "POST" && path == "/api/limits/remove" -> handleRemoveLimit(context, body)
                     method == "GET" && path == "/api/export" -> handleExport(context)
+                    method == "POST" && path == "/api/export/encrypted" ->
+                        handleExportEncrypted(context, body)
                     method == "POST" && path == "/api/import" -> handleImport(context, body)
+                    method == "POST" && path == "/api/import/encrypted" ->
+                        handleImportEncrypted(context, body)
                     path == "/api/ip" -> 200 to """{"ip":"${getLocalIp()}","port":$PORT}"""
                     method == "GET" && path == "/api/test-pair" -> {
                         val p = testQrPayload
@@ -254,7 +258,17 @@ object LaunchpadServer {
         return 200 to """{"ok":true}"""
     }
 
-    private suspend fun handleExport(context: Context): Pair<Int, String> {
+    private suspend fun handleExport(context: Context): Pair<Int, String> =
+        200 to buildExportJson(context)
+
+    private suspend fun handleExportEncrypted(context: Context, body: String): Pair<Int, String> {
+        val passphrase = JSONObject(body).optString("passphrase", "")
+        if (passphrase.length < 4) return 400 to """{"error":"passphrase too short"}"""
+        val blob = BackupCrypto.encrypt(buildExportJson(context), passphrase)
+        return 200 to JSONObject().apply { put("encrypted", blob) }.toString()
+    }
+
+    private suspend fun buildExportJson(context: Context): String {
         val db = AppsDatabase.getInstance(context)
         val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
 
@@ -303,12 +317,27 @@ object LaunchpadServer {
             put("timeLimits", limitsArr)
             put("settings", settingsObj)
         }
-        return 200 to export.toString()
+        return export.toString()
+    }
+
+    private suspend fun handleImport(context: Context, body: String): Pair<Int, String> =
+        applyImport(context, body)
+
+    private suspend fun handleImportEncrypted(context: Context, body: String): Pair<Int, String> {
+        val req = JSONObject(body)
+        val passphrase = req.optString("passphrase", "")
+        val blob = req.optString("encrypted", "")
+        if (passphrase.isBlank() || blob.isBlank()) {
+            return 400 to """{"error":"passphrase and encrypted required"}"""
+        }
+        val json = BackupCrypto.decrypt(blob, passphrase)
+            ?: return 400 to """{"error":"wrong passphrase or corrupt backup"}"""
+        return applyImport(context, json)
     }
 
     @Suppress("NestedBlockDepth")
-    private suspend fun handleImport(context: Context, body: String): Pair<Int, String> {
-        val json = JSONObject(body)
+    private suspend fun applyImport(context: Context, jsonString: String): Pair<Int, String> {
+        val json = JSONObject(jsonString)
         if (json.optInt("version", 0) != 1) return 400 to """{"error":"unsupported version"}"""
 
         val db = AppsDatabase.getInstance(context)
