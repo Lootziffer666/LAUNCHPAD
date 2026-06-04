@@ -13,7 +13,8 @@ object CategorySuggester {
     fun suggest(packageName: String): String? {
         EXACT_MAP[packageName]?.let { return it }
         for ((prefix, category) in PREFIX_MAP) {
-            if (packageName.startsWith(prefix)) return category
+            // Segment-aware: "com.king" matches "com.king.x" but NOT "com.kingdom.x".
+            if (packageName == prefix || packageName.startsWith("$prefix.")) return category
         }
         return null
     }
