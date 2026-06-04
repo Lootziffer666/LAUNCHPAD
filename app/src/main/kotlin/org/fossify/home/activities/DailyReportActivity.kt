@@ -69,8 +69,13 @@ class DailyReportActivity : AppCompatActivity() {
             val balance = withContext(Dispatchers.IO) {
                 TimeBudgetManager(this@DailyReportActivity, db).getCurrentBudget().balanceMinutes
             }
+            val limits = withContext(Dispatchers.IO) {
+                db.appTimeLimitDao().getAll()
+                    .filter { it.dailyMinutes > 0 }
+                    .associate { it.packageName to it.dailyMinutes }
+            }
 
-            renderReport(txs, dogeAll, audits, balance, midnight, now)
+            renderReport(txs, dogeAll, audits, balance, limits, midnight, now)
         }
     }
 
@@ -80,6 +85,7 @@ class DailyReportActivity : AppCompatActivity() {
         dogeAll: List<DogeRequest>,
         audits: List<AuditEvent>,
         balance: Int,
+        limits: Map<String, Int>,
         midnight: Long,
         @Suppress("UNUSED_PARAMETER") now: Long
     ) {
@@ -128,7 +134,16 @@ class DailyReportActivity : AppCompatActivity() {
                     android.util.Log.w("DailyReport", "Package not found: $pkg", e)
                     pkg
                 }
-                content.addView(dataRow(label, "$mins Min"))
+                val limit = limits[pkg]
+                val value = when {
+                    limit == null -> "$mins Min"
+                    mins >= limit -> "$mins / $limit Min ⛔"
+                    else -> "$mins / $limit Min"
+                }
+                content.addView(dataRow(label, value))
+            }
+            if (byPkg.any { (pkg, mins) -> limits[pkg]?.let { mins >= it } == true }) {
+                content.addView(caption("⛔ = Tageslimit heute erreicht"))
             }
         }
 
