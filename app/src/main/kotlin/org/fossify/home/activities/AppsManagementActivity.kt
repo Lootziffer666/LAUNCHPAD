@@ -46,8 +46,8 @@ class AppsManagementActivity : AppCompatActivity() {
 
     // packageName → (label, category): category is null when not whitelisted
     private var allApps: List<Triple<String, String, String?>> = emptyList()
-    // packageName → dailyMinutes (0 = no limit)
-    private var appLimits: Map<String, Int> = emptyMap()
+    // packageName → per-app limit (weekday + weekend caps)
+    private var appLimits: Map<String, AppTimeLimit> = emptyMap()
     private var filter = ""
 
     private var selectionMode = false
@@ -342,7 +342,7 @@ class AppsManagementActivity : AppCompatActivity() {
             val (allowedMap, limitsMap) = withContext(Dispatchers.IO) {
                 Pair(
                     db.allowedAppDao().getAll().associate { it.packageName to it.category },
-                    db.appTimeLimitDao().getAll().associate { it.packageName to it.dailyMinutes }
+                    db.appTimeLimitDao().getAll().associateBy { it.packageName }
                 )
             }
             appLimits = limitsMap
@@ -440,8 +440,7 @@ class AppsManagementActivity : AppCompatActivity() {
                 row.addView(catBtn)
 
                 if (isLeisure) {
-                    val limitMins = appLimits[pkg] ?: 0
-                    val limitLabel = if (limitMins > 0) "⏱ ${limitMins}m" else "⏱ ∞"
+                    val limitLabel = limitLabelFor(appLimits[pkg])
                     row.addView(Button(this).apply {
                         text = limitLabel
                         textSize = 12f
@@ -467,32 +466,56 @@ class AppsManagementActivity : AppCompatActivity() {
         }
     }
 
+    private fun limitLabelFor(limit: AppTimeLimit?): String {
+        if (limit == null) return "⏱ ∞"
+        val d = limit.dailyMinutes
+        val w = limit.weekendMinutes
+        fun cap(m: Int) = if (m == 0) "∞" else m.toString()
+        return when {
+            d == 0 && w == 0 -> "⏱ ∞"
+            d == w -> "⏱ ${d}m"
+            else -> "⏱ ${cap(d)}/${cap(w)}" // Schultag/Wochenende
+        }
+    }
+
     private fun showTimeLimitDialog(pkg: String) {
-        val options = listOf(0, 15, 30, 45, 60, 90, 120)
-        val labels = options.map { if (it == 0) "Kein Tageslimit" else "$it Minuten" }.toTypedArray()
-        val current = appLimits[pkg] ?: 0
-        val checked = options.indexOf(current).coerceAtLeast(0)
+        val current = appLimits[pkg]
+        var daily = current?.dailyMinutes ?: 0
+        var weekend = current?.weekendMinutes ?: 0
+
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
+            setPadding(48, 24, 48, 16)
+            addView(TextView(this@AppsManagementActivity).apply {
+                text = "0 = kein Limit"
+                textSize = 12f
+                setTextColor(android.graphics.Color.parseColor("#99FFFFFF"))
+                setPadding(0, 0, 0, 12)
+            })
+            addView(stepperRow("Schultag (Mo–Fr)", "min", daily, 0, 180, 15) { daily = it })
+            addView(stepperRow("Wochenende (Sa/So)", "min", weekend, 0, 180, 15) { weekend = it })
+        }
+
         val builder = AlertDialog.Builder(this)
-            .setTitle("Tageslimit")
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                val chosen = options[which]
+            .setTitle("Tageslimit pro App")
+            .setView(panel)
+            .setPositiveButton("Speichern") { _, _ ->
                 scope.launch(Dispatchers.IO) {
-                    if (chosen == 0) {
+                    if (daily <= 0 && weekend <= 0) {
                         db.appTimeLimitDao().delete(pkg)
                     } else {
-                        db.appTimeLimitDao().upsert(AppTimeLimit(pkg, chosen))
+                        db.appTimeLimitDao().upsert(AppTimeLimit(pkg, daily, weekend))
                     }
-                    appLimits = db.appTimeLimitDao().getAll()
-                        .associate { it.packageName to it.dailyMinutes }
-                    withContext(Dispatchers.Main) {
-                        renderList()
-                    }
+                    appLimits = db.appTimeLimitDao().getAll().associateBy { it.packageName }
+                    withContext(Dispatchers.Main) { renderList() }
                 }
-                dialog.dismiss()
             }
             .setNegativeButton("Abbrechen", null)
-        // A one-off "today only" bonus only makes sense when a permanent limit is set.
-        if (current > 0) {
+
+        // A one-off "today only" bonus only makes sense when today already has a cap.
+        val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+        if ((current?.minutesForDay(today) ?: 0) > 0) {
             builder.setNeutralButton("Heute +15 Min") { _, _ -> grantTodayBonus(pkg, 15) }
         }
         builder.show()

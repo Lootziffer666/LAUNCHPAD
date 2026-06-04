@@ -70,15 +70,18 @@ class DailyReportActivity : AppCompatActivity() {
             val balance = withContext(Dispatchers.IO) {
                 TimeBudgetManager(this@DailyReportActivity, db).getCurrentBudget().balanceMinutes
             }
+            val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
             val limits = withContext(Dispatchers.IO) {
                 db.appTimeLimitDao().getAll()
-                    .filter { it.dailyMinutes > 0 }
-                    .associate { limit ->
+                    .mapNotNull { limit ->
+                        val base = limit.minutesForDay(today)
+                        if (base <= 0) return@mapNotNull null // no cap today
                         val bonus = AppLimitBonus.getTodayBonus(
                             this@DailyReportActivity, limit.packageName, midnight
                         )
-                        limit.packageName to AppLimitBonus.effectiveLimit(limit.dailyMinutes, bonus)
+                        limit.packageName to AppLimitBonus.effectiveLimit(base, bonus)
                     }
+                    .toMap()
             }
 
             renderReport(txs, dogeAll, audits, balance, limits, midnight, now)

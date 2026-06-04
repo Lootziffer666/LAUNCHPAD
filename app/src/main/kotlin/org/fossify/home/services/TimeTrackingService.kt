@@ -313,11 +313,13 @@ class TimeTrackingService : Service() {
 
     private suspend fun isAppDailyLimitReached(pkg: String): Boolean {
         val limit = database.appTimeLimitDao().getForApp(pkg) ?: return false
-        if (limit.dailyMinutes <= 0) return false
+        val dayOfWeek = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+        val baseLimit = limit.minutesForDay(dayOfWeek)
+        if (baseLimit <= 0) return false
         val midnight = todayMidnight()
         val used = database.cryptoCashDao().getTodaySpentMinutesForApp(pkg, midnight)
         val bonus = AppLimitBonus.getTodayBonus(this, pkg, midnight)
-        return used >= AppLimitBonus.effectiveLimit(limit.dailyMinutes, bonus)
+        return used >= AppLimitBonus.effectiveLimit(baseLimit, bonus)
     }
 
     private fun todayMidnight(): Long {

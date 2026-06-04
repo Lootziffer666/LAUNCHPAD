@@ -3,6 +3,7 @@
 
 package org.fossify.home.databases
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
@@ -21,8 +22,21 @@ data class AllowedApp(
 @Entity(tableName = "app_time_limits")
 data class AppTimeLimit(
     @PrimaryKey val packageName: String,
-    val dailyMinutes: Int // 0 = no limit
-)
+    val dailyMinutes: Int,      // school-day (Mon–Fri) cap; 0 = no cap
+    // defaultValue matches MIGRATION_10_11's "ADD COLUMN … DEFAULT 0" so Room's schema
+    // validation passes on both fresh installs and upgrades.
+    @ColumnInfo(defaultValue = "0") val weekendMinutes: Int = 0 // weekend (Sat/Sun) cap; 0 = no cap
+) {
+    /**
+     * Cap that applies on [dayOfWeek] (java.util.Calendar constant: SUNDAY=1 … SATURDAY=7).
+     * Weekends use [weekendMinutes], all other days use [dailyMinutes].
+     */
+    fun minutesForDay(dayOfWeek: Int): Int {
+        val isWeekend = dayOfWeek == java.util.Calendar.SATURDAY ||
+            dayOfWeek == java.util.Calendar.SUNDAY
+        return if (isWeekend) weekendMinutes else dailyMinutes
+    }
+}
 
 // Audit log: tamper signals + notable system events shown to the parent
 @Entity(tableName = "audit_events")

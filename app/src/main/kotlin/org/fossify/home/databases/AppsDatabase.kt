@@ -66,7 +66,7 @@ import org.fossify.home.interfaces.DogeRequestDao
         ChangeLogEntity::class,
         WeekScheduleEntry::class
     ],
-    version = 10
+    version = 11
 )
 @TypeConverters(Converters::class)
 @Suppress("TooManyFunctions") // one abstract accessor per DAO
@@ -203,6 +203,17 @@ abstract class AppsDatabase : RoomDatabase() {
             }
         }
 
+        // Per-app weekend cap. Existing rows keep their behaviour (same cap every day) by
+        // copying dailyMinutes into the new weekendMinutes column.
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `app_time_limits` ADD COLUMN `weekendMinutes` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("UPDATE `app_time_limits` SET `weekendMinutes` = `dailyMinutes`")
+            }
+        }
+
         private fun seedExploreDefaults(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
 
@@ -251,7 +262,10 @@ abstract class AppsDatabase : RoomDatabase() {
                             AppsDatabase::class.java,
                             "apps.db"
                         )
-                            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                            .addMigrations(
+                                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                                MIGRATION_9_10, MIGRATION_10_11
+                            )
                             .addCallback(seedCallback)
                             .build()
                     }

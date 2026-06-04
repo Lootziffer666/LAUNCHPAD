@@ -204,6 +204,7 @@ object LaunchpadServer {
                 put("addedAt", app.addedAt)
                 put("addedBy", app.addedBy)
                 put("dailyMinutes", limits[app.packageName]?.dailyMinutes ?: 0)
+                put("weekendMinutes", limits[app.packageName]?.weekendMinutes ?: 0)
             })
         }
         return 200 to JSONObject().apply { put("apps", arr) }.toString()
@@ -232,6 +233,7 @@ object LaunchpadServer {
             arr.put(JSONObject().apply {
                 put("packageName", l.packageName)
                 put("dailyMinutes", l.dailyMinutes)
+                put("weekendMinutes", l.weekendMinutes)
             })
         }
         return 200 to JSONObject().apply { put("limits", arr) }.toString()
@@ -241,12 +243,14 @@ object LaunchpadServer {
         val json = JSONObject(body)
         val pkg = json.optString("packageName", "")
         val minutes = json.optInt("dailyMinutes", 0)
+        // Older companion clients omit weekendMinutes → keep "same cap every day".
+        val weekend = json.optInt("weekendMinutes", minutes)
         if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
         val db = AppsDatabase.getInstance(context)
-        if (minutes <= 0) {
+        if (minutes <= 0 && weekend <= 0) {
             db.appTimeLimitDao().delete(pkg)
         } else {
-            db.appTimeLimitDao().upsert(AppTimeLimit(pkg, minutes))
+            db.appTimeLimitDao().upsert(AppTimeLimit(pkg, minutes, weekend))
         }
         return 200 to """{"ok":true}"""
     }
@@ -278,6 +282,7 @@ object LaunchpadServer {
             limitsArr.put(JSONObject().apply {
                 put("packageName", l.packageName)
                 put("dailyMinutes", l.dailyMinutes)
+                put("weekendMinutes", l.weekendMinutes)
             })
         }
 
@@ -347,7 +352,10 @@ object LaunchpadServer {
         for (i in 0 until limitsArr.length()) {
             val o = limitsArr.getJSONObject(i)
             val mins = o.optInt("dailyMinutes", 0)
-            if (mins > 0) db.appTimeLimitDao().upsert(AppTimeLimit(o.getString("packageName"), mins))
+            val weekend = o.optInt("weekendMinutes", mins) // old exports → same cap every day
+            if (mins > 0 || weekend > 0) {
+                db.appTimeLimitDao().upsert(AppTimeLimit(o.getString("packageName"), mins, weekend))
+            }
         }
 
         json.optJSONObject("settings")?.let { s ->

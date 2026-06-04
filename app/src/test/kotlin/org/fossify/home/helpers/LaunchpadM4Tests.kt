@@ -243,6 +243,28 @@ class AppDailyLimitTest {
         val limit = AppTimeLimit("com.example.app", 30)
         assertTrue("31 >= 30 should be blocked", reached(limit, 31))
     }
+
+    @Test
+    fun weekdayUsesDailyCap() {
+        val limit = AppTimeLimit("com.example.app", dailyMinutes = 30, weekendMinutes = 90)
+        // Calendar: MONDAY=2 … FRIDAY=6
+        assertEquals(30, limit.minutesForDay(java.util.Calendar.MONDAY))
+        assertEquals(30, limit.minutesForDay(java.util.Calendar.FRIDAY))
+    }
+
+    @Test
+    fun weekendUsesWeekendCap() {
+        val limit = AppTimeLimit("com.example.app", dailyMinutes = 30, weekendMinutes = 90)
+        assertEquals(90, limit.minutesForDay(java.util.Calendar.SATURDAY))
+        assertEquals(90, limit.minutesForDay(java.util.Calendar.SUNDAY))
+    }
+
+    @Test
+    fun defaultWeekendIsZero() {
+        // A limit created with only a daily cap has no weekend cap by default.
+        val limit = AppTimeLimit("com.example.app", dailyMinutes = 30)
+        assertEquals(0, limit.minutesForDay(java.util.Calendar.SATURDAY))
+    }
 }
 
 class AppLimitBonusTest {
