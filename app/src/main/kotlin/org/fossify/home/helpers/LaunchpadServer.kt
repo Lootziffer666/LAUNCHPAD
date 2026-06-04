@@ -22,7 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.fossify.home.databases.AllowedApp
-import org.fossify.home.databases.AppTimeLimit
 import org.fossify.home.databases.AppsDatabase
 import org.json.JSONArray
 import org.json.JSONObject
@@ -229,28 +228,21 @@ object LaunchpadServer {
     private suspend fun handleGetLimits(context: Context): Pair<Int, String> {
         val limits = AppsDatabase.getInstance(context).appTimeLimitDao().getAll()
         val arr = JSONArray()
-        limits.forEach { l ->
-            arr.put(JSONObject().apply {
-                put("packageName", l.packageName)
-                put("dailyMinutes", l.dailyMinutes)
-                put("weekendMinutes", l.weekendMinutes)
-            })
-        }
+        limits.forEach { l -> arr.put(CompanionSerializer.limitToJson(l)) }
         return 200 to JSONObject().apply { put("limits", arr) }.toString()
     }
 
     private suspend fun handleSetLimit(context: Context, body: String): Pair<Int, String> {
         val json = JSONObject(body)
-        val pkg = json.optString("packageName", "")
-        val minutes = json.optInt("dailyMinutes", 0)
-        // Older companion clients omit weekendMinutes → keep "same cap every day".
-        val weekend = json.optInt("weekendMinutes", minutes)
-        if (pkg.isBlank()) return 400 to """{"error":"packageName required"}"""
+        if (json.optString("packageName", "").isBlank()) {
+            return 400 to """{"error":"packageName required"}"""
+        }
         val db = AppsDatabase.getInstance(context)
-        if (minutes <= 0 && weekend <= 0) {
-            db.appTimeLimitDao().delete(pkg)
+        val limit = CompanionSerializer.limitFromJson(json)
+        if (limit == null) {
+            db.appTimeLimitDao().delete(json.getString("packageName"))
         } else {
-            db.appTimeLimitDao().upsert(AppTimeLimit(pkg, minutes, weekend))
+            db.appTimeLimitDao().upsert(limit)
         }
         return 200 to """{"ok":true}"""
     }
@@ -268,22 +260,12 @@ object LaunchpadServer {
 
         val appsArr = JSONArray()
         db.allowedAppDao().getAll().forEach { app ->
-            appsArr.put(JSONObject().apply {
-                put("packageName", app.packageName)
-                put("category", app.category)
-                put("enabled", app.enabled)
-                put("addedAt", app.addedAt)
-                put("addedBy", app.addedBy)
-            })
+            appsArr.put(CompanionSerializer.allowedAppToJson(app))
         }
 
         val limitsArr = JSONArray()
         db.appTimeLimitDao().getAll().forEach { l ->
-            limitsArr.put(JSONObject().apply {
-                put("packageName", l.packageName)
-                put("dailyMinutes", l.dailyMinutes)
-                put("weekendMinutes", l.weekendMinutes)
-            })
+            limitsArr.put(CompanionSerializer.limitToJson(l))
         }
 
         val settingsObj = JSONObject().apply {
@@ -335,14 +317,7 @@ object LaunchpadServer {
         val appsArr = json.optJSONArray("allowedApps") ?: JSONArray()
         val newApps = mutableListOf<AllowedApp>()
         for (i in 0 until appsArr.length()) {
-            val o = appsArr.getJSONObject(i)
-            newApps.add(AllowedApp(
-                packageName = o.getString("packageName"),
-                category = o.optString("category", "NEUTRAL"),
-                enabled = o.optBoolean("enabled", true),
-                addedAt = o.optLong("addedAt", System.currentTimeMillis()),
-                addedBy = o.optString("addedBy", "parent")
-            ))
+            CompanionSerializer.allowedAppFromJson(appsArr.getJSONObject(i))?.let { newApps.add(it) }
         }
         db.allowedAppDao().deleteAll()
         db.allowedAppDao().insertAll(newApps)
@@ -350,11 +325,8 @@ object LaunchpadServer {
         val limitsArr = json.optJSONArray("timeLimits") ?: JSONArray()
         db.appTimeLimitDao().deleteAll()
         for (i in 0 until limitsArr.length()) {
-            val o = limitsArr.getJSONObject(i)
-            val mins = o.optInt("dailyMinutes", 0)
-            val weekend = o.optInt("weekendMinutes", mins) // old exports → same cap every day
-            if (mins > 0 || weekend > 0) {
-                db.appTimeLimitDao().upsert(AppTimeLimit(o.getString("packageName"), mins, weekend))
+            CompanionSerializer.limitFromJson(limitsArr.getJSONObject(i))?.let {
+                db.appTimeLimitDao().upsert(it)
             }
         }
 
