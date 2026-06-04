@@ -190,7 +190,7 @@ class DailyReportActivity : AppCompatActivity() {
         // ── Nächster Tag ─────────────────────────────────────────────────────────
         content.addView(section("Morgen"))
         content.addView(caption("Das Konto wird nicht automatisch zurückgesetzt — " +
-            "neues Budget über „Heute Ausnahme" hinzufügen."))
+            "neues Budget über „Heute Ausnahme\" hinzufügen."))
 
         // ── Teilen ─────────────────────────────────────────────────────────────────
         content.addView(shareButton())

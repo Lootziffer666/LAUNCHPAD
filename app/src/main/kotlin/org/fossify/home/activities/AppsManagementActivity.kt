@@ -260,7 +260,7 @@ class AppsManagementActivity : AppCompatActivity() {
         val label = categoryLabel(category)
         AlertDialog.Builder(this)
             .setTitle("Kategorie setzen")
-            .setMessage("${selectedPkgs.size} App(s) auf „$label" setzen?")
+            .setMessage("${selectedPkgs.size} App(s) auf „$label\" setzen?")
             .setPositiveButton("Setzen") { _, _ -> applyBulkCategory(category) }
             .setNegativeButton("Abbrechen", null)
             .show()
