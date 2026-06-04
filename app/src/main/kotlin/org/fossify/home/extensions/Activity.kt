@@ -42,27 +42,17 @@ import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.helpers.UNINSTALL_APP_REQUEST_CODE
 import org.fossify.home.interfaces.ItemMenuListener
 import org.fossify.home.models.HomeScreenGridItem
+import org.fossify.home.models.TimeBudget
 
 fun Activity.launchApp(packageName: String, activityName: String) {
     // LAUNCHPAD M1: Launch gate (whitelist + time budget + cool-down) — only enforced once the
     // parent has switched on Kindermodus. Fail-open so a gate error never blocks launching.
     try {
-        val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
-            .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
-        if (enforce) {
-            val db = AppsDatabase.getInstance(applicationContext)
-            val budget = runBlocking { TimeBudgetManager(this@launchApp, db).getCurrentBudget() }
-            val decision = runBlocking { LaunchGate(this@launchApp, db).canLaunch(packageName, budget) }
+        val gate = evaluateLaunchGate(packageName)
+        if (gate != null) {
+            val (decision, budget) = gate
             if (!decision.allowed) {
-                startActivity(
-                    Intent(this@launchApp, AppBlockedActivity::class.java)
-                        .putExtra(AppBlockedActivity.EXTRA_PACKAGE, packageName)
-                        .putExtra(AppBlockedActivity.EXTRA_REASON, decision.reason)
-                        .putExtra(AppBlockedActivity.EXTRA_MESSAGE, decision.childVisibleMessage)
-                        .putExtra(AppBlockedActivity.EXTRA_BALANCE_MINUTES, budget.balanceMinutes)
-                        .putExtra(AppBlockedActivity.EXTRA_COOLDOWN_UNTIL, budget.cooldownExpiresAt ?: 0L)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
+                showBlockScreen(packageName, decision, budget)
                 return
             }
             // Impulsbremse: calming countdown before a rapid re-open of a high-stimulation app.
@@ -74,6 +64,56 @@ fun Activity.launchApp(packageName: String, activityName: String) {
     }
 
     launchAppDirect(packageName, activityName)
+}
+
+/**
+ * Gate an app-shortcut launch (the long-press shortcut menu calls LauncherApps.startShortcut
+ * directly, which would otherwise skip the launch gate). Returns true if the shortcut may
+ * proceed; when blocked it shows the context-aware block screen and returns false. Fail-open.
+ */
+fun Activity.passesLaunchGateForShortcut(packageName: String): Boolean {
+    return try {
+        val gate = evaluateLaunchGate(packageName) ?: return true
+        val (decision, budget) = gate
+        if (!decision.allowed) {
+            showBlockScreen(packageName, decision, budget)
+            false
+        } else {
+            true
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("LAUNCHPAD", "shortcut gate failed; allowing launch", e)
+        true
+    }
+}
+
+/** Evaluate the launch gate for [packageName]. Returns null when enforcement is OFF. */
+private fun Activity.evaluateLaunchGate(
+    packageName: String
+): Pair<LaunchGate.LaunchDecision, TimeBudget>? {
+    val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
+    if (!enforce) return null
+    val db = AppsDatabase.getInstance(applicationContext)
+    val budget = runBlocking { TimeBudgetManager(this@evaluateLaunchGate, db).getCurrentBudget() }
+    val decision = runBlocking { LaunchGate(this@evaluateLaunchGate, db).canLaunch(packageName, budget) }
+    return decision to budget
+}
+
+private fun Activity.showBlockScreen(
+    packageName: String,
+    decision: LaunchGate.LaunchDecision,
+    budget: TimeBudget
+) {
+    startActivity(
+        Intent(this@showBlockScreen, AppBlockedActivity::class.java)
+            .putExtra(AppBlockedActivity.EXTRA_PACKAGE, packageName)
+            .putExtra(AppBlockedActivity.EXTRA_REASON, decision.reason)
+            .putExtra(AppBlockedActivity.EXTRA_MESSAGE, decision.childVisibleMessage)
+            .putExtra(AppBlockedActivity.EXTRA_BALANCE_MINUTES, budget.balanceMinutes)
+            .putExtra(AppBlockedActivity.EXTRA_COOLDOWN_UNTIL, budget.cooldownExpiresAt ?: 0L)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
 }
 
 /**
@@ -225,7 +265,10 @@ fun Activity.handleGridItemPopupMenu(
                         val id = shortcutInfo.id
                         val packageName = shortcutInfo.`package`
                         val userHandle = Process.myUserHandle()
-                        launcherApps.startShortcut(packageName, id, Rect(), null, userHandle)
+                        // Route app-shortcuts through the same gate as a normal launch.
+                        if (passesLaunchGateForShortcut(packageName)) {
+                            launcherApps.startShortcut(packageName, id, Rect(), null, userHandle)
+                        }
                         true
                     }
             }

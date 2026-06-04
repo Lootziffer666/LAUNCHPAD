@@ -76,6 +76,7 @@ import org.fossify.home.extensions.homeScreenGridItemsDB
 import org.fossify.home.extensions.isDefaultLauncher
 import org.fossify.home.extensions.launchApp
 import org.fossify.home.extensions.launchAppInfo
+import org.fossify.home.extensions.passesLaunchGateForShortcut
 import android.app.AlertDialog
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -864,11 +865,14 @@ class MainActivity : SimpleActivity(), FlingListener {
             ITEM_TYPE_SHORTCUT -> {
                 val id = clickedGridItem.shortcutId
                 val packageName = clickedGridItem.packageName
-                val userHandle = android.os.Process.myUserHandle()
-                val shortcutBounds = binding.homeScreenGrid.root.getClickableRect(clickedGridItem)
-                val launcherApps =
-                    applicationContext.getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
-                launcherApps.startShortcut(packageName, id, shortcutBounds, null, userHandle)
+                // Pinned shortcuts launch their parent app — gate them like a normal launch.
+                if (passesLaunchGateForShortcut(packageName)) {
+                    val userHandle = android.os.Process.myUserHandle()
+                    val shortcutBounds = binding.homeScreenGrid.root.getClickableRect(clickedGridItem)
+                    val launcherApps =
+                        applicationContext.getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
+                    launcherApps.startShortcut(packageName, id, shortcutBounds, null, userHandle)
+                }
             }
         }
     }
