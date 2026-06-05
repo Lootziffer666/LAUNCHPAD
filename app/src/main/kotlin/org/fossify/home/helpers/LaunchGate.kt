@@ -15,6 +15,7 @@ import android.util.Log
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.models.TimeBudget
+import java.util.Calendar
 
 /**
  * LaunchGate: Central enforcement point for all app launches.
@@ -28,7 +29,9 @@ class LaunchGate(
     data class LaunchDecision(
         val allowed: Boolean,
         val reason: String?,
-        val childVisibleMessage: String?
+        val childVisibleMessage: String?,
+        /** App category from the whitelist; null when not whitelisted. */
+        val category: String? = null
     )
 
     suspend fun canLaunch(
@@ -37,7 +40,10 @@ class LaunchGate(
     ): LaunchDecision {
         // Check 1: Whitelist
         if (!database.allowedAppDao().isAppAllowed(packageName)) {
-            return LaunchDecision(false, "App not in whitelist", "Diese App ist nicht erlaubt.")
+            return LaunchDecision(
+                false, LaunchpadConstants.REASON_NOT_ALLOWED,
+                "Diese App ist nicht erlaubt."
+            )
         }
 
         val category = database.allowedAppDao().getAppCategory(packageName)
@@ -46,7 +52,38 @@ class LaunchGate(
         // Cool-down apps (audiobooks, drawing, LEGO) are always allowed — they are the
         // restorative activities offered DURING cool-down and don't consume budget.
         if (isCooldownApp) {
-            return LaunchDecision(true, null, null)
+            return LaunchDecision(true, null, null, category)
+        }
+
+        // Check 0: Protective lockdown after a tamper signal. Coin-gated apps are paused until
+        // a parent reviews; free/neutral apps stay available so the device isn't bricked.
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE &&
+            TamperMonitor.isLockdownActive(context)
+        ) {
+            return LaunchDecision(
+                false,
+                LaunchpadConstants.REASON_LOCKDOWN,
+                "LAUNCHPAD muss kurz geprüft werden. Mama oder Papa müssen das freigeben.",
+                category
+            )
+        }
+
+        // Check 1.5: Wochenplan time window — only blocks ACTIVE_LEISURE
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE) {
+            val cal = Calendar.getInstance()
+            val schedule = database.weekScheduleDao().getForDay(cal.get(Calendar.DAY_OF_WEEK))
+            if (schedule != null && schedule.active) {
+                val hour = cal.get(Calendar.HOUR_OF_DAY)
+                if (hour < schedule.allowedFromHour || hour >= schedule.allowedUntilHour) {
+                    val fromStr = "%02d:00".format(schedule.allowedFromHour)
+                    return LaunchDecision(
+                        false,
+                        LaunchpadConstants.REASON_SCHEDULE_WINDOW,
+                        "Erst ab $fromStr gibt's Bildschirmzeit.",
+                        category
+                    )
+                }
+            }
         }
 
         // Check 2: Cool-down phase
@@ -54,17 +91,41 @@ class LaunchGate(
             val minutesRemaining = timeBudget.minutesUntilCooldownExpires() ?: 0
             return LaunchDecision(
                 false,
-                "In cool-down phase ($minutesRemaining min remaining)",
-                "Bildschirmpause! Noch $minutesRemaining Minuten. Audiobook, Zeichnen oder LEGO?"
+                LaunchpadConstants.REASON_COOLDOWN,
+                "Bildschirmpause! Noch $minutesRemaining Minuten. Audiobook, Zeichnen oder LEGO?",
+                category
             )
+        }
+
+        // Check 2.5: Per-app daily time limit (weekday/weekend cap + any one-off "today" bonus)
+        val appLimit = database.appTimeLimitDao().getForApp(packageName)
+        if (appLimit != null) {
+            val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+            val baseLimit = appLimit.minutesForDay(dayOfWeek)
+            if (baseLimit > 0) {
+                val midnight = todayMidnight()
+                val usedToday =
+                    database.cryptoCashDao().getTodaySpentMinutesForApp(packageName, midnight)
+                val bonus = AppLimitBonus.getTodayBonus(context, packageName, midnight)
+                val effectiveLimit = AppLimitBonus.effectiveLimit(baseLimit, bonus)
+                if (usedToday >= effectiveLimit) {
+                    return LaunchDecision(
+                        false,
+                        LaunchpadConstants.REASON_APP_DAILY_LIMIT,
+                        "Tageslimit für diese App erreicht ($effectiveLimit Min).",
+                        category
+                    )
+                }
+            }
         }
 
         // Check 3: Time budget — only coin-gated (ACTIVE_LEISURE) apps are blocked at 0
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes <= 0) {
             return LaunchDecision(
                 false,
-                "Time budget exhausted",
-                "Keine Zeit mehr. Erst wieder Zeit verdienen!"
+                LaunchpadConstants.REASON_NO_BUDGET,
+                "Keine Zeit mehr. Erst wieder Zeit verdienen!",
+                category
             )
         }
 
@@ -72,13 +133,23 @@ class LaunchGate(
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes < 5) {
             return LaunchDecision(
                 false,
-                "Insufficient time for high-stimulation app (minimum 5 min)",
-                "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?"
+                LaunchpadConstants.REASON_MIN_THRESHOLD,
+                "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?",
+                category
             )
         }
 
         Log.d(tag, "Launch approved: $packageName (${timeBudget.balanceMinutes} min)")
-        return LaunchDecision(true, null, null)
+        return LaunchDecision(true, null, null, category)
+    }
+
+    private fun todayMidnight(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 }
 

@@ -12,7 +12,14 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.fossify.home.R
+import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import java.util.Locale
 
@@ -36,7 +43,7 @@ import java.util.Locale
  * - Provides friendly message about cool-down purpose
  * - Auto-dismisses when timer expires
  */
-@Suppress("MagicNumber") // UI built programmatically
+@Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 class CooldownActivity : AppCompatActivity() {
     private val tag = "CooldownActivity"
 
@@ -48,6 +55,8 @@ class CooldownActivity : AppCompatActivity() {
     private var cooldownDurationMinutes = 15 // Default
     private var cooldownDurationMs = cooldownDurationMinutes * 60 * 1000L
     private var timer: CountDownTimer? = null
+
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,26 +103,59 @@ class CooldownActivity : AppCompatActivity() {
      * Show available cool-down apps.
      */
     private fun showCooldownApps() {
-        val cooldownApps = listOf(
-            Pair("📚 Audiobook", "org.librarysimplified.r2.simplereader"),
-            Pair("✏️ Zeichnen", "com.ibis.paintx"),
-            Pair("🧱 LEGO", "com.lego.common"),
-            Pair("📖 Lesen", "com.amazon.kindle")
-        )
-
-        for ((label, packageName) in cooldownApps) {
-            val button = Button(this).apply {
-                text = label
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { setMargins(16, 8, 16, 8) }
-                setOnClickListener {
-                    launchCooldownApp(packageName)
-                }
+        scope.launch {
+            // Real COOLDOWN-category apps from the whitelist that are actually installed.
+            val db = AppsDatabase.getInstance(this@CooldownActivity)
+            val cooldownApps = withContext(Dispatchers.IO) {
+                db.allowedAppDao().getAllEnabledApps()
+                    .filter { it.category == LaunchpadConstants.CATEGORY_COOLDOWN }
+                    .mapNotNull { app -> resolveInstalled(app.packageName) }
             }
-            appButtonContainer.addView(button)
+            val toShow = cooldownApps.ifEmpty { fallbackCooldownApps() }
+            if (toShow.isEmpty()) {
+                appButtonContainer.addView(TextView(this@CooldownActivity).apply {
+                    text = "Frag Mama oder Papa nach einer Ruhe-App."
+                    textSize = 16f
+                    setPadding(16, 16, 16, 16)
+                })
+                return@launch
+            }
+            for ((label, packageName) in toShow) {
+                appButtonContainer.addView(cooldownButton(label, packageName))
+            }
         }
+    }
+
+    /** Resolve a package to (label, packageName) if it is installed and launchable, else null. */
+    private fun resolveInstalled(packageName: String): Pair<String, String>? {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: return null
+        if (launchIntent.component == null) return null
+        val label = try {
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(packageName, 0)
+            ).toString()
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            Log.w(tag, "Label not found for $packageName", e)
+            packageName
+        }
+        return label to packageName
+    }
+
+    /** Only used when the parent hasn't categorised any COOLDOWN apps yet. */
+    private fun fallbackCooldownApps(): List<Pair<String, String>> = listOf(
+        Pair("📚 Audiobook", "org.librarysimplified.r2.simplereader"),
+        Pair("✏️ Zeichnen", "com.ibis.paintx"),
+        Pair("🧱 LEGO", "com.lego.common"),
+        Pair("📖 Lesen", "com.amazon.kindle")
+    ).filter { packageManager.getLaunchIntentForPackage(it.second) != null }
+
+    private fun cooldownButton(label: String, packageName: String) = Button(this).apply {
+        text = label
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(16, 8, 16, 8) }
+        setOnClickListener { launchCooldownApp(packageName) }
     }
 
     /**
@@ -196,6 +238,7 @@ class CooldownActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         timer?.cancel()
+        scope.cancel()
     }
 
     private fun showMessage(message: String) {

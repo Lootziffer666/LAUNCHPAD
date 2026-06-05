@@ -76,6 +76,7 @@ import org.fossify.home.extensions.homeScreenGridItemsDB
 import org.fossify.home.extensions.isDefaultLauncher
 import org.fossify.home.extensions.launchApp
 import org.fossify.home.extensions.launchAppInfo
+import org.fossify.home.extensions.passesLaunchGateForShortcut
 import android.app.AlertDialog
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -135,6 +136,9 @@ class MainActivity : SimpleActivity(), FlingListener {
     private var mActionOnAddShortcut:
             ((shortcutId: String, label: String, icon: Drawable) -> Unit)? = null
     private var wasJustPaused: Boolean = false
+
+    // LAUNCHPAD: last balance we warned at, so graduated time warnings fire once per crossing.
+    private var lastWarnBalance: Int = Int.MAX_VALUE
 
     // LAUNCHPAD: periodic status-bar refresh (active only while the launcher is resumed).
     private val statusBarHandler = Handler(Looper.getMainLooper())
@@ -861,11 +865,14 @@ class MainActivity : SimpleActivity(), FlingListener {
             ITEM_TYPE_SHORTCUT -> {
                 val id = clickedGridItem.shortcutId
                 val packageName = clickedGridItem.packageName
-                val userHandle = android.os.Process.myUserHandle()
-                val shortcutBounds = binding.homeScreenGrid.root.getClickableRect(clickedGridItem)
-                val launcherApps =
-                    applicationContext.getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
-                launcherApps.startShortcut(packageName, id, shortcutBounds, null, userHandle)
+                // Pinned shortcuts launch their parent app — gate them like a normal launch.
+                if (passesLaunchGateForShortcut(packageName)) {
+                    val userHandle = android.os.Process.myUserHandle()
+                    val shortcutBounds = binding.homeScreenGrid.root.getClickableRect(clickedGridItem)
+                    val launcherApps =
+                        applicationContext.getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
+                    launcherApps.startShortcut(packageName, id, shortcutBounds, null, userHandle)
+                }
             }
         }
     }
@@ -1019,7 +1026,7 @@ class MainActivity : SimpleActivity(), FlingListener {
                     val rem = budget.minutesUntilCooldownExpires() ?: 0
                     timeIcon.text = "⏸️"
                     timeText.text = "Pause — noch $rem Min"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC1A1A2E"))
+                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC0D2847"))
                 }
                 budget.balanceMinutes <= 0 -> {
                     timeIcon.text = "📵"
@@ -1037,6 +1044,19 @@ class MainActivity : SimpleActivity(), FlingListener {
                     bar.setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
                 }
             }
+            if (!budget.inCooldown) maybeWarnTimeLimit(budget.balanceMinutes)
+        }
+    }
+
+    // Graduated time-limit warnings (toast + optional vibration), fired once per downward
+    // crossing of 10 / 5 / 0 minutes so they never repeat on every 5s refresh.
+    private fun maybeWarnTimeLimit(balance: Int) {
+        val crossed = listOf(10, 5, 0).firstOrNull { lastWarnBalance > it && balance <= it }
+        lastWarnBalance = balance
+        if (crossed != null) {
+            val msg = if (crossed == 0) "⏰ Zeit zu Ende!" else "⚡ Noch $balance Min — bald Schluss!"
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            org.fossify.home.helpers.VibrationHelper.buzz(this)
         }
     }
 

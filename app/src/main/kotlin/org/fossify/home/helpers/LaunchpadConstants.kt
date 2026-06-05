@@ -18,6 +18,13 @@ object LaunchpadConstants {
     const val DEFAULT_COOLDOWN_DURATION_MINUTES = 15
     const val DEFAULT_EXPIRE_UNUSED_AFTER_DAYS = 30
 
+    // Impulsbremse defaults
+    const val DEFAULT_IMPULSE_SECONDS = 7
+    const val DEFAULT_IMPULSE_REOPEN_WINDOW_MIN = 3
+
+    // Time-limit warning toast vibration
+    const val DEFAULT_VIBRATION_MS = 300
+
     // Transaction types
     const val TX_TYPE_EARN = "EARN"
     const val TX_TYPE_SPEND = "SPEND"
@@ -56,6 +63,36 @@ object LaunchpadConstants {
     const val DOGE_APPROVED = "APPROVED"
     const val DOGE_REJECTED = "REJECTED"
     const val DOGE_EXPIRED = "EXPIRED"
+
+    // Block reason codes — used in LaunchDecision.reason and AppBlockedActivity.
+    const val REASON_NOT_ALLOWED = "not_allowed"
+    const val REASON_COOLDOWN = "cooldown"
+    const val REASON_NO_BUDGET = "no_budget"
+    const val REASON_MIN_THRESHOLD = "min_threshold"
+    const val REASON_LOCKDOWN = "lockdown"
+    const val REASON_SCHEDULE_WINDOW = "schedule_window"
+    const val REASON_APP_DAILY_LIMIT = "app_daily_limit"
+
+    // Audit / tamper event types
+    const val AUDIT_TIME_CHANGED = "TIME_CHANGED"
+    const val AUDIT_TIMEZONE_CHANGED = "TIMEZONE_CHANGED"
+    const val AUDIT_USAGE_ACCESS_REVOKED = "USAGE_ACCESS_REVOKED"
+    const val AUDIT_REBOOT = "REBOOT"
+    const val AUDIT_SERVICE_GAP = "SERVICE_GAP"
+    const val AUDIT_LOCKDOWN_TRIGGERED = "LOCKDOWN_TRIGGERED"
+    const val AUDIT_LOCKDOWN_CLEARED = "LOCKDOWN_CLEARED"
+    const val AUDIT_EXCEPTION_GRANTED = "EXCEPTION_GRANTED"
+
+    // Audit severities
+    const val SEVERITY_INFO = "INFO"
+    const val SEVERITY_WARNING = "WARNING"
+    const val SEVERITY_CRITICAL = "CRITICAL"
+
+    // Tamper detection: a service gap larger than this (ms) while enforcement is on is
+    // treated as Doze/kill suppression worth recording.
+    const val TAMPER_GAP_THRESHOLD_MS = 300_000L // 5 min
+    // Wall-vs-monotonic drift beyond this (ms) between two ticks means the clock was changed.
+    const val TAMPER_TIME_DRIFT_TOLERANCE_MS = 60_000L // 1 min
 
     // Explore categories
     const val EXPLORE_CATEGORY_EDUCATIONAL = "EDUCATIONAL"
@@ -103,6 +140,34 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+    const val PREF_CHILD_NAME = "child_name" // display name shown across the launcher (default "Jake")
+    // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
+    // apps that reach the foreground via side channels (links, notifications, recents). Essential
+    // packages (launcher, system UI, phone/dialer, settings, IME) are never blocked. Opt-in
+    // because it must be device-tested (esp. emergency dialling) before being relied upon.
+    const val PREF_STRICT_FOREGROUND_BLOCK = "strict_foreground_block"
+
+    // Impulsbremse: short calming countdown before re-opening a high-stimulation (ACTIVE_LEISURE)
+    // app. Skips the first open and only fires on a rapid re-open within the reopen window.
+    const val PREF_IMPULSE_ENABLED = "impulse_enabled" // master on/off (default ON)
+    const val PREF_IMPULSE_SECONDS = "impulse_seconds" // countdown length
+    const val PREF_IMPULSE_REOPEN_WINDOW_MIN = "impulse_reopen_window_min" // "first open free" window
+
+    // Time-limit warning toasts + optional vibration
+    const val PREF_VIBRATION_ENABLED = "vibration_enabled" // reinforce time warnings with a buzz
+    const val PREF_VIBRATION_MS = "vibration_ms" // buzz length = strength
+
+    // Tamper detection: protective lockdown blocks coin-gated apps until a parent reviews.
+    const val PREF_TAMPER_LOCKDOWN = "tamper_lockdown"
+    // Tracks whether Usage Access was granted before, to detect later revocation.
+    const val PREF_USAGE_WAS_GRANTED = "usage_was_granted"
+    // Heartbeat for service-gap / clock-drift reconciliation (wall clock + monotonic uptime).
+    const val PREF_HEARTBEAT_WALL = "heartbeat_wall"
+    const val PREF_HEARTBEAT_ELAPSED = "heartbeat_elapsed"
+
+    // PIN rate limiting: consecutive wrong attempts and the epoch-ms lockout end time.
+    const val PREF_PIN_FAIL_COUNT = "pin_fail_count"
+    const val PREF_PIN_LOCKED_UNTIL = "pin_locked_until"
 
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64

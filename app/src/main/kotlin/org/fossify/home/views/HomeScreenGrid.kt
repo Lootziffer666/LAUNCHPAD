@@ -2358,7 +2358,8 @@ private class AnimatedGridPager(
     }
 
     fun nextPage(redraw: Boolean = false): Boolean {
-        if (currentPage < getMaxPage() && pageChangeEnabled) {
+        // Allow swiping to one empty page beyond the last occupied page (§11 infinite screens).
+        if (currentPage <= getMaxPage() && pageChangeEnabled) {
             lastPage = currentPage
             currentPage++
             handlePageChange(redraw)
@@ -2380,7 +2381,7 @@ private class AnimatedGridPager(
     }
 
     fun skipToPage(targetPage: Int): Boolean {
-        if (currentPage != targetPage && targetPage < getMaxPage() + 1) {
+        if (currentPage != targetPage && targetPage <= getMaxPage() + 1) {
             lastPage = currentPage
             currentPage = targetPage
             handlePageChange()

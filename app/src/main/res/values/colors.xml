@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="semitransparent_navigation">#33000000</color>
+
+    <!-- HEARTHWORK design system tokens (github.com/Lootziffer666/HEARTHWORK) -->
+    <color name="hw_navy">#0D2847</color>        <!-- primary: splash, headers, dark surfaces -->
+    <color name="hw_navy_80">#CC0D2847</color>   <!-- primary @ 80% (overlays/status bar) -->
+    <color name="hw_orange">#F2994A</color>      <!-- secondary / accent -->
+    <color name="hw_white">#FFFFFF</color>
+    <color name="hw_ink">#333333</color>         <!-- near-black text -->
+    <color name="hw_grey">#828282</color>        <!-- muted text -->
+    <color name="hw_line">#E0E0E0</color>        <!-- borders / dividers -->
 </resources>

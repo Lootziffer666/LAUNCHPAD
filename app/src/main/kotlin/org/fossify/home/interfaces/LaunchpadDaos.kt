@@ -6,6 +6,10 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.WeekScheduleEntry
+import org.fossify.home.databases.AppTimeLimit
+import org.fossify.home.databases.AppTimeRequest
+import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
@@ -17,6 +21,23 @@ import org.fossify.home.databases.ExploreSuggestion
 // All @Query SQL below references the REAL column/table names declared in
 // LaunchpadEntities.kt (Room column name == Kotlin field name). Room/KSP validates
 // these against the entity schema at compile time.
+
+// ─── WeekSchedule DAO ────────────────────────────────────────────────────────
+
+@Dao
+interface WeekScheduleDao {
+    @Query("SELECT * FROM week_schedule")
+    suspend fun getAll(): List<WeekScheduleEntry>
+
+    @Query("SELECT * FROM week_schedule WHERE dayOfWeek = :day LIMIT 1")
+    suspend fun getForDay(day: Int): WeekScheduleEntry?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: WeekScheduleEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<WeekScheduleEntry>)
+}
 
 // ─── AllowedApp DAO ───────────────────────────────────────────────────────────
 
@@ -48,6 +69,85 @@ interface AllowedAppDao {
 
     @Query("DELETE FROM allowed_apps WHERE packageName = :pkg")
     suspend fun deleteApp(pkg: String)
+
+    @Query("DELETE FROM allowed_apps")
+    suspend fun deleteAll()
+}
+
+// ─── AppTimeLimit DAO ─────────────────────────────────────────────────────────
+
+@Dao
+interface AppTimeLimitDao {
+    @Query("SELECT * FROM app_time_limits")
+    suspend fun getAll(): List<AppTimeLimit>
+
+    @Query("SELECT * FROM app_time_limits WHERE packageName = :pkg LIMIT 1")
+    suspend fun getForApp(pkg: String): AppTimeLimit?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(limit: AppTimeLimit)
+
+    @Query("DELETE FROM app_time_limits WHERE packageName = :pkg")
+    suspend fun delete(pkg: String)
+
+    @Query("DELETE FROM app_time_limits")
+    suspend fun deleteAll()
+}
+
+// ─── AuditEvent DAO ───────────────────────────────────────────────────────────
+
+@Dao
+interface AuditEventDao {
+    @Query("SELECT * FROM audit_events ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 100): List<AuditEvent>
+
+    @Query("SELECT * FROM audit_events WHERE acknowledged = 0 ORDER BY createdAt DESC")
+    suspend fun getUnacknowledged(): List<AuditEvent>
+
+    @Query("SELECT COUNT(*) FROM audit_events WHERE acknowledged = 0 AND severity = 'CRITICAL'")
+    suspend fun countUnacknowledgedCritical(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(event: AuditEvent)
+
+    @Query("UPDATE audit_events SET acknowledged = 1 WHERE id = :id")
+    suspend fun acknowledge(id: String)
+
+    @Query("UPDATE audit_events SET acknowledged = 1")
+    suspend fun acknowledgeAll()
+
+    @Query("DELETE FROM audit_events WHERE createdAt < :before")
+    suspend fun deleteOlderThan(before: Long)
+}
+
+// ─── AppTimeRequest DAO ─────────────────────────────────────────────────────────
+
+@Dao
+interface AppTimeRequestDao {
+    @Query("SELECT * FROM app_time_requests WHERE decision IS NULL ORDER BY requestedAt ASC")
+    suspend fun getPending(): List<AppTimeRequest>
+
+    @Query("SELECT * FROM app_time_requests ORDER BY requestedAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int = 50): List<AppTimeRequest>
+
+    @Query("SELECT COUNT(*) FROM app_time_requests WHERE decision IS NULL")
+    suspend fun countPending(): Int
+
+    // Avoid stacking duplicates: a still-pending request for the same app.
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM app_time_requests " +
+            "WHERE packageName = :pkg AND decision IS NULL)"
+    )
+    suspend fun hasPendingFor(pkg: String): Boolean
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(request: AppTimeRequest)
+
+    @Query(
+        "UPDATE app_time_requests SET decision = :decision, decidedAt = :at, " +
+            "grantedMinutes = :granted WHERE id = :id"
+    )
+    suspend fun decide(id: String, decision: String, granted: Int, at: Long)
 }
 
 // ─── CryptoCash DAO ───────────────────────────────────────────────────────────
@@ -77,6 +177,13 @@ interface CryptoCashDao {
 
     @Query("UPDATE crypto_cash_tx SET deleted = 1 WHERE id = :id")
     suspend fun softDelete(id: String)
+
+    @Query(
+        "SELECT COALESCE(-SUM(deltaMinutes), 0) FROM crypto_cash_tx " +
+            "WHERE deleted = 0 AND type = 'SPEND' " +
+            "AND reasonText = 'Nutzung: ' || :pkg AND createdAt >= :todayMidnight"
+    )
+    suspend fun getTodaySpentMinutesForApp(pkg: String, todayMidnight: Long): Int
 }
 
 // ─── ParentCommand DAO ────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="#1A1A2E"
+                android:background="#0D2847"
                 android:padding="24dp">
 
                 <LinearLayout
@@ -97,6 +97,30 @@
                         android:textSize="12sp"
                         android:textColor="#AAAAAA" />
                 </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#33FFFFFF"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/em_today_used"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Heute genutzt: —"
+                    android:textSize="12sp"
+                    android:textColor="#AAAAAA" />
+
+                <TextView
+                    android:id="@+id/em_top_apps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="#AAAAAA"
+                    android:paddingTop="2dp" />
             </LinearLayout>
 
             <!-- ── Section: Zeit ── -->
@@ -112,7 +136,7 @@
                 android:gravity="center_vertical" android:paddingEnd="16dp">
                 <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
                     android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="Zeit hinzufügen" />
+                    android:layout_weight="1" android:text="Heute Ausnahme" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="+" android:textSize="24sp" android:textColor="?colorPrimary" />
             </LinearLayout>
@@ -125,6 +149,30 @@
                 <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
                     android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:text="Transaktions-Verlauf" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_tagesbericht"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="Tagesbericht" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_wochenplan"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="Wochenplan" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
@@ -196,6 +244,25 @@
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/em_row_time_requests"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Mehr-Zeit-Anfragen" />
+                    <TextView android:id="@+id/em_time_requests_count"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Keine offenen Anfragen"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <!-- ── Section: Modus ── -->
             <TextView style="@style/SettingsSectionLabelStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -224,10 +291,98 @@
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/em_row_hinweise"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="Hinweise &amp; Vibration" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_child_name"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Name des Kindes" />
+                    <TextView android:id="@+id/em_child_name"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Jake"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <!-- ── Section: Sicherheit ── -->
             <TextView style="@style/SettingsSectionLabelStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="SICHERHEIT" />
+
+            <LinearLayout android:id="@+id/em_row_health"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Systemstatus" />
+                    <TextView android:id="@+id/em_health_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Berechtigungen prüfen"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_audit"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Verlauf &amp; Ereignisse" />
+                    <TextView android:id="@+id/em_audit_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Keine besonderen Ereignisse"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_strict_block"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Strenger Vordergrund-Block" />
+                    <TextView android:id="@+id/em_strict_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Aus"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
 
             <LinearLayout android:id="@+id/em_row_usage"
                 style="@style/SettingsHolderTextViewOneLinerStyle"

@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#1A1A2E">
+    android:background="#0D2847">
 
     <!-- Step indicator -->
     <LinearLayout
@@ -21,6 +21,9 @@
             android:layout_width="10dp" android:layout_height="10dp"
             android:background="#55FFFFFF" android:layout_margin="4dp" />
         <View android:id="@+id/step_dot_3"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:background="#55FFFFFF" android:layout_margin="4dp" />
+        <View android:id="@+id/step_dot_4"
             android:layout_width="10dp" android:layout_height="10dp"
             android:background="#55FFFFFF" android:layout_margin="4dp" />
     </LinearLayout>

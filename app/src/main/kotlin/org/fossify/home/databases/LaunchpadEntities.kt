@@ -3,6 +3,7 @@
 
 package org.fossify.home.databases
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
@@ -13,7 +14,52 @@ data class AllowedApp(
     @PrimaryKey val packageName: String,
     val category: String, // ACTIVE_LEISURE, CREATIVE, LEARNING, COOLDOWN, COMMUNICATION, NEUTRAL
     val enabled: Boolean = true,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val addedBy: String = "parent" // "parent", "mama", "papa" etc — set at add time
+)
+
+// Per-app daily time cap (0 = no cap, enforced on top of the global coin budget)
+@Entity(tableName = "app_time_limits")
+data class AppTimeLimit(
+    @PrimaryKey val packageName: String,
+    val dailyMinutes: Int,      // school-day (Mon–Fri) cap; 0 = no cap
+    // defaultValue matches MIGRATION_10_11's "ADD COLUMN … DEFAULT 0" so Room's schema
+    // validation passes on both fresh installs and upgrades.
+    @ColumnInfo(defaultValue = "0") val weekendMinutes: Int = 0 // weekend (Sat/Sun) cap; 0 = no cap
+) {
+    /**
+     * Cap that applies on [dayOfWeek] (java.util.Calendar constant: SUNDAY=1 … SATURDAY=7).
+     * Weekends use [weekendMinutes], all other days use [dailyMinutes].
+     */
+    fun minutesForDay(dayOfWeek: Int): Int {
+        val isWeekend = dayOfWeek == java.util.Calendar.SATURDAY ||
+            dayOfWeek == java.util.Calendar.SUNDAY
+        return if (isWeekend) weekendMinutes else dailyMinutes
+    }
+}
+
+// Audit log: tamper signals + notable system events shown to the parent
+@Entity(tableName = "audit_events")
+data class AuditEvent(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val createdAt: Long = System.currentTimeMillis(),
+    val type: String, // TIME_CHANGED, USAGE_ACCESS_REVOKED, REBOOT, SERVICE_GAP, ...
+    val severity: String, // INFO, WARNING, CRITICAL
+    val message: String, // human-readable German
+    val acknowledged: Boolean = false // parent has seen/resolved it
+)
+
+// Child request for more time on a specific app after hitting its daily cap.
+// Parent approves (PIN-gated) → a one-off "today" bonus is granted for that app.
+@Entity(tableName = "app_time_requests")
+data class AppTimeRequest(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val packageName: String,
+    val label: String,                 // app label captured at request time
+    val requestedAt: Long = System.currentTimeMillis(),
+    val decision: String? = null,      // null = pending, APPROVED, REJECTED
+    val decidedAt: Long? = null,
+    val grantedMinutes: Int = 0        // minutes the parent actually granted
 )
 
 // Krypto-Cash ledger: immutable transaction log, no-regression enforcement
@@ -99,4 +145,27 @@ data class ExploreSuggestion(
     val category: String, // EDUCATIONAL, CREATIVE, ENTERTAINMENT
     val status: String, // SUGGESTED, APPROVED, REJECTED
     val addedAt: Long = System.currentTimeMillis()
+)
+
+// Wochenplan: per-day time windows for ACTIVE_LEISURE apps.
+// dayOfWeek uses java.util.Calendar constants (SUNDAY=1, MONDAY=2, …, SATURDAY=7).
+@Entity(tableName = "week_schedule")
+data class WeekScheduleEntry(
+    @PrimaryKey val dayOfWeek: Int,
+    val active: Boolean = false,
+    val allowedFromHour: Int = 0,  // screens allowed from this hour (0 = unrestricted from start)
+    val allowedUntilHour: Int = 24 // screens blocked at or after this hour (24 = unrestricted)
+)
+
+// Änderungsverlauf: one row per app per whitelist-management operation.
+// Multiple rows sharing the same batchId belong to the same logical change (e.g. a bulk action).
+@Entity(tableName = "change_log")
+data class ChangeLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val batchId: String,           // groups rows from the same operation
+    val timestamp: Long = System.currentTimeMillis(),
+    val packageName: String,
+    val label: String,             // human-readable app name captured at log time
+    val prevCategory: String?,     // null = app was not in the whitelist
+    val newCategory: String?       // null = app was removed from the whitelist
 )

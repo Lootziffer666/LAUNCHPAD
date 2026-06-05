@@ -19,16 +19,26 @@ import org.fossify.home.models.HomeScreenGridItem
 
 // LAUNCHPAD entities
 import org.fossify.home.databases.AllowedApp
+import org.fossify.home.databases.AppTimeLimit
+import org.fossify.home.databases.AppTimeRequest
+import org.fossify.home.databases.AuditEvent
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.databases.ParentCommand
 import org.fossify.home.databases.Zusage
 import org.fossify.home.databases.DogeRequest
+import org.fossify.home.databases.ChangeLogEntity
+import org.fossify.home.databases.WeekScheduleEntry
 import org.fossify.home.databases.ExploreAllowlistEntry
 import org.fossify.home.databases.ExploreBlocklistEntry
 import org.fossify.home.databases.ExploreSuggestion
 
 // LAUNCHPAD DAOs
 import org.fossify.home.interfaces.AllowedAppDao
+import org.fossify.home.interfaces.ChangeLogDao
+import org.fossify.home.interfaces.WeekScheduleDao
+import org.fossify.home.interfaces.AppTimeLimitDao
+import org.fossify.home.interfaces.AppTimeRequestDao
+import org.fossify.home.interfaces.AuditEventDao
 import org.fossify.home.interfaces.CryptoCashDao
 import org.fossify.home.interfaces.ParentCommandDao
 import org.fossify.home.interfaces.ExploreDao
@@ -50,11 +60,19 @@ import org.fossify.home.interfaces.DogeRequestDao
         ExploreSuggestion::class,
         // LAUNCHPAD M2 entities
         Zusage::class,
-        DogeRequest::class
+        DogeRequest::class,
+        // LAUNCHPAD M3 entities
+        AppTimeLimit::class,
+        AuditEvent::class,
+        // LAUNCHPAD M4 entities
+        ChangeLogEntity::class,
+        WeekScheduleEntry::class,
+        AppTimeRequest::class
     ],
-    version = 6
+    version = 12
 )
 @TypeConverters(Converters::class)
+@Suppress("TooManyFunctions") // one abstract accessor per DAO
 abstract class AppsDatabase : RoomDatabase() {
 
     // Existing Fossify DAOs
@@ -64,11 +82,16 @@ abstract class AppsDatabase : RoomDatabase() {
 
     // LAUNCHPAD DAOs
     abstract fun allowedAppDao(): AllowedAppDao
+    abstract fun appTimeLimitDao(): AppTimeLimitDao
+    abstract fun auditEventDao(): AuditEventDao
     abstract fun cryptoCashDao(): CryptoCashDao
     abstract fun parentCommandDao(): ParentCommandDao
     abstract fun exploreDao(): ExploreDao
     abstract fun zusageDao(): ZusageDao
     abstract fun dogeRequestDao(): DogeRequestDao
+    abstract fun changeLogDao(): ChangeLogDao
+    abstract fun weekScheduleDao(): WeekScheduleDao
+    abstract fun appTimeRequestDao(): AppTimeRequestDao
 
     companion object {
         private var db: AppsDatabase? = null
@@ -137,6 +160,75 @@ abstract class AppsDatabase : RoomDatabase() {
 
         // Seed default safe-browsing lists. Runs on upgrade (migration) and on fresh
         // install (RoomDatabase.Callback.onCreate) so both paths get the defaults.
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `allowed_apps` ADD COLUMN `addedBy` TEXT NOT NULL DEFAULT 'parent'"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `app_time_limits` (" +
+                        "`packageName` TEXT NOT NULL, `dailyMinutes` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`packageName`))"
+                )
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `audit_events` (" +
+                        "`id` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `type` TEXT NOT NULL, " +
+                        "`severity` TEXT NOT NULL, `message` TEXT NOT NULL, " +
+                        "`acknowledged` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `week_schedule` (" +
+                        "`dayOfWeek` INTEGER NOT NULL, `active` INTEGER NOT NULL, " +
+                        "`allowedFromHour` INTEGER NOT NULL, `allowedUntilHour` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`dayOfWeek`))"
+                )
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `change_log` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`batchId` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, " +
+                        "`packageName` TEXT NOT NULL, `label` TEXT NOT NULL, " +
+                        "`prevCategory` TEXT, `newCategory` TEXT)"
+                )
+            }
+        }
+
+        // Per-app weekend cap. Existing rows keep their behaviour (same cap every day) by
+        // copying dailyMinutes into the new weekendMinutes column.
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `app_time_limits` ADD COLUMN `weekendMinutes` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("UPDATE `app_time_limits` SET `weekendMinutes` = `dailyMinutes`")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `app_time_requests` (" +
+                        "`id` TEXT NOT NULL, `packageName` TEXT NOT NULL, `label` TEXT NOT NULL, " +
+                        "`requestedAt` INTEGER NOT NULL, `decision` TEXT, `decidedAt` INTEGER, " +
+                        "`grantedMinutes` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
         private fun seedExploreDefaults(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
 
@@ -185,7 +277,10 @@ abstract class AppsDatabase : RoomDatabase() {
                             AppsDatabase::class.java,
                             "apps.db"
                         )
-                            .addMigrations(MIGRATION_5_6)
+                            .addMigrations(
+                                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                                MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
+                            )
                             .addCallback(seedCallback)
                             .build()
                     }

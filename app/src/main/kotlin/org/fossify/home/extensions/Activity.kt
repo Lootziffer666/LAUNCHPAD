@@ -1,7 +1,6 @@
 package org.fossify.home.extensions
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -31,6 +30,7 @@ import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.isQPlus
 import org.fossify.commons.helpers.isSPlus
 import org.fossify.home.R
+import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.SettingsActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.ITEM_TYPE_FOLDER
@@ -39,30 +39,121 @@ import org.fossify.home.helpers.ITEM_TYPE_WIDGET
 import org.fossify.home.helpers.LaunchGate
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.TimeBudgetManager
-import org.fossify.home.models.TimeBudget
 import org.fossify.home.helpers.UNINSTALL_APP_REQUEST_CODE
 import org.fossify.home.interfaces.ItemMenuListener
 import org.fossify.home.models.HomeScreenGridItem
+import org.fossify.home.models.TimeBudget
 
 fun Activity.launchApp(packageName: String, activityName: String) {
     // LAUNCHPAD M1: Launch gate (whitelist + time budget + cool-down) — only enforced once the
     // parent has switched on Kindermodus. Fail-open so a gate error never blocks launching.
     try {
-        val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
-            .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
-        if (enforce) {
-            val db = AppsDatabase.getInstance(applicationContext)
-            val budget = runBlocking { TimeBudgetManager(this@launchApp, db).getCurrentBudget() }
-            val decision = runBlocking { LaunchGate(this@launchApp, db).canLaunch(packageName, budget) }
+        val gate = evaluateLaunchGate(packageName)
+        if (gate != null) {
+            val (decision, budget) = gate
             if (!decision.allowed) {
-                showDenialDialog(this@launchApp, packageName, decision.childVisibleMessage, budget)
+                showBlockScreen(packageName, decision, budget)
                 return
             }
+            // Impulsbremse: calming countdown before a rapid re-open of a high-stimulation app.
+            // Category is already resolved inside LaunchGate — no extra DB round-trip needed.
+            if (maybeShowImpulseBrake(packageName, activityName, decision.category)) return
         }
     } catch (e: Exception) {
         android.util.Log.e("LAUNCHPAD", "launch gate failed; allowing launch", e)
     }
 
+    launchAppDirect(packageName, activityName)
+}
+
+/**
+ * Gate an app-shortcut launch (the long-press shortcut menu calls LauncherApps.startShortcut
+ * directly, which would otherwise skip the launch gate). Returns true if the shortcut may
+ * proceed; when blocked it shows the context-aware block screen and returns false. Fail-open.
+ */
+fun Activity.passesLaunchGateForShortcut(packageName: String): Boolean {
+    return try {
+        val gate = evaluateLaunchGate(packageName) ?: return true
+        val (decision, budget) = gate
+        if (!decision.allowed) {
+            showBlockScreen(packageName, decision, budget)
+            false
+        } else {
+            true
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("LAUNCHPAD", "shortcut gate failed; allowing launch", e)
+        true
+    }
+}
+
+/** Evaluate the launch gate for [packageName]. Returns null when enforcement is OFF. */
+private fun Activity.evaluateLaunchGate(
+    packageName: String
+): Pair<LaunchGate.LaunchDecision, TimeBudget>? {
+    val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
+    if (!enforce) return null
+    val db = AppsDatabase.getInstance(applicationContext)
+    val budget = runBlocking { TimeBudgetManager(this@evaluateLaunchGate, db).getCurrentBudget() }
+    val decision = runBlocking { LaunchGate(this@evaluateLaunchGate, db).canLaunch(packageName, budget) }
+    return decision to budget
+}
+
+private fun Activity.showBlockScreen(
+    packageName: String,
+    decision: LaunchGate.LaunchDecision,
+    budget: TimeBudget
+) {
+    startActivity(
+        Intent(this@showBlockScreen, AppBlockedActivity::class.java)
+            .putExtra(AppBlockedActivity.EXTRA_PACKAGE, packageName)
+            .putExtra(AppBlockedActivity.EXTRA_REASON, decision.reason)
+            .putExtra(AppBlockedActivity.EXTRA_MESSAGE, decision.childVisibleMessage)
+            .putExtra(AppBlockedActivity.EXTRA_BALANCE_MINUTES, budget.balanceMinutes)
+            .putExtra(AppBlockedActivity.EXTRA_COOLDOWN_UNTIL, budget.cooldownExpiresAt ?: 0L)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
+}
+
+/**
+ * If the Impulsbremse is enabled and [packageName] is a high-stimulation (ACTIVE_LEISURE) app
+ * being re-opened within the configured window, start [ImpulseDelayActivity] and return true
+ * (the caller must not launch directly). Otherwise return false.
+ */
+@Suppress("MagicNumber") // 60_000L = ms per minute
+private fun Activity.maybeShowImpulseBrake(
+    packageName: String,
+    activityName: String,
+    category: String?
+): Boolean {
+    if (category != org.fossify.home.helpers.LaunchpadConstants.CATEGORY_ACTIVE_LEISURE) return false
+    val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+    if (!prefs.getBoolean(LaunchpadPrefs.PREF_IMPULSE_ENABLED, true)) return false
+
+    val seconds = prefs.getInt(
+        LaunchpadPrefs.PREF_IMPULSE_SECONDS,
+        org.fossify.home.helpers.LaunchpadConstants.DEFAULT_IMPULSE_SECONDS
+    )
+    val windowMin = prefs.getInt(
+        LaunchpadPrefs.PREF_IMPULSE_REOPEN_WINDOW_MIN,
+        org.fossify.home.helpers.LaunchpadConstants.DEFAULT_IMPULSE_REOPEN_WINDOW_MIN
+    )
+    val isReopen = org.fossify.home.helpers.ImpulseTracker
+        .isRapidReopen(packageName, windowMin * 60_000L)
+    if (!isReopen) return false
+
+    startActivity(
+        Intent(this, org.fossify.home.activities.ImpulseDelayActivity::class.java)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_PACKAGE, packageName)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_ACTIVITY, activityName)
+            .putExtra(org.fossify.home.activities.ImpulseDelayActivity.EXTRA_SECONDS, seconds)
+    )
+    return true
+}
+
+/** Raw app launch with no gate/Impulsbremse — used after the gate has already passed. */
+fun Activity.launchAppDirect(packageName: String, activityName: String) {
     try {
         Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -81,29 +172,6 @@ fun Activity.launchApp(packageName: String, activityName: String) {
     }
 }
 
-private fun showDenialDialog(
-    activity: android.app.Activity,
-    packageName: String,
-    message: String?,
-    @Suppress("UnusedParameter") budget: org.fossify.home.models.TimeBudget
-) {
-    val displayMessage = message ?: "Diese App ist gerade nicht verfügbar."
-
-    AlertDialog.Builder(activity)
-        .setTitle("Nicht verfügbar")
-        .setMessage(displayMessage)
-        .setPositiveButton("OK", null)
-        .setNeutralButton("Anfragen") { _, _ ->
-            val intent = android.content.Intent(
-                activity,
-                org.fossify.home.activities.DogeRequestsActivity::class.java
-            )
-                .putExtra("isParentMode", false)
-                .putExtra("prefill_package", packageName)
-            activity.startActivity(intent)
-        }
-        .show()
-}
 
 fun Activity.launchAppInfo(packageName: String) {
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -197,7 +265,10 @@ fun Activity.handleGridItemPopupMenu(
                         val id = shortcutInfo.id
                         val packageName = shortcutInfo.`package`
                         val userHandle = Process.myUserHandle()
-                        launcherApps.startShortcut(packageName, id, Rect(), null, userHandle)
+                        // Route app-shortcuts through the same gate as a normal launch.
+                        if (passesLaunchGateForShortcut(packageName)) {
+                            launcherApps.startShortcut(packageName, id, Rect(), null, userHandle)
+                        }
                         true
                     }
             }

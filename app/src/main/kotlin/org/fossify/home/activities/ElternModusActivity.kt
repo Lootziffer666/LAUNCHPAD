@@ -6,9 +6,12 @@ package org.fossify.home.activities
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -24,6 +27,7 @@ import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadWidgetProvider
 import org.fossify.home.databases.CryptoCashTransaction
+import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.CooldownRulesConfig
 import org.fossify.home.helpers.CooldownRulesValidator
 import org.fossify.home.helpers.KioskManager
@@ -31,7 +35,9 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
+import org.fossify.home.services.TimeTrackingService
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -48,12 +54,21 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var lastTx: android.widget.TextView
     private lateinit var enforcementLabel: android.widget.TextView
 
+    // Dashboard light
+    private lateinit var todayUsed: android.widget.TextView
+    private lateinit var topApps: android.widget.TextView
+
     // Row subtitles
     private lateinit var appsCount: android.widget.TextView
     private lateinit var zusagenCount: android.widget.TextView
     private lateinit var dogeCount: android.widget.TextView
+    private lateinit var timeRequestsCount: android.widget.TextView
     private lateinit var usageStatus: android.widget.TextView
     private lateinit var pairStatus: android.widget.TextView
+    private lateinit var healthStatus: android.widget.TextView
+    private lateinit var auditStatus: android.widget.TextView
+    private lateinit var strictStatus: android.widget.TextView
+    private lateinit var childNameStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -87,6 +102,13 @@ class ElternModusActivity : AppCompatActivity() {
     }
 
     private fun requestPin() {
+        // Pre-check: if still locked out, don't even show the input dialog.
+        if (pinGate.isLockedOut()) {
+            val secs = pinGate.lockoutSecondsRemaining()
+            toast("Zu viele Fehlversuche. Bitte warte ${secs}s.")
+            finish()
+            return
+        }
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             hint = "Eltern-PIN"
@@ -96,13 +118,24 @@ class ElternModusActivity : AppCompatActivity() {
             .setMessage("PIN eingeben:")
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
-                if (pinGate.verifyPin(input.text.toString())) {
-                    pinGate.activateParentMode(30)
-                    initUi()
-                    refresh()
-                } else {
-                    toast("Falscher PIN")
-                    finish()
+                when (val result = pinGate.verifyPin(input.text.toString())) {
+                    is PinGateHelper.VerifyResult.Success -> {
+                        pinGate.activateParentMode(30)
+                        initUi()
+                        refresh()
+                    }
+                    is PinGateHelper.VerifyResult.Wrong -> {
+                        if (result.newLockoutSeconds > 0) {
+                            toast("Zu viele Fehlversuche. Bitte warte ${result.newLockoutSeconds}s.")
+                        } else {
+                            toast("Falscher PIN (Versuch ${result.failCount})")
+                        }
+                        finish()
+                    }
+                    is PinGateHelper.VerifyResult.LockedOut -> {
+                        toast("Zu viele Fehlversuche. Bitte warte ${result.secondsRemaining}s.")
+                        finish()
+                    }
                 }
             }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
@@ -124,12 +157,21 @@ class ElternModusActivity : AppCompatActivity() {
         lastTx = findViewById(R.id.em_last_tx)
         enforcementLabel = findViewById(R.id.em_enforcement_label)
 
+        // Dashboard light
+        todayUsed = findViewById(R.id.em_today_used)
+        topApps = findViewById(R.id.em_top_apps)
+
         // Row subtitles
         appsCount = findViewById(R.id.em_apps_count)
         zusagenCount = findViewById(R.id.em_zusagen_count)
         dogeCount = findViewById(R.id.em_doge_count)
+        timeRequestsCount = findViewById(R.id.em_time_requests_count)
         usageStatus = findViewById(R.id.em_usage_status)
         pairStatus = findViewById(R.id.em_pair_status)
+        healthStatus = findViewById(R.id.em_health_status)
+        auditStatus = findViewById(R.id.em_audit_status)
+        strictStatus = findViewById(R.id.em_strict_status)
+        childNameStatus = findViewById(R.id.em_child_name)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -143,6 +185,12 @@ class ElternModusActivity : AppCompatActivity() {
         listOf<Pair<Int, () -> Unit>>(
             R.id.em_row_add_time to { showAddTimeDialog() },
             R.id.em_row_transactions to { showTransactions() },
+            R.id.em_row_tagesbericht to {
+                startActivity(Intent(this, DailyReportActivity::class.java))
+            },
+            R.id.em_row_wochenplan to {
+                startActivity(Intent(this, WeekScheduleActivity::class.java))
+            },
             R.id.em_row_apps to { startActivity(Intent(this, AppsManagementActivity::class.java)) },
             R.id.em_row_zusagen to {
                 startActivity(Intent(this, ZusagenActivity::class.java).putExtra("isParentMode", true))
@@ -150,7 +198,19 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_doge to {
                 startActivity(Intent(this, DogeRequestsActivity::class.java).putExtra("isParentMode", true))
             },
+            R.id.em_row_time_requests to {
+                startActivity(Intent(this, AppTimeRequestsActivity::class.java))
+            },
             R.id.em_row_cooldown_rules to { showCooldownEditor() },
+            R.id.em_row_hinweise to { showHinweiseDialog() },
+            R.id.em_row_health to {
+                startActivity(Intent(this, PermissionHealthActivity::class.java))
+            },
+            R.id.em_row_audit to {
+                startActivity(Intent(this, AuditLogActivity::class.java))
+            },
+            R.id.em_row_strict_block to { showStrictBlockDialog() },
+            R.id.em_row_child_name to { showChildNameDialog() },
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
@@ -179,14 +239,43 @@ class ElternModusActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun refresh() {
         if (!this::balanceBig.isInitialized) return
         scope.launch {
+            val midnight = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
             val balance = withContext(Dispatchers.IO) { db.cryptoCashDao().getCurrentBalance() }
             val tx = withContext(Dispatchers.IO) { db.cryptoCashDao().getLastTransaction() }
+            val todayTxs = withContext(Dispatchers.IO) {
+                db.cryptoCashDao().getTransactionsBetween(midnight, System.currentTimeMillis())
+            }
+            val spentToday = todayTxs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
+                .sumOf { -it.deltaMinutes }
+            val topPkgs = todayTxs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
+                .groupBy { it.reasonText.removePrefix("Nutzung: ") }
+                .mapValues { (_, txs) -> txs.sumOf { -it.deltaMinutes } }
+                .entries.sortedByDescending { it.value }
+                .take(3)
+                .mapNotNull { (pkg, mins) ->
+                    val name = try {
+                        packageManager.getApplicationLabel(
+                            packageManager.getApplicationInfo(pkg, 0)
+                        ).toString()
+                    } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                        android.util.Log.w("ElternModus", "Package not found: $pkg", e)
+                        null
+                    }
+                    name?.let { "$it ($mins Min)" }
+                }
             val appCount = withContext(Dispatchers.IO) { db.allowedAppDao().getAllEnabledApps().size }
             val zusagenPending = withContext(Dispatchers.IO) { db.zusageDao().getZusagenByStatus("ACTIVE").size }
             val dogePending = withContext(Dispatchers.IO) { db.dogeRequestDao().getPending().size }
+            val timeReqPending = withContext(Dispatchers.IO) { db.appTimeRequestDao().countPending() }
+            val openEvents = withContext(Dispatchers.IO) { db.auditEventDao().getUnacknowledged().size }
+            val lockdown = TamperMonitor.isLockdownActive(this@ElternModusActivity)
             val paired = PairingManager(this@ElternModusActivity).isPaired()
             val usageGranted = UsageTracker.hasUsageAccess(this@ElternModusActivity)
             val enforcement = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
@@ -204,6 +293,9 @@ class ElternModusActivity : AppCompatActivity() {
                 android.graphics.Color.parseColor(if (enforcement) "#4CAF50" else "#FF6B35")
             )
 
+            todayUsed.text = if (spentToday > 0) "Heute genutzt: $spentToday Min" else "Heute noch nicht genutzt"
+            topApps.text = if (topPkgs.isNotEmpty()) "Top: ${topPkgs.joinToString(" · ")}" else ""
+
             val fmt = SimpleDateFormat("dd.MM. HH:mm", Locale.GERMANY)
             lastTx.text = tx?.let { "Letzte Transaktion: ${fmt.format(Date(it.createdAt))}" } ?: "Keine Transaktionen"
             enforcementLabel.text = if (enforcement) "Kindermodus AN" else "Kindermodus AUS"
@@ -215,45 +307,149 @@ class ElternModusActivity : AppCompatActivity() {
                 "Keine aktiven Versprechen"
             }
             dogeCount.text = if (dogePending > 0) "$dogePending offene Anfragen" else "Keine offenen Anfragen"
+            timeRequestsCount.text = if (timeReqPending > 0) {
+                "$timeReqPending offene Anfragen"
+            } else {
+                "Keine offenen Anfragen"
+            }
             usageStatus.text = if (usageGranted) "Erteilt ✓" else "Nicht erteilt — Tippe zum Öffnen"
             pairStatus.text = if (paired) "Gekoppelt ✓" else "Nicht gekoppelt"
+            val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            val issues = listOfNotNull(
+                if (!usageGranted) "Nutzungsstatistiken fehlen" else null,
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) "Akku-Optimierung aktiv" else null,
+                if (enforcement && !TimeTrackingService.isRunning) "Tracking gestoppt" else null
+            )
+            healthStatus.text = if (issues.isEmpty()) "Alles OK ✓" else "⚠️ ${issues.joinToString(", ")}"
+            healthStatus.setTextColor(
+                android.graphics.Color.parseColor(if (issues.isEmpty()) "#4CAF50" else "#F2994A")
+            )
+            auditStatus.text = when {
+                lockdown -> "🔒 Schutzmodus aktiv — Prüfung nötig"
+                openEvents > 0 -> "$openEvents neue Ereignisse"
+                else -> "Keine besonderen Ereignisse"
+            }
+            auditStatus.setTextColor(
+                android.graphics.Color.parseColor(if (lockdown) "#D32F2F" else "#828282")
+            )
+            val strict = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+                .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
+            strictStatus.text = if (strict) "An — nur freigegebene Apps" else "Aus"
+            childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
         }
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
 
+    private fun showChildNameDialog() {
+        val input = EditText(this).apply {
+            setText(ChildProfile.name(this@ElternModusActivity))
+            hint = "Name des Kindes"
+            setSingleLine()
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Name des Kindes")
+            .setView(input)
+            .setPositiveButton("Speichern") { _, _ ->
+                ChildProfile.setName(this, input.text.toString())
+                scope.launch { refresh() }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun showStrictBlockDialog() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        val on = prefs.getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
+        if (on) {
+            AlertDialog.Builder(this)
+                .setTitle("Strenger Block ist AN")
+                .setMessage("Nicht freigegebene Apps werden auch über Umwege (Links, " +
+                    "Benachrichtigungen, zuletzt genutzt) blockiert. Telefon/Notruf bleibt frei.")
+                .setPositiveButton("Ausschalten") { _, _ ->
+                    prefs.edit().putBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false).apply()
+                    scope.launch { refresh() }
+                }
+                .setNegativeButton("Schließen", null)
+                .show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Strenger Block einschalten?")
+            .setMessage(
+                "Zusätzlich zum Launcher werden dann auch nicht freigegebene Apps blockiert, " +
+                    "die über Umwege geöffnet werden.\n\n" +
+                    "⚠️ Bitte vorher auf dem Gerät testen — besonders, dass Anrufe und der " +
+                    "Notruf weiterhin funktionieren. Telefon, Einstellungen und System sind " +
+                    "ausgenommen."
+            )
+            .setPositiveButton("Einschalten") { _, _ ->
+                prefs.edit().putBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, true).apply()
+                toast("Strenger Block AN — bitte Notruf testen")
+                scope.launch { refresh() }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
     private fun showAddTimeDialog() {
         val mins = EditText(this).apply {
-            hint = "Minuten (z.B. 30)"
+            hint = "Eigene Minutenzahl"
             inputType = InputType.TYPE_CLASS_NUMBER
         }
         val reason = EditText(this).apply {
-            hint = "Grund (z.B. Hausaufgaben)"
+            hint = "Grund (optional)"
             inputType = InputType.TYPE_CLASS_TEXT
+        }
+        val presets = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, 8)
+        }
+        listOf(15, 30, 60).forEach { preset ->
+            presets.addView(Button(this).apply {
+                text = "+$preset"
+                isAllCaps = false
+                textSize = 13f
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#0D2847"))
+                    cornerRadius = 8f
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { setMargins(0, 0, 8, 0) }
+                setOnClickListener { mins.setText(preset.toString()) }
+            })
         }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 16, 48, 0)
-            addView(mins); addView(reason)
+            addView(presets); addView(mins); addView(reason)
         }
         AlertDialog.Builder(this)
-            .setTitle("Zeit hinzufügen")
+            .setTitle("Heute Ausnahme")
             .setView(box)
             .setPositiveButton("Hinzufügen") { _, _ ->
                 val m = mins.text.toString().toIntOrNull()
                 if (m == null || m <= 0) { toast("Ungültige Minutenzahl"); return@setPositiveButton }
-                val r = reason.text.toString().ifBlank { "Manuelle Anpassung" }
+                val r = reason.text.toString().ifBlank { "Heute Ausnahme" }
                 scope.launch {
                     withContext(Dispatchers.IO) {
                         val cur = db.cryptoCashDao().getCurrentBalance()
                         db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
-                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_EARN,
-                            actor = "parent", reasonType = "manual", reasonText = r,
-                            childVisibleText = "$r +$m Min", source = "parent_app",
+                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
+                            actor = "parent", reasonType = "today_exception", reasonText = r,
+                            childVisibleText = "+$m Min (${r})", source = "parent_app",
                             balanceAfter = cur + m
                         ))
+                        TamperMonitor.recordSuspend(
+                            this@ElternModusActivity,
+                            LaunchpadConstants.AUDIT_EXCEPTION_GRANTED,
+                            LaunchpadConstants.SEVERITY_INFO,
+                            "Heute Ausnahme: +$m Min — $r"
+                        )
                     }
-                    toast("+$m Minuten hinzugefügt")
+                    toast("+$m Minuten für heute")
                     refresh()
                     LaunchpadWidgetProvider.requestUpdate(this@ElternModusActivity)
                 }
@@ -298,6 +494,55 @@ class ElternModusActivity : AppCompatActivity() {
             .setNegativeButton("Abbrechen", null).show()
     }
 
+    private fun showHinweiseDialog() {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        val enabledCb = android.widget.CheckBox(this).apply {
+            text = "Vibration bei Zeit-Warnungen"
+            isChecked = prefs.getBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, false)
+        }
+        val strengthLabel = android.widget.TextView(this).apply {
+            text = "Stärke (Dauer)"
+            setPadding(0, 24, 0, 0)
+        }
+        val current = prefs.getInt(LaunchpadPrefs.PREF_VIBRATION_MS, LaunchpadConstants.DEFAULT_VIBRATION_MS)
+        val seek = android.widget.SeekBar(this).apply {
+            max = 700 // 100..800 ms
+            progress = (current - 100).coerceIn(0, 700)
+        }
+        val valueLabel = android.widget.TextView(this).apply { text = "${seek.progress + 100} ms" }
+        seek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
+                valueLabel.text = "${p + 100} ms"
+            }
+            override fun onStartTrackingTouch(sb: android.widget.SeekBar?) { /* no-op */ }
+            override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {
+                // Preview the chosen strength immediately.
+                prefs.edit().putInt(LaunchpadPrefs.PREF_VIBRATION_MS, sb!!.progress + 100).apply()
+                if (enabledCb.isChecked) {
+                    prefs.edit().putBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, true).apply()
+                    org.fossify.home.helpers.VibrationHelper.buzz(this@ElternModusActivity)
+                }
+            }
+        })
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+            addView(enabledCb); addView(strengthLabel); addView(seek); addView(valueLabel)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Hinweise & Vibration")
+            .setMessage("Zeit-Warnungen (10/5/0 Min) als Hinweis mit optionaler Vibration.")
+            .setView(box)
+            .setPositiveButton("Speichern") { _, _ ->
+                prefs.edit()
+                    .putBoolean(LaunchpadPrefs.PREF_VIBRATION_ENABLED, enabledCb.isChecked)
+                    .putInt(LaunchpadPrefs.PREF_VIBRATION_MS, seek.progress + 100)
+                    .apply()
+                toast("Gespeichert")
+            }
+            .setNegativeButton("Abbrechen", null).show()
+    }
+
     @Suppress("TooGenericExceptionCaught") // broad catch: intentional fail-safe opening settings
     private fun openUsageSettings() {
         if (UsageTracker.hasUsageAccess(this)) { toast("Nutzungszugriff ist bereits erteilt ✓"); return }
@@ -321,7 +566,8 @@ class ElternModusActivity : AppCompatActivity() {
                 }
                 if (count == 0) {
                     // Don't block activation — just warn. Parent can add apps next.
-                    toast("Kindermodus AN ⚠️ Noch keine Apps freigegeben — unter 'Apps verwalten' Apps hinzufügen")
+                    toast("Kindermodus AN ⚠️ Noch keine Apps freigegeben — " +
+                        "unter 'Apps verwalten' Apps hinzufügen")
                 } else {
                     toast("Kindermodus AN — $count Apps freigegeben")
                 }

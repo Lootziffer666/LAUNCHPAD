@@ -38,7 +38,11 @@ class PinGateHelper(
             val salt = prefs.getString(SALT_KEY, null) ?: generateSalt().also {
                 prefs.edit().putString(SALT_KEY, it).apply()
             }
-            prefs.edit().putString(LaunchpadPrefs.PREF_PARENT_LOCK_HASH, hashPin(pin, salt)).apply()
+            prefs.edit()
+                .putString(LaunchpadPrefs.PREF_PARENT_LOCK_HASH, hashPin(pin, salt))
+                .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0)
+                .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+                .apply()
             Log.d(tag, "PIN configured successfully")
             true
         } catch (e: Exception) {
@@ -47,19 +51,65 @@ class PinGateHelper(
         }
     }
 
-    fun verifyPin(enteredPin: String): Boolean {
+    sealed class VerifyResult {
+        object Success : VerifyResult()
+        /** Wrong PIN — [failCount] total fails; [newLockoutSeconds] > 0 when this fail triggers a lockout. */
+        data class Wrong(val failCount: Int, val newLockoutSeconds: Int = 0) : VerifyResult()
+        /** Currently locked out. [secondsRemaining] = how long until the lockout lifts. */
+        data class LockedOut(val secondsRemaining: Int) : VerifyResult()
+    }
+
+    fun isLockedOut(): Boolean {
+        val lockedUntil = prefs.getLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+        return lockedUntil > System.currentTimeMillis()
+    }
+
+    fun lockoutSecondsRemaining(): Int {
+        val lockedUntil = prefs.getLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+        val remaining = lockedUntil - System.currentTimeMillis()
+        return if (remaining > 0) ((remaining + 999) / 1000).toInt() else 0
+    }
+
+    fun verifyPin(enteredPin: String): VerifyResult {
+        val now = System.currentTimeMillis()
+        val lockedUntil = prefs.getLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+        if (lockedUntil > now) {
+            return VerifyResult.LockedOut(((lockedUntil - now + 999) / 1000).toInt())
+        }
         return try {
             val storedHash = prefs.getString(LaunchpadPrefs.PREF_PARENT_LOCK_HASH, "").orEmpty()
             val salt = prefs.getString(SALT_KEY, "").orEmpty()
             if (storedHash.isEmpty() || salt.isEmpty()) {
                 Log.w(tag, "No PIN configured yet")
-                return false
+                return VerifyResult.Wrong(0)
             }
-            constantTimeEquals(hashPin(enteredPin, salt), storedHash)
+            if (constantTimeEquals(hashPin(enteredPin, salt), storedHash)) {
+                prefs.edit()
+                    .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0)
+                    .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+                    .apply()
+                VerifyResult.Success
+            } else {
+                val newCount = prefs.getInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0) + 1
+                val lockoutMs = lockoutDurationMs(newCount)
+                val newLockedUntil = if (lockoutMs > 0L) now + lockoutMs else 0L
+                prefs.edit()
+                    .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, newCount)
+                    .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, newLockedUntil)
+                    .apply()
+                VerifyResult.Wrong(newCount, (lockoutMs / 1000L).toInt())
+            }
         } catch (e: Exception) {
             Log.e(tag, "PIN verification error", e)
-            false
+            VerifyResult.Wrong(0)
         }
+    }
+
+    private fun lockoutDurationMs(failCount: Int): Long = when {
+        failCount < 5 -> 0L
+        failCount < 10 -> 30_000L    // 30 s after 5th fail
+        failCount < 15 -> 300_000L   // 5 min after 10th fail
+        else -> 900_000L             // 15 min after 15th fail
     }
 
     fun isParentModeActive(): Boolean {
