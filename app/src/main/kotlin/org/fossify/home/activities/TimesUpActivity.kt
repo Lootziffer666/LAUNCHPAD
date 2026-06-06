@@ -22,11 +22,12 @@ class TimesUpActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val pal = Playful.palette(this)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
-            setBackgroundColor(Playful.color(Playful.CREAM))
+            setBackgroundColor(pal.bg)
             setPadding(32, 64, 32, 64)
         }
         setContentView(root)
@@ -37,7 +38,7 @@ class TimesUpActivity : AppCompatActivity() {
             text = "Zeit ist um! 🌙"
             textSize = 34f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Playful.color(Playful.CORAL))
+            setTextColor(pal.accent)
             gravity = android.view.Gravity.CENTER
             setPadding(0, 8, 0, 8)
         }
@@ -46,7 +47,7 @@ class TimesUpActivity : AppCompatActivity() {
         val sub = TextView(this).apply {
             text = "Lass uns noch kurz fertig machen … 😊"
             textSize = 16f
-            setTextColor(Playful.color(Playful.INK_SOFT))
+            setTextColor(pal.inkSoft)
             gravity = android.view.Gravity.CENTER
             setPadding(0, 0, 0, 32)
         }
@@ -66,7 +67,7 @@ class TimesUpActivity : AppCompatActivity() {
             text = COUNTDOWN_SECONDS.toString()
             textSize = 56f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Playful.color(Playful.INK))
+            setTextColor(pal.ink)
             gravity = android.view.Gravity.CENTER
         }
         root.addView(counter)

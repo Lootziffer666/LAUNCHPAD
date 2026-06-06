@@ -1,7 +1,7 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/AppBlockedActivity.kt
 // Context-aware "not right now" screen: tells the child WHY an app is resting and what they can
 // do. "Verspielt & bunt": sunny background, resting rocket mascot, kind wording instead of
-// lock-icons and "access denied". The rules behind it are unchanged.
+// lock-icons and "access denied". Colours adapt to the wallpaper (Playful.palette). Rules unchanged.
 
 @file:Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 
@@ -34,6 +34,7 @@ import org.fossify.home.helpers.Playful
 class AppBlockedActivity : AppCompatActivity() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private lateinit var pal: Playful.Pal
 
     companion object {
         const val EXTRA_PACKAGE = "pkg"
@@ -45,6 +46,7 @@ class AppBlockedActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pal = Playful.palette(this)
 
         val pkg = intent.getStringExtra(EXTRA_PACKAGE).orEmpty()
         val reason = intent.getStringExtra(EXTRA_REASON).orEmpty()
@@ -55,7 +57,7 @@ class AppBlockedActivity : AppCompatActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Playful.color(Playful.CREAM))
+            setBackgroundColor(pal.bg)
         }
         setContentView(root)
 
@@ -95,7 +97,7 @@ class AppBlockedActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setBackgroundColor(Playful.color(Playful.CORAL))
+            setBackgroundColor(pal.accent)
             setPadding(24, 44, 24, 28)
             addView(TextView(this@AppBlockedActivity).apply {
                 text = "← Zurück"
@@ -119,7 +121,7 @@ class AppBlockedActivity : AppCompatActivity() {
             addView(TextView(this@AppBlockedActivity).apply {
                 text = label
                 textSize = 14f
-                setTextColor(Color.parseColor(Playful.SUN))
+                setTextColor(Color.argb(235, 255, 255, 255))
                 gravity = Gravity.CENTER
             })
         }
@@ -144,7 +146,7 @@ class AppBlockedActivity : AppCompatActivity() {
     ): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CARD, 16)
+            background = Playful.roundedBg(this@AppBlockedActivity, pal.card, 16)
             setPadding(20, 20, 20, 20)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -154,7 +156,7 @@ class AppBlockedActivity : AppCompatActivity() {
             addView(TextView(this@AppBlockedActivity).apply {
                 text = message
                 textSize = 15f
-                setTextColor(Playful.color(Playful.INK))
+                setTextColor(pal.ink)
                 setTypeface(null, Typeface.BOLD)
             })
 
@@ -164,7 +166,7 @@ class AppBlockedActivity : AppCompatActivity() {
                 addView(TextView(this@AppBlockedActivity).apply {
                     text = extraLine
                     textSize = 13f
-                    setTextColor(Playful.color(Playful.INK_SOFT))
+                    setTextColor(pal.inkSoft)
                     setPadding(0, 8, 0, 0)
                 })
             }
@@ -175,7 +177,8 @@ class AppBlockedActivity : AppCompatActivity() {
         return when (reason) {
             LaunchpadConstants.REASON_COOLDOWN -> {
                 val remaining = ((cooldownUntil - System.currentTimeMillis()) / 60_000).coerceAtLeast(0)
-                if (remaining > 0) "Noch ca. $remaining Minute${if (remaining != 1L) "n" else ""}, dann geht's weiter. 🌈"
+                val unit = if (remaining != 1L) "n" else ""
+                if (remaining > 0) "Noch ca. $remaining Minute$unit, dann geht's weiter. 🌈"
                 else "Die Pause ist fast vorbei. 🌈"
             }
             LaunchpadConstants.REASON_NO_BUDGET ->
@@ -249,11 +252,12 @@ class AppBlockedActivity : AppCompatActivity() {
                 }
             }
             if (created) NotificationHelper.notifyTimeRequest(this@AppBlockedActivity, label)
-            Toast.makeText(
-                this@AppBlockedActivity,
-                if (created) "Deine Frage ist unterwegs zu Mama & Papa! 💌" else "Deine Frage ist schon unterwegs 😊",
-                Toast.LENGTH_SHORT
-            ).show()
+            val toastText = if (created) {
+                "Deine Frage ist unterwegs zu Mama & Papa! 💌"
+            } else {
+                "Deine Frage ist schon unterwegs 😊"
+            }
+            Toast.makeText(this@AppBlockedActivity, toastText, Toast.LENGTH_SHORT).show()
             finish()
         }
     }
@@ -271,7 +275,7 @@ class AppBlockedActivity : AppCompatActivity() {
             isAllCaps = false
             textSize = 15f
             setTextColor(Color.WHITE)
-            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CORAL, 14)
+            background = Playful.roundedBg(this@AppBlockedActivity, pal.accent, 14)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -284,9 +288,9 @@ class AppBlockedActivity : AppCompatActivity() {
             text = label
             isAllCaps = false
             textSize = 14f
-            setTextColor(Playful.color(Playful.INK))
-            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CARD, 14).apply {
-                setStroke(Playful.dp(this@AppBlockedActivity, 1), Playful.color(Playful.LINE))
+            setTextColor(pal.ink)
+            background = Playful.roundedBg(this@AppBlockedActivity, pal.card, 14).apply {
+                setStroke(Playful.dp(this@AppBlockedActivity, 1), pal.line)
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

@@ -1,14 +1,14 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/JakeDashboardActivity.kt
 // LAUNCHPAD: the child's view — balance, today's usage, active promises, quick actions.
-// "Verspielt & bunt": sunny background, rocket mascot greeting, warm colours. The numbers and
-// rules underneath are unchanged — only the look and the wording got friendlier.
+// "Verspielt & bunt": sunny background, rocket mascot greeting, warm colours that ADAPT to the
+// wallpaper (via Playful.palette). The numbers and rules underneath are unchanged — only the look
+// and the wording got friendlier. Semantic status colours (mint = plenty, sun = low) stay fixed.
 
 @file:Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 
 package org.fossify.home.activities
 
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
@@ -35,6 +35,7 @@ class JakeDashboardActivity : AppCompatActivity() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var db: AppsDatabase
+    private lateinit var pal: Playful.Pal
 
     // Live-updated views
     private lateinit var balanceText: TextView
@@ -46,10 +47,11 @@ class JakeDashboardActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = AppsDatabase.getInstance(this)
+        pal = Playful.palette(this)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Playful.color(Playful.CREAM))
+            setBackgroundColor(pal.bg)
         }
 
         root.addView(buildHeader())
@@ -106,8 +108,8 @@ class JakeDashboardActivity : AppCompatActivity() {
                 "${budget.balanceMinutes}"
             }
             balanceText.setTextColor(when {
-                budget.inCooldown -> Playful.color(Playful.CORAL)
-                budget.balanceMinutes <= 0 -> Playful.color(Playful.CORAL)
+                budget.inCooldown -> pal.accent
+                budget.balanceMinutes <= 0 -> pal.accent
                 budget.balanceMinutes < 10 -> Playful.color(Playful.SUN)
                 else -> Playful.color(Playful.MINT)
             })
@@ -142,7 +144,7 @@ class JakeDashboardActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 12, 24, 12)
-            background = Playful.roundedBg(this@JakeDashboardActivity, Playful.PEACH, 14)
+            background = Playful.roundedBg(this@JakeDashboardActivity, pal.accentSoft, 14)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -151,13 +153,13 @@ class JakeDashboardActivity : AppCompatActivity() {
             addView(TextView(this@JakeDashboardActivity).apply {
                 text = z.childVisibleText.ifBlank { z.text }
                 textSize = 14f
-                setTextColor(Playful.color(Playful.INK))
+                setTextColor(pal.ink)
                 setTypeface(null, Typeface.BOLD)
             })
             addView(TextView(this@JakeDashboardActivity).apply {
                 text = "von ${z.namedParent}"
                 textSize = 12f
-                setTextColor(Playful.color(Playful.INK_SOFT))
+                setTextColor(pal.inkSoft)
                 setPadding(0, 2, 0, 0)
             })
         }
@@ -171,7 +173,7 @@ class JakeDashboardActivity : AppCompatActivity() {
             addView(TextView(this@JakeDashboardActivity).apply {
                 text = "← Zurück"
                 textSize = 14f
-                setTextColor(Playful.color(Playful.INK_SOFT))
+                setTextColor(pal.inkSoft)
                 setOnClickListener { finish() }
             })
             addView(LinearLayout(this@JakeDashboardActivity).apply {
@@ -186,12 +188,12 @@ class JakeDashboardActivity : AppCompatActivity() {
                         text = "Hi, $name! 🚀"
                         textSize = 24f
                         setTypeface(null, Typeface.BOLD)
-                        setTextColor(Playful.color(Playful.INK))
+                        setTextColor(pal.ink)
                     })
                     addView(TextView(this@JakeDashboardActivity).apply {
                         text = "Schön, dass du da bist ✨"
                         textSize = 14f
-                        setTextColor(Playful.color(Playful.INK_SOFT))
+                        setTextColor(pal.inkSoft)
                     })
                 })
             })
@@ -203,7 +205,7 @@ class JakeDashboardActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(32, 24, 32, 24)
-            background = Playful.roundedBg(this@JakeDashboardActivity, Playful.CARD, 24)
+            background = Playful.roundedBg(this@JakeDashboardActivity, pal.card, 24)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -220,7 +222,7 @@ class JakeDashboardActivity : AppCompatActivity() {
 
             balanceLabel = TextView(this@JakeDashboardActivity).apply {
                 textSize = 14f
-                setTextColor(Playful.color(Playful.INK_SOFT))
+                setTextColor(pal.inkSoft)
                 gravity = Gravity.CENTER
                 text = "Minuten zum Spielen"
                 setPadding(0, 0, 0, 8)
@@ -229,7 +231,7 @@ class JakeDashboardActivity : AppCompatActivity() {
 
             statusMsg = TextView(this@JakeDashboardActivity).apply {
                 textSize = 15f
-                setTextColor(Playful.color(Playful.INK))
+                setTextColor(pal.ink)
                 gravity = Gravity.CENTER
             }
             addView(statusMsg)
@@ -245,7 +247,7 @@ class JakeDashboardActivity : AppCompatActivity() {
 
             usedTodayText = TextView(this@JakeDashboardActivity).apply {
                 textSize = 14f
-                setTextColor(Playful.color(Playful.INK_SOFT))
+                setTextColor(pal.inkSoft)
                 setPadding(0, 4, 0, 0)
             }
             addView(usedTodayText)
@@ -282,13 +284,13 @@ class JakeDashboardActivity : AppCompatActivity() {
             setPadding(0, 24, 0, 24)
             isClickable = true
             isFocusable = true
-            background = Playful.roundedBg(context, Playful.PEACH, 18)
+            background = Playful.roundedBg(context, pal.accentSoft, 18)
             addView(TextView(context).apply {
                 text = emoji; textSize = 32f; gravity = Gravity.CENTER
             })
             addView(TextView(context).apply {
                 text = label; textSize = 12f
-                setTextColor(Playful.color(Playful.INK))
+                setTextColor(pal.ink)
                 gravity = Gravity.CENTER; setPadding(0, 4, 0, 0)
             })
             setOnClickListener { onClick() }
@@ -299,7 +301,7 @@ class JakeDashboardActivity : AppCompatActivity() {
         text = title
         textSize = 13f
         setTypeface(null, Typeface.BOLD)
-        setTextColor(Playful.color(Playful.CORAL))
+        setTextColor(pal.accent)
         setPadding(0, 0, 0, 8)
     }
 

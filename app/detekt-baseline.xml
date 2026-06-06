@@ -2,12 +2,15 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ComplexCondition:ChildProfile.kt$ChildProfile$last == 's' || last == 'ß' || last == 'x' || last == 'z'</ID>
     <ID>ComplexCondition:HomeScreenGrid.kt$AnimatedGridPager$currentPage &lt; getMaxPage() &amp;&amp; diffX &gt; 0f || currentPage &gt; 0 &amp;&amp; diffX &lt; 0f</ID>
     <ID>ComplexCondition:HomeScreenGrid.kt$HomeScreenGrid$item.page != 0 &amp;&amp; gridItems .none { it.page == item.page &amp;&amp; it.id != item.id &amp;&amp; it.parentId == null }</ID>
     <ID>ComplexCondition:HomeScreenGrid.kt$HomeScreenGrid$newParentId != null &amp;&amp; gridItems.any { it.parentId == newParentId &amp;&amp; it.left == left } &amp;&amp; (newParentId != oldParentId || left != oldLeft)</ID>
     <ID>ComplexCondition:HomeScreenGrid.kt$HomeScreenGrid$x &gt;= left &amp;&amp; x &lt;= right &amp;&amp; y &gt;= top &amp;&amp; y &lt;= bottom</ID>
     <ID>ComplexCondition:HomeScreenGrid.kt$HomeScreenGrid$x &gt;= rect.left &amp;&amp; x &lt;= rect.right &amp;&amp; y &gt;= rect.top &amp;&amp; y &lt;= rect.bottom</ID>
     <ID>CyclomaticComplexMethod:Activity.kt$fun Activity.handleGridItemPopupMenu( anchorView: View, gridItem: HomeScreenGridItem, isOnAllAppsFragment: Boolean, listener: ItemMenuListener, ): PopupMenu</ID>
+    <ID>CyclomaticComplexMethod:AppsManagementActivity.kt$AppsManagementActivity$private fun renderList()</ID>
+    <ID>CyclomaticComplexMethod:DailyReportActivity.kt$DailyReportActivity$@Suppress("LongMethod") private fun renderReport( txs: List&lt;CryptoCashTransaction&gt;, dogeAll: List&lt;DogeRequest&gt;, audits: List&lt;AuditEvent&gt;, balance: Int, limits: Map&lt;String, Int&gt;, midnight: Long, @Suppress("UNUSED_PARAMETER") now: Long )</ID>
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$fun draggedItemMoved(x: Int, y: Int)</ID>
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$fun drawInto(canvas: Canvas)</ID>
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$fun isClickingGridItem(x: Int, y: Int): HomeScreenGridItem?</ID>
@@ -15,11 +18,14 @@
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$private fun addAppIconOrShortcut()</ID>
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$private fun addWidget()</ID>
     <ID>CyclomaticComplexMethod:HomeScreenGrid.kt$HomeScreenGrid$private fun moveItem()</ID>
+    <ID>CyclomaticComplexMethod:LaunchGate.kt$LaunchGate$suspend fun canLaunch( packageName: String, timeBudget: TimeBudget ): LaunchDecision</ID>
     <ID>CyclomaticComplexMethod:MainActivity.kt$MainActivity$override fun onTouchEvent(event: MotionEvent?): Boolean</ID>
     <ID>CyclomaticComplexMethod:MyAppWidgetResizeFrame.kt$MyAppWidgetResizeFrame$override fun onTouchEvent(event: MotionEvent?): Boolean</ID>
+    <ID>CyclomaticComplexMethod:TimeTrackingService.kt$TimeTrackingService$private fun tick()</ID>
     <ID>EmptyCatchBlock:Context.kt${ }</ID>
     <ID>EmptyCatchBlock:WidgetsFragment.kt$WidgetsFragment${ }</ID>
     <ID>EmptyFunctionBlock:HiddenIconsAdapter.kt$HiddenIconsAdapter${}</ID>
+    <ID>LargeClass:AppsManagementActivity.kt$AppsManagementActivity : AppCompatActivity</ID>
     <ID>LargeClass:HomeScreenGrid.kt$HomeScreenGrid : RelativeLayout</ID>
     <ID>LargeClass:MainActivity.kt$MainActivity : SimpleActivityFlingListener</ID>
     <ID>LongMethod:HomeScreenGrid.kt$HomeScreenGrid$fun drawInto(canvas: Canvas)</ID>
@@ -47,9 +53,6 @@
     <ID>MagicNumber:HomeScreenGrid.kt$HomeScreenGrid.HomeScreenFolder.&lt;no name provided&gt;$0.2f</ID>
     <ID>MagicNumber:HomeScreenGrid.kt$HomeScreenGrid.HomeScreenGridTouchHelper$100</ID>
     <ID>MagicNumber:LaunchersAdapter.kt$LaunchersAdapter$0.1f</ID>
-    <ID>MagicNumber:MainActivity.kt$MainActivity$0.5</ID>
-    <ID>MagicNumber:MainActivity.kt$MainActivity$2000</ID>
-    <ID>MagicNumber:MainActivity.kt$MainActivity.MyGestureListener$500L</ID>
     <ID>MagicNumber:MyAppWidgetHostView.kt$MyAppWidgetHostView$4</ID>
     <ID>MagicNumber:MyAppWidgetResizeFrame.kt$MyAppWidgetResizeFrame$3</ID>
     <ID>MagicNumber:MyAppWidgetResizeFrame.kt$MyAppWidgetResizeFrame$4</ID>
@@ -107,6 +110,8 @@
     <ID>NewLineAtEndOfFile:View.kt$org.fossify.home.extensions.View.kt</ID>
     <ID>ReturnCount:HomeScreenGrid.kt$HomeScreenGrid$fun isClickingGridItem(x: Int, y: Int): HomeScreenGridItem?</ID>
     <ID>SwallowedException:Activity.kt$e: Exception</ID>
+    <ID>SwallowedException:BackupCrypto.kt$BackupCrypto$e: GeneralSecurityException</ID>
+    <ID>SwallowedException:BackupCrypto.kt$BackupCrypto$e: IllegalArgumentException</ID>
     <ID>SwallowedException:Context.kt$e: Error</ID>
     <ID>SwallowedException:Context.kt$e: Exception</ID>
     <ID>SwallowedException:WidgetsFragment.kt$WidgetsFragment$error: Error</ID>
@@ -114,6 +119,7 @@
     <ID>TooGenericExceptionCaught:Context.kt$e: Error</ID>
     <ID>TooGenericExceptionCaught:Context.kt$e: Exception</ID>
     <ID>TooGenericExceptionCaught:MainActivity.kt$MainActivity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SetupActivity.kt$SetupActivity$e: Exception</ID>
     <ID>TooGenericExceptionCaught:WidgetsFragment.kt$WidgetsFragment$error: Error</ID>
     <ID>TooManyFunctions:AllAppsFragment.kt$AllAppsFragment : MyFragmentAllAppsListener</ID>
     <ID>TooManyFunctions:HiddenIconsAdapter.kt$HiddenIconsAdapter : MyRecyclerViewAdapter</ID>

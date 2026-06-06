@@ -43,6 +43,7 @@ class ImpulseDelayActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val pal = Playful.palette(this)
 
         pkg = intent.getStringExtra(EXTRA_PACKAGE).orEmpty()
         activityName = intent.getStringExtra(EXTRA_ACTIVITY).orEmpty()
@@ -57,7 +58,7 @@ class ImpulseDelayActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Playful.color(Playful.CREAM))
+            setBackgroundColor(pal.bg)
             setPadding(64, 64, 64, 64)
         }
 
@@ -65,14 +66,14 @@ class ImpulseDelayActivity : AppCompatActivity() {
 
         root.addView(TextView(this).apply {
             text = "Kurz durchatmen …"
-            setTextColor(Playful.color(Playful.INK_SOFT))
+            setTextColor(pal.inkSoft)
             textSize = 22f
             gravity = Gravity.CENTER
         })
 
         countdownView = TextView(this).apply {
             text = remaining.toString()
-            setTextColor(Playful.color(Playful.INK))
+            setTextColor(pal.ink)
             textSize = 96f
             gravity = Gravity.CENTER
             setPadding(0, 32, 0, 32)
@@ -81,7 +82,7 @@ class ImpulseDelayActivity : AppCompatActivity() {
 
         root.addView(TextView(this).apply {
             text = "Möchtest du das wirklich öffnen?"
-            setTextColor(Playful.color(Playful.INK_SOFT))
+            setTextColor(pal.inkSoft)
             textSize = 15f
             gravity = Gravity.CENTER
         })
@@ -90,8 +91,8 @@ class ImpulseDelayActivity : AppCompatActivity() {
             text = "Doch nicht 🙂"
             isAllCaps = false
             textSize = 16f
-            setTextColor(Playful.color(Playful.INK))
-            background = Playful.roundedBg(context, Playful.PEACH, 16)
+            setTextColor(pal.ink)
+            background = Playful.roundedBg(context, pal.accentSoft, 16)
             setPadding(56, 24, 56, 24)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,

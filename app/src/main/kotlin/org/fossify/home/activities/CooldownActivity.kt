@@ -53,6 +53,7 @@ class CooldownActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var messageText: TextView
     private lateinit var appButtonContainer: LinearLayout
+    private lateinit var pal: Playful.Pal
 
     private var cooldownDurationMinutes = 15 // Default
     private var cooldownDurationMs = cooldownDurationMinutes * 60 * 1000L
@@ -73,6 +74,13 @@ class CooldownActivity : AppCompatActivity() {
         messageText = findViewById(R.id.cooldown_message)
         appButtonContainer = findViewById(R.id.cooldown_app_buttons)
 
+        // Tint the screen to match the wallpaper (cosy coral fallback when unavailable).
+        pal = Playful.palette(this)
+        findViewById<View>(R.id.cooldown_root).setBackgroundColor(pal.bg)
+        timerText.setTextColor(pal.accent)
+        messageText.setTextColor(pal.ink)
+        progressBar.progressTintList = android.content.res.ColorStateList.valueOf(pal.accent)
+
         showCooldownUI()
         startCooldownTimer()
     }
@@ -86,7 +94,7 @@ class CooldownActivity : AppCompatActivity() {
             text = "Verschnaufpause 🌿"
             textSize = 28f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Playful.color(Playful.INK))
+            setTextColor(pal.ink)
             gravity = android.view.Gravity.CENTER
             setPadding(16, 8, 16, 16)
         }
@@ -121,7 +129,7 @@ class CooldownActivity : AppCompatActivity() {
                 appButtonContainer.addView(TextView(this@CooldownActivity).apply {
                     text = "Frag Mama oder Papa nach einer ruhigen App. 💛"
                     textSize = 16f
-                    setTextColor(Playful.color(Playful.INK_SOFT))
+                    setTextColor(pal.inkSoft)
                     setPadding(16, 16, 16, 16)
                 })
                 return@launch
@@ -159,8 +167,8 @@ class CooldownActivity : AppCompatActivity() {
         text = label
         isAllCaps = false
         textSize = 16f
-        setTextColor(Playful.color(Playful.INK))
-        background = Playful.roundedBg(this@CooldownActivity, Playful.PEACH, 16)
+        setTextColor(pal.ink)
+        background = Playful.roundedBg(this@CooldownActivity, pal.accentSoft, 16)
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
