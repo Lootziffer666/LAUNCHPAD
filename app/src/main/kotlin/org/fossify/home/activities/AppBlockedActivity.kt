@@ -1,5 +1,7 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/AppBlockedActivity.kt
-// Context-aware block screen: tells Jake WHY an app is blocked and what he can do.
+// Context-aware "not right now" screen: tells the child WHY an app is resting and what they can
+// do. "Verspielt & bunt": sunny background, resting rocket mascot, kind wording instead of
+// lock-icons and "access denied". The rules behind it are unchanged.
 
 @file:Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 
@@ -8,8 +10,8 @@ package org.fossify.home.activities
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -22,10 +24,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.fossify.home.R
 import org.fossify.home.databases.AppTimeRequest
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.NotificationHelper
+import org.fossify.home.helpers.Playful
 
 class AppBlockedActivity : AppCompatActivity() {
 
@@ -37,9 +41,6 @@ class AppBlockedActivity : AppCompatActivity() {
         const val EXTRA_MESSAGE = "message"
         const val EXTRA_BALANCE_MINUTES = "balance_minutes"
         const val EXTRA_COOLDOWN_UNTIL = "cooldown_until"
-
-        private const val HW_NAVY = "#0D2847"
-        private const val HW_ORANGE = "#F2994A"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,13 +49,13 @@ class AppBlockedActivity : AppCompatActivity() {
         val pkg = intent.getStringExtra(EXTRA_PACKAGE).orEmpty()
         val reason = intent.getStringExtra(EXTRA_REASON).orEmpty()
         val message = intent.getStringExtra(EXTRA_MESSAGE)
-            ?: "Diese App ist gerade nicht verfügbar."
+            ?: "Diese App macht gerade ein Nickerchen. 💤"
         val balanceMinutes = intent.getIntExtra(EXTRA_BALANCE_MINUTES, -1)
         val cooldownUntil = intent.getLongExtra(EXTRA_COOLDOWN_UNTIL, 0L)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#F2F4F7"))
+            setBackgroundColor(Playful.color(Playful.CREAM))
         }
         setContentView(root)
 
@@ -93,38 +94,46 @@ class AppBlockedActivity : AppCompatActivity() {
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor(HW_NAVY))
-            setPadding(24, 52, 24, 28)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setBackgroundColor(Playful.color(Playful.CORAL))
+            setPadding(24, 44, 24, 28)
             addView(TextView(this@AppBlockedActivity).apply {
                 text = "← Zurück"
                 textSize = 13f
-                setTextColor(Color.argb(180, 255, 255, 255))
+                setTextColor(Color.argb(210, 255, 255, 255))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
                 setOnClickListener { finish() }
             })
+            addView(Playful.mascot(this@AppBlockedActivity, R.drawable.mascot_rocket_rest, 88))
             addView(TextView(this@AppBlockedActivity).apply {
                 text = "$emoji  $appName"
                 textSize = 22f
                 setTypeface(null, Typeface.BOLD)
                 setTextColor(Color.WHITE)
-                setPadding(0, 16, 0, 4)
+                gravity = Gravity.CENTER
+                setPadding(0, 8, 0, 4)
             })
             addView(TextView(this@AppBlockedActivity).apply {
                 text = label
                 textSize = 14f
-                setTextColor(Color.parseColor(HW_ORANGE))
+                setTextColor(Color.parseColor(Playful.SUN))
+                gravity = Gravity.CENTER
             })
         }
     }
 
     private fun headerContent(reason: String): Pair<String, String> = when (reason) {
-        LaunchpadConstants.REASON_COOLDOWN -> "⏸" to "Bildschirmpause läuft"
-        LaunchpadConstants.REASON_NO_BUDGET -> "⏰" to "Bildschirmzeit aufgebraucht"
-        LaunchpadConstants.REASON_MIN_THRESHOLD -> "⚡" to "Zu wenig Zeit übrig"
-        LaunchpadConstants.REASON_LOCKDOWN -> "🔒" to "Sicherheitscheck aktiv"
-        LaunchpadConstants.REASON_NOT_ALLOWED -> "🚫" to "Nicht freigegeben"
-        LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🕐" to "Noch nicht Bildschirmzeit"
-        LaunchpadConstants.REASON_APP_DAILY_LIMIT -> "⏱️" to "Tageslimit erreicht"
-        else -> "ℹ️" to "Nicht verfügbar"
+        LaunchpadConstants.REASON_COOLDOWN -> "😴" to "Kurze Verschnaufpause"
+        LaunchpadConstants.REASON_NO_BUDGET -> "🌙" to "Heute ist die Zeit alle"
+        LaunchpadConstants.REASON_MIN_THRESHOLD -> "⏳" to "Nur noch ein bisschen Zeit"
+        LaunchpadConstants.REASON_LOCKDOWN -> "🛠️" to "Kurzer Moment"
+        LaunchpadConstants.REASON_NOT_ALLOWED -> "🌱" to "Diese App schläft noch"
+        LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🌞" to "Gleich ist Spielzeit"
+        LaunchpadConstants.REASON_APP_DAILY_LIMIT -> "🎒" to "Diese App macht Feierabend"
+        else -> "🚀" to "Gleich geht's weiter"
     }
 
     private fun buildReasonCard(
@@ -135,10 +144,7 @@ class AppBlockedActivity : AppCompatActivity() {
     ): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = 12f
-            }
+            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CARD, 16)
             setPadding(20, 20, 20, 20)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -148,7 +154,7 @@ class AppBlockedActivity : AppCompatActivity() {
             addView(TextView(this@AppBlockedActivity).apply {
                 text = message
                 textSize = 15f
-                setTextColor(Color.parseColor(HW_NAVY))
+                setTextColor(Playful.color(Playful.INK))
                 setTypeface(null, Typeface.BOLD)
             })
 
@@ -158,7 +164,7 @@ class AppBlockedActivity : AppCompatActivity() {
                 addView(TextView(this@AppBlockedActivity).apply {
                     text = extraLine
                     textSize = 13f
-                    setTextColor(Color.parseColor("#555555"))
+                    setTextColor(Playful.color(Playful.INK_SOFT))
                     setPadding(0, 8, 0, 0)
                 })
             }
@@ -169,18 +175,18 @@ class AppBlockedActivity : AppCompatActivity() {
         return when (reason) {
             LaunchpadConstants.REASON_COOLDOWN -> {
                 val remaining = ((cooldownUntil - System.currentTimeMillis()) / 60_000).coerceAtLeast(0)
-                if (remaining > 0) "Noch ca. $remaining Minute${if (remaining != 1L) "n" else ""}."
-                else "Die Pause ist fast vorbei."
+                if (remaining > 0) "Noch ca. $remaining Minute${if (remaining != 1L) "n" else ""}, dann geht's weiter. 🌈"
+                else "Die Pause ist fast vorbei. 🌈"
             }
             LaunchpadConstants.REASON_NO_BUDGET ->
-                "Morgen um Mitternacht gibt es neue Zeit."
+                "Morgen früh ist alles wieder aufgeladen! 🔋"
             LaunchpadConstants.REASON_MIN_THRESHOLD ->
-                if (balanceMinutes >= 0) "Aktuelles Guthaben: $balanceMinutes Min."
+                if (balanceMinutes >= 0) "Du hast noch $balanceMinutes Min — magst du sie aufheben? ✨"
                 else ""
             LaunchpadConstants.REASON_LOCKDOWN ->
-                "Mama oder Papa müssen LAUNCHPAD prüfen und freigeben."
+                "Mama oder Papa schauen kurz drauf und schalten dich wieder frei. 💛"
             LaunchpadConstants.REASON_APP_DAILY_LIMIT ->
-                "Morgen gibt es wieder Zeit für diese App."
+                "Morgen gibt's wieder frische Zeit für diese App. 🌅"
             else -> ""
         }
     }
@@ -191,7 +197,7 @@ class AppBlockedActivity : AppCompatActivity() {
 
             // During cool-down the most helpful action is the calming-apps screen, not a request.
             if (reason == LaunchpadConstants.REASON_COOLDOWN) {
-                addView(primaryButton("Ruhe-Apps öffnen") {
+                addView(primaryButton("Etwas Ruhiges entdecken 🎨") {
                     val remainingMin =
                         ((cooldownUntil - System.currentTimeMillis()) / 60_000L)
                             .coerceAtLeast(1L).toInt()
@@ -206,16 +212,16 @@ class AppBlockedActivity : AppCompatActivity() {
 
             // App daily-limit: a dedicated "ask for more time" request, not a media request.
             if (reason == LaunchpadConstants.REASON_APP_DAILY_LIMIT) {
-                addView(primaryButton("Mehr Zeit anfragen") { requestMoreTime(pkg) })
+                addView(primaryButton("Mama oder Papa um mehr Zeit fragen 💬") { requestMoreTime(pkg) })
             }
 
-            // "Anfragen" (media request) for the remaining reasons except lockdown
+            // "Fragen" (media request) for the remaining reasons except lockdown
             // (parent must act), cool-down (just wait), and app-limit (handled above).
             if (reason != LaunchpadConstants.REASON_LOCKDOWN &&
                 reason != LaunchpadConstants.REASON_COOLDOWN &&
                 reason != LaunchpadConstants.REASON_APP_DAILY_LIMIT
             ) {
-                addView(primaryButton("Anfragen") {
+                addView(primaryButton("Fragen, ob's geht 🙋") {
                     startActivity(
                         Intent(this@AppBlockedActivity, DogeRequestsActivity::class.java)
                             .putExtra("isParentMode", false)
@@ -225,7 +231,7 @@ class AppBlockedActivity : AppCompatActivity() {
                 })
             }
 
-            addView(secondaryButton("Schließen") { finish() })
+            addView(secondaryButton("Alles klar 👍") { finish() })
         }
     }
 
@@ -245,7 +251,7 @@ class AppBlockedActivity : AppCompatActivity() {
             if (created) NotificationHelper.notifyTimeRequest(this@AppBlockedActivity, label)
             Toast.makeText(
                 this@AppBlockedActivity,
-                if (created) "Anfrage an Mama/Papa gesendet" else "Deine Anfrage läuft schon",
+                if (created) "Deine Frage ist unterwegs zu Mama & Papa! 💌" else "Deine Frage ist schon unterwegs 😊",
                 Toast.LENGTH_SHORT
             ).show()
             finish()
@@ -262,12 +268,10 @@ class AppBlockedActivity : AppCompatActivity() {
     private fun primaryButton(label: String, onClick: () -> Unit): Button =
         Button(this).apply {
             text = label
+            isAllCaps = false
             textSize = 15f
             setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor(HW_ORANGE))
-                cornerRadius = 10f
-            }
+            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CORAL, 14)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -278,12 +282,11 @@ class AppBlockedActivity : AppCompatActivity() {
     private fun secondaryButton(label: String, onClick: () -> Unit): Button =
         Button(this).apply {
             text = label
+            isAllCaps = false
             textSize = 14f
-            setTextColor(Color.parseColor(HW_NAVY))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = 10f
-                setStroke(1, Color.parseColor("#CCCCCC"))
+            setTextColor(Playful.color(Playful.INK))
+            background = Playful.roundedBg(this@AppBlockedActivity, Playful.CARD, 14).apply {
+                setStroke(Playful.dp(this@AppBlockedActivity, 1), Playful.color(Playful.LINE))
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

@@ -3,6 +3,7 @@
 
 package org.fossify.home.activities
 
+import android.graphics.Typeface
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -21,6 +22,7 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.R
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
+import org.fossify.home.helpers.Playful
 import java.util.Locale
 
 /**
@@ -81,15 +83,18 @@ class CooldownActivity : AppCompatActivity() {
     private fun showCooldownUI() {
         // Title
         val title = TextView(this).apply {
-            text = "Bildschirmpause"
+            text = "Verschnaufpause 🌿"
             textSize = 28f
-            setPadding(16, 32, 16, 16)
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Playful.color(Playful.INK))
+            gravity = android.view.Gravity.CENTER
+            setPadding(16, 8, 16, 16)
         }
         appButtonContainer.addView(title, 0)
 
         // Message
-        messageText.text = "Dein Hirn braucht eine Pause! Entspann dich für ein paar Minuten.\n\n" +
-                "Du kannst jetzt lesen, zeichnen oder LEGO bauen."
+        messageText.text = "Kurze Pause für deinen Kopf 🌿 Lehn dich zurück und entspann dich " +
+                "ein paar Minuten.\n\nWie wär's mit Vorlesen, Malen oder LEGO bauen?"
 
         // Progress bar (visual countdown)
         progressBar.max = cooldownDurationMinutes
@@ -114,8 +119,9 @@ class CooldownActivity : AppCompatActivity() {
             val toShow = cooldownApps.ifEmpty { fallbackCooldownApps() }
             if (toShow.isEmpty()) {
                 appButtonContainer.addView(TextView(this@CooldownActivity).apply {
-                    text = "Frag Mama oder Papa nach einer Ruhe-App."
+                    text = "Frag Mama oder Papa nach einer ruhigen App. 💛"
                     textSize = 16f
+                    setTextColor(Playful.color(Playful.INK_SOFT))
                     setPadding(16, 16, 16, 16)
                 })
                 return@launch
@@ -151,6 +157,10 @@ class CooldownActivity : AppCompatActivity() {
 
     private fun cooldownButton(label: String, packageName: String) = Button(this).apply {
         text = label
+        isAllCaps = false
+        textSize = 16f
+        setTextColor(Playful.color(Playful.INK))
+        background = Playful.roundedBg(this@CooldownActivity, Playful.PEACH, 16)
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
@@ -199,8 +209,8 @@ class CooldownActivity : AppCompatActivity() {
             override fun onFinish() {
                 Log.d(tag, "Cool-down period finished")
                 timerText.text = "00:00"
-                messageText.text = "Pause vorbei! Zurück zur normalen Nutzung."
-                showMessage("Bildschirmpause beendet!")
+                messageText.text = "Pause vorbei — willkommen zurück! 🌈"
+                showMessage("Pause vorbei! 🎉")
 
                 // Return to launcher
                 finish()

@@ -1,0 +1,51 @@
+<!-- LAUNCHPAD mascot: the same little rocket, resting (eyes closed + zzz). Used on the calm
+     screens — pause, time's-up, blocked — so a break feels cosy, not like a lock-out. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="140dp"
+    android:viewportWidth="120"
+    android:viewportHeight="140">
+
+    <!-- sleepy zzz -->
+    <path android:fillColor="#00000000"
+        android:strokeColor="#C9B6A6" android:strokeWidth="2" android:strokeLineJoin="round"
+        android:pathData="M84,22 L92,22 L84,30 L92,30" />
+    <path android:fillColor="#00000000"
+        android:strokeColor="#C9B6A6" android:strokeWidth="2" android:strokeLineJoin="round"
+        android:pathData="M95,13 L101,13 L95,19 L101,19" />
+
+    <!-- flame (gentle) -->
+    <path android:fillColor="#FFD98A"
+        android:pathData="M52,112 C52,123 56,130 60,134 C64,130 68,123 68,112 Z" />
+
+    <!-- fins -->
+    <path android:fillColor="#2BB673"
+        android:pathData="M42,82 L24,112 L44,102 Z" />
+    <path android:fillColor="#2BB673"
+        android:pathData="M78,82 L96,112 L76,102 Z" />
+
+    <!-- body -->
+    <path android:fillColor="#FF7A59"
+        android:pathData="M60,10 C71,16 80,34 80,52 L80,98 C80,108 73,114 60,114 C47,114 40,108 40,98 L40,52 C40,34 49,16 60,10 Z" />
+
+    <!-- soft shine -->
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.3"
+        android:pathData="M52,30 m-4,0 a4,7 0 1,0 8,0 a4,7 0 1,0 -8,0 Z" />
+
+    <!-- window frame + glass -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M45,46 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0 Z" />
+    <path android:fillColor="#7FD4FF"
+        android:pathData="M48,46 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+
+    <!-- sleepy face: closed eyes + content smile -->
+    <path android:fillColor="#00000000"
+        android:strokeColor="#3A2E2A" android:strokeWidth="2" android:strokeLineCap="round"
+        android:pathData="M52,45 Q55,48 58,45" />
+    <path android:fillColor="#00000000"
+        android:strokeColor="#3A2E2A" android:strokeWidth="2" android:strokeLineCap="round"
+        android:pathData="M62,45 Q65,48 68,45" />
+    <path android:fillColor="#00000000"
+        android:strokeColor="#3A2E2A" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:pathData="M55,51 Q60,54 65,51" />
+</vector>

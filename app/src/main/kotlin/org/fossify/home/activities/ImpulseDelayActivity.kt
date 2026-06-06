@@ -1,12 +1,11 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/ImpulseDelayActivity.kt
 // LAUNCHPAD: Impulsbremse — a short, calm countdown shown before re-opening a high-stimulation
-// app. Reizarm by design: dark background, no animations, one big number. The child can wait it
-// out (the app then opens automatically) or tap "Doch nicht" to step back — the actual point of
-// the brake is to give that moment of choice.
+// app. Calm by design: soft warm background, a friendly resting mascot, one big number. The child
+// can wait it out (the app then opens automatically) or tap "Doch nicht" to step back — the point
+// of the brake is to give that gentle moment of choice.
 
 package org.fossify.home.activities
 
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,8 +14,10 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.fossify.home.R
 import org.fossify.home.extensions.launchAppDirect
 import org.fossify.home.helpers.LaunchpadConstants
+import org.fossify.home.helpers.Playful
 
 @Suppress("MagicNumber") // UI built programmatically
 class ImpulseDelayActivity : AppCompatActivity() {
@@ -56,43 +57,46 @@ class ImpulseDelayActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#0D2847"))
+            setBackgroundColor(Playful.color(Playful.CREAM))
             setPadding(64, 64, 64, 64)
         }
 
+        root.addView(Playful.mascot(this, R.drawable.mascot_rocket_rest, 96))
+
         root.addView(TextView(this).apply {
             text = "Kurz durchatmen …"
-            setTextColor(Color.parseColor("#CCFFFFFF"))
+            setTextColor(Playful.color(Playful.INK_SOFT))
             textSize = 22f
             gravity = Gravity.CENTER
         })
 
         countdownView = TextView(this).apply {
             text = remaining.toString()
-            setTextColor(Color.WHITE)
+            setTextColor(Playful.color(Playful.INK))
             textSize = 96f
             gravity = Gravity.CENTER
-            setPadding(0, 48, 0, 48)
+            setPadding(0, 32, 0, 32)
         }
         root.addView(countdownView)
 
         root.addView(TextView(this).apply {
             text = "Möchtest du das wirklich öffnen?"
-            setTextColor(Color.parseColor("#88FFFFFF"))
+            setTextColor(Playful.color(Playful.INK_SOFT))
             textSize = 15f
             gravity = Gravity.CENTER
         })
 
         root.addView(Button(this).apply {
-            text = "Doch nicht"
+            text = "Doch nicht 🙂"
             isAllCaps = false
             textSize = 16f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#33FFFFFF"))
+            setTextColor(Playful.color(Playful.INK))
+            background = Playful.roundedBg(context, Playful.PEACH, 16)
+            setPadding(56, 24, 56, 24)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 64 }
+            ).apply { topMargin = 48 }
             setOnClickListener { finish() } // step back to the launcher
         })
 

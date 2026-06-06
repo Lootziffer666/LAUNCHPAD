@@ -1,0 +1,43 @@
+<!-- LAUNCHPAD mascot: a friendly little rocket (happy). Pure vector so it scales on every screen.
+     Ties into the "LAUNCHPAD" name and the splash rocket animation. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="140dp"
+    android:viewportWidth="120"
+    android:viewportHeight="140">
+
+    <!-- flame -->
+    <path android:fillColor="#FFC53D"
+        android:pathData="M50,112 C50,126 56,134 60,139 C64,134 70,126 70,112 Z" />
+    <path android:fillColor="#FF7A59"
+        android:pathData="M55,113 C55,123 58,129 60,133 C62,129 65,123 65,113 Z" />
+
+    <!-- fins -->
+    <path android:fillColor="#2BB673"
+        android:pathData="M42,82 L24,112 L44,102 Z" />
+    <path android:fillColor="#2BB673"
+        android:pathData="M78,82 L96,112 L76,102 Z" />
+
+    <!-- body -->
+    <path android:fillColor="#FF7A59"
+        android:pathData="M60,10 C71,16 80,34 80,52 L80,98 C80,108 73,114 60,114 C47,114 40,108 40,98 L40,52 C40,34 49,16 60,10 Z" />
+
+    <!-- soft shine on the body -->
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.3"
+        android:pathData="M52,30 m-4,0 a4,7 0 1,0 8,0 a4,7 0 1,0 -8,0 Z" />
+
+    <!-- window frame + glass -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M45,46 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0 Z" />
+    <path android:fillColor="#7FD4FF"
+        android:pathData="M48,46 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+
+    <!-- happy face -->
+    <path android:fillColor="#3A2E2A"
+        android:pathData="M55,45 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0 Z" />
+    <path android:fillColor="#3A2E2A"
+        android:pathData="M65,45 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0 Z" />
+    <path android:fillColor="#00000000"
+        android:strokeColor="#3A2E2A" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:pathData="M54,49 Q60,54 66,49" />
+</vector>

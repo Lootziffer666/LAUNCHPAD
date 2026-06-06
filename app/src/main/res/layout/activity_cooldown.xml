@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D2847"
+    android:background="@color/lp_cream"
     android:fillViewport="true">
 
     <LinearLayout
@@ -12,12 +12,12 @@
         android:gravity="center_horizontal"
         android:padding="32dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="😌"
-            android:textSize="64sp"
-            android:paddingBottom="16dp" />
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="140dp"
+            android:src="@drawable/mascot_rocket_rest"
+            android:contentDescription="@null"
+            android:paddingBottom="8dp" />
 
         <TextView
             android:id="@+id/cooldown_timer_text"
@@ -26,7 +26,7 @@
             android:text="15:00"
             android:textSize="48sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/lp_coral"
             android:fontFamily="monospace"
             android:paddingBottom="16dp" />
 
@@ -37,6 +37,7 @@
             android:layout_height="12dp"
             android:max="15"
             android:progress="15"
+            android:progressTint="@color/lp_mint"
             android:paddingBottom="24dp" />
 
         <TextView
@@ -44,7 +45,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
-            android:textColor="#DDDDDD"
+            android:textColor="@color/lp_ink"
             android:textSize="16sp"
             android:gravity="center"
             android:paddingBottom="24dp" />

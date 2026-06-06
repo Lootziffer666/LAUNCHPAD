@@ -10,4 +10,20 @@
     <color name="hw_ink">#333333</color>         <!-- near-black text -->
     <color name="hw_grey">#828282</color>        <!-- muted text -->
     <color name="hw_line">#E0E0E0</color>        <!-- borders / dividers -->
+
+    <!-- LAUNCHPAD "verspielt & bunt" — warm, playful palette for the child-facing screens.
+         Replaces the dark-navy "control console" look with sunny, friendly colours.
+         Kept as resources AND mirrored in helpers/Playful.kt for the programmatic screens. -->
+    <color name="lp_cream">#FFF7EC</color>       <!-- sunny page background -->
+    <color name="lp_peach">#FFE7CE</color>      <!-- soft card / panel tint -->
+    <color name="lp_coral">#FF7A59</color>      <!-- primary playful accent -->
+    <color name="lp_coral_dark">#E85D3D</color>
+    <color name="lp_sun">#FFC53D</color>        <!-- happy yellow -->
+    <color name="lp_mint">#2BB673</color>       <!-- positive / "go" -->
+    <color name="lp_sky">#4FB0E5</color>
+    <color name="lp_grape">#A06CD5</color>
+    <color name="lp_ink">#4A3A2E</color>        <!-- warm dark-brown text (not cold navy/black) -->
+    <color name="lp_ink_soft">#9B8779</color>   <!-- muted warm text -->
+    <color name="lp_card">#FFFFFF</color>
+    <color name="lp_line">#EFE2D2</color>       <!-- soft warm divider -->
 </resources>
