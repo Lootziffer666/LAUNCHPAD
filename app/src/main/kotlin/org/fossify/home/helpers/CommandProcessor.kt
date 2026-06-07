@@ -47,6 +47,8 @@ class CommandProcessor(
                 "set_cooldown_rules" -> applyCooldownRules(obj)
                 "approve_zusage" -> applyApproveZusage(obj)
                 "approve_doge" -> applyApproveDoge(obj)
+                "deny_zusage" -> applyRejectZusage(obj)
+                "deny_doge" -> applyRejectDoge(obj)
                 else -> {
                     record(type, commandJson, applied = false, note = "Unbekannter Typ")
                     return Result(false, "Unbekannter Befehl: $type")
@@ -124,6 +126,26 @@ class CommandProcessor(
         val updated = DogeManager().approveRequest(entity.toModel(), parentId, minutes)
         database.dogeRequestDao().updateRequest(updated.toEntity())
         return "Medien-Anfrage genehmigt: $minutes Min"
+    }
+
+    private suspend fun applyRejectZusage(obj: JSONObject): String {
+        val id = obj.getString("id")
+        val reason = obj.optString("reason", "Nicht jetzt")
+        val entity = database.zusageDao().getById(id)
+            ?: throw IllegalArgumentException("Zusage $id nicht gefunden")
+        val updated = ZusageManager().rejectZusage(entity.toModel(), parentId, reason)
+        database.zusageDao().updateZusage(updated.toEntity())
+        return "Zusage abgelehnt"
+    }
+
+    private suspend fun applyRejectDoge(obj: JSONObject): String {
+        val id = obj.getString("id")
+        val reason = obj.optString("reason", "")
+        val entity = database.dogeRequestDao().getById(id)
+            ?: throw IllegalArgumentException("Anfrage $id nicht gefunden")
+        val updated = DogeManager().rejectRequest(entity.toModel(), parentId, reason)
+        database.dogeRequestDao().updateRequest(updated.toEntity())
+        return "Medien-Anfrage abgelehnt"
     }
 
     private suspend fun record(type: String, payloadJson: String, applied: Boolean, note: String) {

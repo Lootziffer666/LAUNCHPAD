@@ -215,6 +215,7 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
+            R.id.em_row_familylink to { showFamilyLinkInfo() },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
 
         // Switches
@@ -283,14 +284,14 @@ class ElternModusActivity : AppCompatActivity() {
 
             balanceBig.text = "$balance Min"
             balanceBig.setTextColor(when {
-                balance <= 0 -> android.graphics.Color.parseColor("#FF4444")
-                balance < 15 -> android.graphics.Color.parseColor("#FF6B35")
-                else -> android.graphics.Color.parseColor("#4CAF50")
+                balance <= 0 -> android.graphics.Color.parseColor("#E85D3D")
+                balance < 15 -> android.graphics.Color.parseColor("#E8930C")
+                else -> android.graphics.Color.parseColor("#2BB673")
             })
 
             modeBadge.text = if (enforcement) "AKTIV" else "SETUP"
             modeBadge.setBackgroundColor(
-                android.graphics.Color.parseColor(if (enforcement) "#4CAF50" else "#FF6B35")
+                android.graphics.Color.parseColor(if (enforcement) "#2BB673" else "#FF7A59")
             )
 
             todayUsed.text = if (spentToday > 0) "Heute genutzt: $spentToday Min" else "Heute noch nicht genutzt"
@@ -298,7 +299,7 @@ class ElternModusActivity : AppCompatActivity() {
 
             val fmt = SimpleDateFormat("dd.MM. HH:mm", Locale.GERMANY)
             lastTx.text = tx?.let { "Letzte Transaktion: ${fmt.format(Date(it.createdAt))}" } ?: "Keine Transaktionen"
-            enforcementLabel.text = if (enforcement) "Kindermodus AN" else "Kindermodus AUS"
+            enforcementLabel.text = if (enforcement) "Kindermodus an" else "Kindermodus aus"
 
             appsCount.text = "$appCount Apps freigegeben"
             zusagenCount.text = if (zusagenPending > 0) {
@@ -312,8 +313,8 @@ class ElternModusActivity : AppCompatActivity() {
             } else {
                 "Keine offenen Anfragen"
             }
-            usageStatus.text = if (usageGranted) "Erteilt ✓" else "Nicht erteilt — Tippe zum Öffnen"
-            pairStatus.text = if (paired) "Gekoppelt ✓" else "Nicht gekoppelt"
+            usageStatus.text = if (usageGranted) "Erteilt ✓" else "Noch nicht erteilt — zum Öffnen tippen"
+            pairStatus.text = if (paired) "Verbunden ✓" else "Noch nicht verbunden"
             val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
             val issues = listOfNotNull(
                 if (!usageGranted) "Nutzungsstatistiken fehlen" else null,
@@ -322,19 +323,19 @@ class ElternModusActivity : AppCompatActivity() {
             )
             healthStatus.text = if (issues.isEmpty()) "Alles OK ✓" else "⚠️ ${issues.joinToString(", ")}"
             healthStatus.setTextColor(
-                android.graphics.Color.parseColor(if (issues.isEmpty()) "#4CAF50" else "#F2994A")
+                android.graphics.Color.parseColor(if (issues.isEmpty()) "#2BB673" else "#F2994A")
             )
             auditStatus.text = when {
-                lockdown -> "🔒 Schutzmodus aktiv — Prüfung nötig"
+                lockdown -> "Schutzmodus aktiv — bitte kurz prüfen"
                 openEvents > 0 -> "$openEvents neue Ereignisse"
                 else -> "Keine besonderen Ereignisse"
             }
             auditStatus.setTextColor(
-                android.graphics.Color.parseColor(if (lockdown) "#D32F2F" else "#828282")
+                android.graphics.Color.parseColor(if (lockdown) "#E85D3D" else "#9B8779")
             )
             val strict = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
                 .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
-            strictStatus.text = if (strict) "An — nur freigegebene Apps" else "Aus"
+            strictStatus.text = if (strict) "An — nur erlaubte Apps" else "Aus"
             childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
         }
     }
@@ -364,7 +365,7 @@ class ElternModusActivity : AppCompatActivity() {
         val on = prefs.getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
         if (on) {
             AlertDialog.Builder(this)
-                .setTitle("Strenger Block ist AN")
+                .setTitle("Lückenloser App-Schutz ist an")
                 .setMessage("Nicht freigegebene Apps werden auch über Umwege (Links, " +
                     "Benachrichtigungen, zuletzt genutzt) blockiert. Telefon/Notruf bleibt frei.")
                 .setPositiveButton("Ausschalten") { _, _ ->
@@ -376,7 +377,7 @@ class ElternModusActivity : AppCompatActivity() {
             return
         }
         AlertDialog.Builder(this)
-            .setTitle("Strenger Block einschalten?")
+            .setTitle("Lückenlosen App-Schutz einschalten?")
             .setMessage(
                 "Zusätzlich zum Launcher werden dann auch nicht freigegebene Apps blockiert, " +
                     "die über Umwege geöffnet werden.\n\n" +
@@ -386,7 +387,7 @@ class ElternModusActivity : AppCompatActivity() {
             )
             .setPositiveButton("Einschalten") { _, _ ->
                 prefs.edit().putBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, true).apply()
-                toast("Strenger Block AN — bitte Notruf testen")
+                toast("Lückenloser Schutz an — bitte Notruf testen")
                 scope.launch { refresh() }
             }
             .setNegativeButton("Abbrechen", null)
@@ -413,7 +414,7 @@ class ElternModusActivity : AppCompatActivity() {
                 textSize = 13f
                 setTextColor(Color.WHITE)
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#0D2847"))
+                    setColor(Color.parseColor("#FF7A59"))
                     cornerRadius = 8f
                 }
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -566,28 +567,61 @@ class ElternModusActivity : AppCompatActivity() {
                 }
                 if (count == 0) {
                     // Don't block activation — just warn. Parent can add apps next.
-                    toast("Kindermodus AN ⚠️ Noch keine Apps freigegeben — " +
-                        "unter 'Apps verwalten' Apps hinzufügen")
+                    toast("Kindermodus an ⚠️ Noch keine Apps freigegeben — " +
+                        "unter 'Apps verwalten' welche hinzufügen")
                 } else {
-                    toast("Kindermodus AN — $count Apps freigegeben")
+                    toast("Kindermodus an — $count Apps freigegeben")
                 }
                 refresh()
             }
         } else {
-            toast("Kindermodus AUS — alle Apps sichtbar")
+            toast("Kindermodus aus — alle Apps sichtbar")
             scope.launch { refresh() }
         }
     }
 
     private fun showKioskSetupDialog() {
         AlertDialog.Builder(this)
-            .setTitle("Device Owner benötigt")
+            .setTitle("Geschützten Modus einrichten")
             .setMessage(
-                "Kiosk-Modus benötigt einen einmaligen ADB-Befehl:\n\n" +
-                    "${KioskManager.deviceOwnerSetupCommand(this)}\n\n" +
-                    "Auf einem frisch zurückgesetzten Gerät ausführen."
+                "Optional — nur für maximale lokale Härtung. Funktioniert NUR auf einem Gerät " +
+                    "OHNE Google-Konto, lässt sich also nicht mit Family Link kombinieren.\n\n" +
+                    "Für Fern-Funktionen lieber Family Link (App-Freigaben, mehr Zeit von " +
+                    "unterwegs) und diesen Modus aus lassen.\n\n" +
+                    "Einmaliger ADB-Befehl auf einem frisch zurückgesetzten Gerät:\n\n" +
+                    "${KioskManager.deviceOwnerSetupCommand(this)}"
             )
             .setPositiveButton("OK", null).show()
+    }
+
+    private fun showFamilyLinkInfo() {
+        AlertDialog.Builder(this)
+            .setTitle("Fern-Zugriff & Family Link")
+            .setMessage(
+                "LAUNCHPAD steuert lokal im WLAN. Für Anfragen von unterwegs nutzt du am " +
+                    "besten Google Family Link:\n\n" +
+                    "• App-Installationen aus dem Play Store freigeben\n" +
+                    "• Mehr-Zeit-Bitten unterwegs genehmigen\n" +
+                    "• Gerät aus der Ferne sperren, Standort\n\n" +
+                    "Family Link braucht ein Google-Kinderkonto auf dem Gerät — dann den " +
+                    "geschützten Modus (Device Owner) hier aus lassen (beides zusammen geht " +
+                    "nicht auf einem Gerät).\n\n" +
+                    "Hinweis: Eine in Family Link neu erlaubte App erscheint im Kinder-Launcher " +
+                    "erst, wenn du sie auch unter Apps verwalten freigibst."
+            )
+            .setPositiveButton("Mehr erfahren") { _, _ ->
+                try {
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://families.google/familylink/"))
+                    )
+                } catch (e: android.content.ActivityNotFoundException) {
+                    android.util.Log.w("ElternModus", "No browser for Family Link link", e)
+                    toast("Kein Browser gefunden")
+                }
+            }
+            .setNegativeButton("Schließen", null)
+            .show()
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

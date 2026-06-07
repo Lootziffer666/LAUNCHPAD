@@ -78,10 +78,13 @@ object LaunchpadServer {
                 val path = parts[1].substringBefore("?")
 
                 var contentLength = 0
+                var authHeader: String? = null
                 var line = reader.readLine()
                 while (!line.isNullOrBlank()) {
                     if (line.startsWith("Content-Length:", ignoreCase = true)) {
                         contentLength = line.substringAfter(":").trim().toIntOrNull() ?: 0
+                    } else if (line.startsWith("Authorization:", ignoreCase = true)) {
+                        authHeader = line.substringAfter(":").trim()
                     }
                     line = reader.readLine()
                 }
@@ -91,7 +94,17 @@ object LaunchpadServer {
                     String(buf)
                 } else ""
 
+                val storedSessionKey = context
+                    .getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+                    .getString(LaunchpadPrefs.PREF_PAIR_SESSION_KEY, null)
+
                 val (status, responseBody) = when {
+                    !isOpenEndpoint(path) && !authOk(storedSessionKey, authHeader) ->
+                        401 to """{"error":"unauthorized — bitte koppeln"}"""
+                    method == "POST" && path == "/api/pair" -> {
+                        val ok = PairingManager(context).receiveSessionKey(body)
+                        if (ok) 200 to """{"ok":true}""" else 400 to """{"error":"decrypt failed"}"""
+                    }
                     method == "GET" && path == "/api/status" -> handleStatus(context)
                     method == "GET" && path == "/api/pending" -> handlePending(context)
                     method == "POST" && path == "/api/command" -> handleCommand(context, body)
@@ -398,6 +411,28 @@ object LaunchpadServer {
         }
 
         return 200 to """{"ok":true,"message":"Importiert: ${newApps.size} Apps"}"""
+    }
+
+    /** Discovery + pairing endpoints stay open (the companion needs them BEFORE it has a key). */
+    internal fun isOpenEndpoint(path: String): Boolean =
+        path == "/api/ip" || path == "/api/pair" || path == "/api/test-pair"
+
+    /**
+     * Once a session key exists (device paired), control endpoints require a matching
+     * `Authorization: Bearer <sessionKey>`. Before first pairing everything stays open, so the
+     * initial pairing and the manual-IP fallback keep working. Constant-time compare.
+     */
+    internal fun authOk(storedSessionKey: String?, authHeader: String?): Boolean {
+        if (storedSessionKey.isNullOrEmpty()) return true
+        val provided = authHeader
+            ?.takeIf { it.startsWith("Bearer ") }
+            ?.removePrefix("Bearer ")
+            ?.trim()
+            ?: return false
+        return java.security.MessageDigest.isEqual(
+            provided.toByteArray(Charsets.UTF_8),
+            storedSessionKey.toByteArray(Charsets.UTF_8)
+        )
     }
 
     private fun getLocalIp(): String = getLocalIp(null) ?: "unknown"

@@ -6,7 +6,6 @@
 package org.fossify.home.activities
 
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -14,6 +13,8 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.fossify.home.R
+import org.fossify.home.helpers.Playful
 
 class TimesUpActivity : AppCompatActivity() {
 
@@ -21,29 +22,32 @@ class TimesUpActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val pal = Playful.palette(this)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#0D2847"))
+            setBackgroundColor(pal.bg)
             setPadding(32, 64, 32, 64)
         }
         setContentView(root)
 
+        root.addView(Playful.mascot(this, R.drawable.mascot_rocket_rest, 120))
+
         val headline = TextView(this).apply {
-            text = "Zeit ist um!"
-            textSize = 36f
+            text = "Zeit ist um! 🌙"
+            textSize = 34f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.parseColor("#F2994A"))
+            setTextColor(pal.accent)
             gravity = android.view.Gravity.CENTER
-            setPadding(0, 0, 0, 8)
+            setPadding(0, 8, 0, 8)
         }
         root.addView(headline)
 
         val sub = TextView(this).apply {
-            text = "Noch kurz fertigmachen…"
+            text = "Lass uns noch kurz fertig machen … 😊"
             textSize = 16f
-            setTextColor(Color.argb(200, 255, 255, 255))
+            setTextColor(pal.inkSoft)
             gravity = android.view.Gravity.CENTER
             setPadding(0, 0, 0, 32)
         }
@@ -63,7 +67,7 @@ class TimesUpActivity : AppCompatActivity() {
             text = COUNTDOWN_SECONDS.toString()
             textSize = 56f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.WHITE)
+            setTextColor(pal.ink)
             gravity = android.view.Gravity.CENTER
         }
         root.addView(counter)
