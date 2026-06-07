@@ -8,6 +8,7 @@
 
 ## Quick Links
 
+- **Roadmap**: [ROADMAP.md](ROADMAP.md) — konsolidierter Stand (✅ erledigt / 🔄 teilweise / 📋 geplant)
 - **Getting Started**: [docs/guides/00_INTEGRATION_QUICKSTART.md](docs/guides/00_INTEGRATION_QUICKSTART.md) (12 steps, 4-5 hours)
 - **Full Spec**: [docs/guides/15_m1_implementation_summary.md](docs/guides/15_m1_implementation_summary.md)
 - **File Index**: [docs/guides/MASTER_FILE_INDEX.txt](docs/guides/MASTER_FILE_INDEX.txt)
