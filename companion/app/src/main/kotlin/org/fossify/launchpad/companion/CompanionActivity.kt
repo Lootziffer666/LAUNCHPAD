@@ -165,6 +165,7 @@ class CompanionActivity : AppCompatActivity() {
         try {
             val json = JSONObject(qrContent)
             val identity = json.optString("identity", "")
+            val publicKeyB64 = json.optString("publicKeyB64", "")
             val ip = json.optString("ip", "").takeIf { it.isNotBlank() }
                 ?: if (BuildConfig.DEBUG) "127.0.0.1" else null
             when {
@@ -173,6 +174,7 @@ class CompanionActivity : AppCompatActivity() {
                     toast("QR enthält keine IP — bitte manuell eingeben")
                     promptForIpFallback()
                 }
+                publicKeyB64.isNotBlank() -> pairThenConnect(normalizeBaseUrl(ip), publicKeyB64)
                 else -> connectTo(normalizeBaseUrl(ip))
             }
         } catch (e: Exception) {
@@ -194,6 +196,56 @@ class CompanionActivity : AppCompatActivity() {
         loadData()
     }
 
+    /** Generate an AES session key; return (sessionKeyB64, rsaEncryptedKeyB64) for [publicKeyB64]. */
+    private fun makeEncryptedSessionKey(publicKeyB64: String): Pair<String, String> {
+        val keyGen = KeyGenerator.getInstance("AES")
+        keyGen.init(256, SecureRandom())
+        val sessionKeyBytes = keyGen.generateKey().encoded
+        val publicKey: PublicKey = KeyFactory.getInstance("RSA")
+            .generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyB64)))
+        val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        val encryptedKeyB64 = Base64.getEncoder().encodeToString(cipher.doFinal(sessionKeyBytes))
+        val sessionKeyB64 = Base64.getEncoder().encodeToString(sessionKeyBytes)
+        return sessionKeyB64 to encryptedKeyB64
+    }
+
+    /** Real-device pairing: hand the launcher our RSA-encrypted session key, store it, then connect.
+     *  After this the launcher only accepts commands carrying this key (Authorization: Bearer …). */
+    private fun pairThenConnect(baseUrl: String, publicKeyB64: String) {
+        scope.launch {
+            val sessionKeyB64 = withContext(Dispatchers.IO) {
+                try {
+                    val (keyB64, encB64) = makeEncryptedSessionKey(publicKeyB64)
+                    if (postRaw("$baseUrl/api/pair", encB64) != null) keyB64 else null
+                } catch (e: Exception) {
+                    Log.e("Pair", "pairing failed", e); null
+                }
+            }
+            if (sessionKeyB64 != null) {
+                prefs.edit().putString("session_key", sessionKeyB64).apply()
+                toast("Sicher gekoppelt ✓")
+            } else {
+                toast("Sichere Kopplung fehlgeschlagen — verbinde unverschlüsselt")
+            }
+            connectTo(baseUrl)
+        }
+    }
+
+    private fun postRaw(url: String, body: String): String? {
+        return try {
+            val c = URL(url).openConnection() as HttpURLConnection
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.connectTimeout = 5000
+            c.readTimeout = 5000
+            c.outputStream.use { it.write(body.toByteArray()) }
+            if (c.responseCode in 200..299) c.inputStream.bufferedReader().readText() else null
+        } catch (e: Exception) {
+            Log.e("postRaw", "POST $url failed", e); null
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun activateTestMode() {
         val testQrJson = withContext(Dispatchers.IO) {
@@ -207,25 +259,17 @@ class CompanionActivity : AppCompatActivity() {
             return
         }
         try {
-            val qrJson = JSONObject(testQrJson)
-            val publicKeyB64 = qrJson.optString("publicKeyB64", "")
+            val publicKeyB64 = JSONObject(testQrJson).optString("publicKeyB64", "")
             if (publicKeyB64.isEmpty()) {
                 toast("Test QR enthält keinen Public Key")
                 return
             }
-            val keyGen = KeyGenerator.getInstance("AES")
-            keyGen.init(256, SecureRandom())
-            val sessionKeyBytes = keyGen.generateKey().encoded
-            val publicKeyBytes = Base64.getDecoder().decode(publicKeyB64)
-            val publicKey: PublicKey = KeyFactory.getInstance("RSA")
-                .generatePublic(X509EncodedKeySpec(publicKeyBytes))
-            val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
-            cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-            val encryptedKeyB64 = Base64.getEncoder().encodeToString(cipher.doFinal(sessionKeyBytes))
+            val (sessionKeyB64, encryptedKeyB64) = makeEncryptedSessionKey(publicKeyB64)
             val posted = withContext(Dispatchers.IO) {
                 TestModeManager.writeTestSessionKey(encryptedKeyB64)
             }
             if (posted) {
+                prefs.edit().putString("session_key", sessionKeyB64).apply()
                 connectTo("http://127.0.0.1:$LAUNCHER_PORT")
                 toast("🧪 Test-Modus aktiv — verbunden via 127.0.0.1:$LAUNCHER_PORT")
             } else {
@@ -549,7 +593,7 @@ class CompanionActivity : AppCompatActivity() {
         content.addView(spacer(8))
         content.addView(primaryButton("🔄 Neu laden") { loadData() })
         content.addView(secondaryButton("Zurück zur Kopplung") {
-            prefs.edit().remove("launcher_ip").apply()
+            prefs.edit().remove("launcher_ip").remove("session_key").apply()
             val newContent = LinearLayout(this@CompanionActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(24, 24, 24, 24)
@@ -714,6 +758,12 @@ class CompanionActivity : AppCompatActivity() {
         connection.requestMethod = method
         connection.connectTimeout = 5000
         connection.readTimeout = 5000
+
+        // Authenticate with the paired session key, if we have one.
+        val token = prefs.getString("session_key", null)
+        if (!token.isNullOrBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer $token")
+        }
 
         if (method == "POST" && body.isNotBlank()) {
             connection.doOutput = true
