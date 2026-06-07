@@ -70,7 +70,7 @@
 |---|---|---|
 | QR-Pairing-Flow (vollständig) | ✅ | `helpers/PairingManager.kt`, `helpers/QrPairingProtocol.kt`, `activities/PairingActivity.kt` |
 | LAN-Command-Sync | ✅ | `helpers/LaunchpadServer.kt`, `helpers/CommandProcessor.kt`, `helpers/CompanionSerializer.kt` |
-| Companion-App komplette UI | 🔄 | `companion/` vorhanden, aber nur Grundgerüst (`CompanionActivity.kt`, `CompanionWidgetProvider.kt`) |
+| Companion-App | ✅ | funktional + abgesichert: Pairing/Auth (Bearer-Token), Genehmigen/Ablehnen, Zeit geben, Apps verwalten, Export/Import, Widget. Offen: optionale UI-Politur |
 | Eltern-Dashboard / Analytics | 🔄 | Basis vorhanden: `activities/DailyReportActivity.kt`, `activities/AuditLogActivity.kt` — keine tiefergehende Analytics |
 
 ---
@@ -104,24 +104,27 @@ Diese Features stehen in **keiner** M1–M5-Stufe, sind aber fertig:
 ### UX-Politur (diese Session, PR #6)
 - **„Verspielt & bunt"**: warme Kind-Oberfläche statt dunklem „Fort-Knox"-Look, Raketen-Maskottchen — `helpers/Playful.kt`, `drawable/mascot_rocket*.xml`
 - **Wallpaper-adaptive Farben**: Farbschema folgt dem Hintergrundbild, mit Lesbarkeits-Garantie (Unit-getestet) — `helpers/Playful.kt` (`palette`/`derive`), `helpers/PlayfulPaletteTest.kt`
+- **Eltern-Bereich entschärft**: warme Hero-Card + freundliches Wording statt Sicherheitskonsole — `activities/ElternModusActivity.kt`
+- **Companion abgesichert + erweitert**: Sitzungsschlüssel als Bearer-Token, Anfragen ablehnen, Zeit geben — `helpers/LaunchpadServer.kt`, `helpers/CommandProcessor.kt`, `companion/…/CompanionActivity.kt`
+- **Fern-Zugriff-Entscheidung**: Family-Link-Hybrid, Device Owner optional — `docs/guides/REMOTE_AND_DEVICE_OWNER.md`
 
 ---
 
 ## Bekannte Schulden / offene Punkte
 
 - **Escape-Route-Lücken** sind real und dokumentiert → `docs/guides/BYPASS_MATRIX.md`. Vor „kindersicher genug" abarbeiten.
-- **Companion-App** ist Grundgerüst — die „komplette UI" aus M4 fehlt noch.
+- **Companion-App** ist funktional und abgesichert (Auth, Ablehnen, Zeit geben). Offen: optionale UI-Politur.
 - **Safe-Browsing** nutzt nur das WebView-Flag, nicht die Google-Safe-Browsing-API.
 - **detekt-Baseline** enthält vorbestehende LAUNCHPAD-Altlasten (`canLaunch`, `renderReport`, `tick`, `BackupCrypto` …), die beim ersten PR-Gate sichtbar wurden — bei Gelegenheit refaktorieren statt nur baselinen.
-- **Eltern-Bereich-Wording** wirkt noch „nach Tresor" („SICHERHEIT", „Kiosk-Modus", „Strenger Vordergrund-Block") — Gegenstück zur kindseitigen Wärme-Überarbeitung.
+- **Fern-Zugriff** (außerhalb WLAN): bewusst via **Google Family Link** (Hybrid), kein eigener Relay; **Device Owner ist optional** → `docs/guides/REMOTE_AND_DEVICE_OWNER.md`.
 
 ---
 
 ## Kandidaten für als Nächstes
 
-1. Eltern-Bereich sprachlich/optisch entschärfen (passend zur Kind-Oberfläche).
-2. `BYPASS_MATRIX.md`-Lücken systematisch schließen (Richtung M5 „lückenlos").
-3. Companion-UI ausbauen (M4 vervollständigen).
+1. `BYPASS_MATRIX.md`-Lücken systematisch schließen (Richtung M5 „lückenlos").
+2. Companion-UI / Eltern-Dashboard-Analytics ausbauen (M4 vervollständigen).
+3. Ein-Tipp-„Schulmodus" (Preset aus Wochenplan + Schultag-Limit + Kategorien).
 4. Vorbestehende detekt-Komplexität abbauen statt baselinen.
 
 ---

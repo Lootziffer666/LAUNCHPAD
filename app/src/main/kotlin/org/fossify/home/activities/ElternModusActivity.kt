@@ -215,6 +215,7 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
+            R.id.em_row_familylink to { showFamilyLinkInfo() },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
 
         // Switches
@@ -583,11 +584,44 @@ class ElternModusActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Geschützten Modus einrichten")
             .setMessage(
-                "Der geschützte Modus (Device Owner) braucht einen einmaligen ADB-Befehl:\n\n" +
-                    "${KioskManager.deviceOwnerSetupCommand(this)}\n\n" +
-                    "Auf einem frisch zurückgesetzten Gerät ausführen."
+                "Optional — nur für maximale lokale Härtung. Funktioniert NUR auf einem Gerät " +
+                    "OHNE Google-Konto, lässt sich also nicht mit Family Link kombinieren.\n\n" +
+                    "Für Fern-Funktionen lieber Family Link (App-Freigaben, mehr Zeit von " +
+                    "unterwegs) und diesen Modus aus lassen.\n\n" +
+                    "Einmaliger ADB-Befehl auf einem frisch zurückgesetzten Gerät:\n\n" +
+                    "${KioskManager.deviceOwnerSetupCommand(this)}"
             )
             .setPositiveButton("OK", null).show()
+    }
+
+    private fun showFamilyLinkInfo() {
+        AlertDialog.Builder(this)
+            .setTitle("Fern-Zugriff & Family Link")
+            .setMessage(
+                "LAUNCHPAD steuert lokal im WLAN. Für Anfragen von unterwegs nutzt du am " +
+                    "besten Google Family Link:\n\n" +
+                    "• App-Installationen aus dem Play Store freigeben\n" +
+                    "• Mehr-Zeit-Bitten unterwegs genehmigen\n" +
+                    "• Gerät aus der Ferne sperren, Standort\n\n" +
+                    "Family Link braucht ein Google-Kinderkonto auf dem Gerät — dann den " +
+                    "geschützten Modus (Device Owner) hier aus lassen (beides zusammen geht " +
+                    "nicht auf einem Gerät).\n\n" +
+                    "Hinweis: Eine in Family Link neu erlaubte App erscheint im Kinder-Launcher " +
+                    "erst, wenn du sie auch unter Apps verwalten freigibst."
+            )
+            .setPositiveButton("Mehr erfahren") { _, _ ->
+                try {
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://families.google/familylink/"))
+                    )
+                } catch (e: android.content.ActivityNotFoundException) {
+                    android.util.Log.w("ElternModus", "No browser for Family Link link", e)
+                    toast("Kein Browser gefunden")
+                }
+            }
+            .setNegativeButton("Schließen", null)
+            .show()
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

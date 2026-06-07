@@ -416,7 +416,7 @@
                     android:id="@+id/em_kiosk_switch"
                     style="@style/SettingsSwitchStyle"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="Geschützter Modus (Gerät sichern)" />
+                    android:text="Geschützter Modus (optional)" />
             </RelativeLayout>
 
             <!-- ── Section: Erweitert ── -->
@@ -438,6 +438,25 @@
                     <TextView android:id="@+id/em_pair_status"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="Nicht gekoppelt"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_familylink"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Fern-Zugriff &amp; Family Link" />
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="App-Freigaben &amp; mehr Zeit von unterwegs"
                         android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
                 </LinearLayout>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
