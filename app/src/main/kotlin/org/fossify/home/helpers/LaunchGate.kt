@@ -68,6 +68,16 @@ class LaunchGate(
             )
         }
 
+        // Check 1.4: Schulmodus — leisure/SOG apps pause; learning/communication stay open.
+        if (SchoolMode.blocksCategory(SchoolMode.isActive(context), category)) {
+            return LaunchDecision(
+                false,
+                LaunchpadConstants.REASON_SCHOOL_MODE,
+                "Schulmodus: Spiele machen gerade Pause. Lern-Apps gehen. 📚",
+                category
+            )
+        }
+
         // Check 1.5: Wochenplan time window — only blocks ACTIVE_LEISURE
         if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE) {
             val cal = Calendar.getInstance()

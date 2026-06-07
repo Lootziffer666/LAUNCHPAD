@@ -352,9 +352,22 @@ class CompanionActivity : AppCompatActivity() {
             val balance = json.optInt("balance", 0)
             val enforcement = json.optBoolean("enforcement", false)
             val cooldown = json.optBoolean("cooldown", false)
+            val schoolMode = json.optBoolean("schoolMode", false)
             content.addView(statusText("Guthaben: $balance Min"))
             content.addView(statusText("Kontrolle aktiv: ${if (enforcement) "ja" else "nein"}"))
             content.addView(statusText("Ruhezeit aktiv: ${if (cooldown) "ja" else "nein"}"))
+            content.addView(statusText("Schulmodus: ${if (schoolMode) "an 📚" else "aus"}"))
+            content.addView(
+                if (schoolMode) {
+                    secondaryButton("Schulmodus AUS") {
+                        sendCommand("""{"type":"set_school_mode","on":false}""")
+                    }
+                } else {
+                    primaryButton("📚 Schulmodus AN") {
+                        sendCommand("""{"type":"set_school_mode","on":true}""")
+                    }
+                }
+            )
         } catch (e: Exception) {
             Log.e("API", "Status parse failed", e)
             content.addView(statusText("Status: OK"))

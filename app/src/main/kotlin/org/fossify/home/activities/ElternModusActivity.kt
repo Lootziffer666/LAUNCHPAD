@@ -35,6 +35,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.SchoolMode
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
 import org.fossify.home.services.TimeTrackingService
@@ -73,6 +74,7 @@ class ElternModusActivity : AppCompatActivity() {
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
     private lateinit var kioskSwitch: org.fossify.commons.views.MyMaterialSwitch
+    private lateinit var schoolSwitch: org.fossify.commons.views.MyMaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -176,6 +178,7 @@ class ElternModusActivity : AppCompatActivity() {
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
         kioskSwitch = findViewById(R.id.em_kiosk_switch)
+        schoolSwitch = findViewById(R.id.em_school_switch)
 
         // Wire rows. NOTE: fossify-commons' SettingsSwitchStyle sets the MyMaterialSwitch to
         // android:clickable="false" — the switch never reacts to taps itself. The surrounding
@@ -214,6 +217,7 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
+            R.id.em_row_school to { schoolSwitch.toggle() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
             R.id.em_row_familylink to { showFamilyLinkInfo() },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
@@ -237,6 +241,12 @@ class ElternModusActivity : AppCompatActivity() {
                 KioskManager.setKioskEnabled(this, checked)
                 if (checked) KioskManager.applyRestrictions(this) else KioskManager.stopKiosk(this)
             }
+        }
+
+        schoolSwitch.isChecked = SchoolMode.isActive(this)
+        schoolSwitch.setOnCheckedChangeListener { _, checked ->
+            SchoolMode.setEnabled(applicationContext, checked)
+            toast(if (checked) "Schulmodus an — Spiele pausiert 📚" else "Schulmodus aus")
         }
     }
 

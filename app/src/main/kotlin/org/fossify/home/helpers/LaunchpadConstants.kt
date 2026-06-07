@@ -72,6 +72,7 @@ object LaunchpadConstants {
     const val REASON_LOCKDOWN = "lockdown"
     const val REASON_SCHEDULE_WINDOW = "schedule_window"
     const val REASON_APP_DAILY_LIMIT = "app_daily_limit"
+    const val REASON_SCHOOL_MODE = "school_mode"
 
     // Audit / tamper event types
     const val AUDIT_TIME_CHANGED = "TIME_CHANGED"
@@ -140,6 +141,7 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+    const val PREF_SCHOOL_MODE = "school_mode_enabled" // one-tap: pause ACTIVE_LEISURE apps
     const val PREF_CHILD_NAME = "child_name" // display name shown across the launcher (default "Jake")
     // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
     // apps that reach the foreground via side channels (links, notifications, recents). Essential

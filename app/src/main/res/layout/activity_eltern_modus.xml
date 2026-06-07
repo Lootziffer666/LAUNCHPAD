@@ -283,6 +283,17 @@
                     android:text="Erlaubte Apps + Zeitbudget" />
             </RelativeLayout>
 
+            <RelativeLayout android:id="@+id/em_row_school"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background">
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/em_school_switch"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="Schulmodus — nur Lernen &amp; Co." />
+            </RelativeLayout>
+
             <LinearLayout android:id="@+id/em_row_cooldown_rules"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"

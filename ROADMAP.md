@@ -100,6 +100,8 @@ Diese Features stehen in **keiner** M1–M5-Stufe, sind aber fertig:
 - **Verschlüsseltes Backup (AES-256-GCM)** — `helpers/BackupCrypto.kt`
 - **Tamper-/Uhr-Manipulationserkennung** — `helpers/TamperClock.kt`, `helpers/TamperMonitor.kt`
 - **Konfigurierbarer Kindname** — `helpers/ChildProfile.kt`
+- **Neu-installiert-Review**: erkennt neue Apps (Snapshot-Diff), Companion erlaubt/lehnt ab — `helpers/NewAppsTracker.kt`
+- **Ein-Tipp-Schulmodus**: pausiert Freizeit-Apps, Lernen/Kommunikation bleiben offen — `helpers/SchoolMode.kt`
 
 ### UX-Politur (diese Session, PR #6)
 - **„Verspielt & bunt"**: warme Kind-Oberfläche statt dunklem „Fort-Knox"-Look, Raketen-Maskottchen — `helpers/Playful.kt`, `drawable/mascot_rocket*.xml`
@@ -124,7 +126,7 @@ Diese Features stehen in **keiner** M1–M5-Stufe, sind aber fertig:
 
 1. `BYPASS_MATRIX.md`-Lücken systematisch schließen (Richtung M5 „lückenlos").
 2. Companion-UI / Eltern-Dashboard-Analytics ausbauen (M4 vervollständigen).
-3. Ein-Tipp-„Schulmodus" (Preset aus Wochenplan + Schultag-Limit + Kategorien).
+3. Schulmodus optional zeitgesteuert (auto an/aus zu Schulzeiten) + „neu installiert"-Stups remote.
 4. Vorbestehende detekt-Komplexität abbauen statt baselinen.
 
 ---
