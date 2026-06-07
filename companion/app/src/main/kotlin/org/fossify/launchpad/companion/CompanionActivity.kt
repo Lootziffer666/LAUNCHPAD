@@ -317,6 +317,9 @@ class CompanionActivity : AppCompatActivity() {
                 renderStatus(content, statusJson)
 
                 content.addView(divider())
+                renderGrantTimeSection(content)
+
+                content.addView(divider())
                 content.addView(heading("Ausstehende Anfragen", 18f))
                 val pendingJson = withContext(Dispatchers.IO) {
                     try { fetchApi("/api/pending") } catch (e: Exception) {
@@ -384,7 +387,8 @@ class CompanionActivity : AppCompatActivity() {
                 val text = item.optString("text", "Zusage")
                 content.addView(
                     renderApprovalItem("🤝 Zusage", text,
-                        """{"type":"approve_zusage","id":"$id"}""")
+                        """{"type":"approve_zusage","id":"$id"}""",
+                        """{"type":"deny_zusage","id":"$id"}""")
                 )
             }
         } catch (e: Exception) {
@@ -661,6 +665,49 @@ class CompanionActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun renderGrantTimeSection(content: LinearLayout) {
+        content.addView(heading("Zeit geben", 18f))
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        listOf(15, 30, 60).forEachIndexed { i, m ->
+            row.addView(primaryButton("+$m Min") {
+                sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ).apply { setMargins(if (i == 0) 0 else 4, 0, if (i == 2) 0 else 4, 0) }
+            })
+        }
+        content.addView(row)
+        content.addView(secondaryButton("Eigene Minuten…") { showGrantTimeDialog() })
+    }
+
+    private fun showGrantTimeDialog() {
+        val input = EditText(this).apply {
+            hint = "Minuten (z. B. 20, auch −10)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Zeit geben")
+            .setMessage("Plus schreibt gut, Minus zieht ab (nie unter 0).")
+            .setView(input)
+            .setPositiveButton("Geben") { _, _ ->
+                val m = input.text.toString().toIntOrNull()
+                if (m == null || m == 0) {
+                    toast("Ungültige Minutenzahl")
+                    return@setPositiveButton
+                }
+                sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
     private fun renderDogeApprovalItem(title: String, subtitle: String, id: String): LinearLayout {
         return card().apply {
             addView(TextView(this@CompanionActivity).apply {
@@ -711,10 +758,18 @@ class CompanionActivity : AppCompatActivity() {
                 val mins = minutesField.text.toString().toIntOrNull() ?: 20
                 sendCommand("""{"type":"approve_doge","id":"$id","minutes":$mins}""")
             })
+            addView(dangerButton("✗ Ablehnen") {
+                sendCommand("""{"type":"deny_doge","id":"$id"}""")
+            })
         }
     }
 
-    private fun renderApprovalItem(title: String, subtitle: String, commandJson: String): LinearLayout {
+    private fun renderApprovalItem(
+        title: String,
+        subtitle: String,
+        approveJson: String,
+        denyJson: String
+    ): LinearLayout {
         return card().apply {
             addView(TextView(this@CompanionActivity).apply {
                 text = title
@@ -728,7 +783,8 @@ class CompanionActivity : AppCompatActivity() {
                 setTextColor(Color.parseColor(HW_GREY))
                 setPadding(0, 4, 0, 8)
             })
-            addView(primaryButton("✓ Genehmigen") { sendCommand(commandJson) })
+            addView(primaryButton("✓ Genehmigen") { sendCommand(approveJson) })
+            addView(dangerButton("✗ Ablehnen") { sendCommand(denyJson) })
         }
     }
 
