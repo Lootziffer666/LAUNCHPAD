@@ -72,6 +72,23 @@ object NotificationHelper {
         )
     }
 
+    fun notifyNewApps(context: Context, count: Int, sampleLabel: String) {
+        val text = if (count <= 1) {
+            "$sampleLabel — zum Prüfen/Freigeben tippen"
+        } else {
+            "$sampleLabel und ${count - 1} weitere — zum Prüfen tippen"
+        }
+        notify(
+            context,
+            id = 1004,
+            channel = CHANNEL_REQUESTS,
+            title = "📦 Neue App installiert",
+            text = text,
+            targetClass = "org.fossify.home.activities.AppsManagementActivity",
+            extras = emptyMap()
+        )
+    }
+
     private fun notify(
         context: Context,
         id: Int,

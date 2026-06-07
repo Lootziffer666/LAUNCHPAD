@@ -86,6 +86,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AppsDatabase
+import org.fossify.home.helpers.NewAppsTracker
+import org.fossify.home.helpers.NotificationHelper
 import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.extensions.launchersDB
 import org.fossify.home.extensions.roleManager
@@ -317,6 +319,25 @@ class MainActivity : SimpleActivity(), FlingListener {
 
         // LAUNCHPAD M3: enter kiosk lock-task if enabled and provisioned as device owner.
         KioskManager.onLauncherResumed(this, AppsDatabase.getInstance(this))
+
+        // LAUNCHPAD: surface newly installed apps for parent review (Family-Link open-install
+        // model). Default-deny already blocks them; this only flags + notifies, throttled to 1/min.
+        CoroutineScope(Dispatchers.IO).launch {
+            val newly = NewAppsTracker.scan(this@MainActivity, AppsDatabase.getInstance(this@MainActivity))
+            if (newly.isNotEmpty()) {
+                val label = try {
+                    packageManager.getApplicationLabel(
+                        packageManager.getApplicationInfo(newly.first(), 0)
+                    ).toString()
+                } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                    android.util.Log.w("MainActivity", "Label not found", e)
+                    newly.first()
+                }
+                withContext(Dispatchers.Main) {
+                    NotificationHelper.notifyNewApps(this@MainActivity, newly.size, label)
+                }
+            }
+        }
 
         // LAUNCHPAD: hide rules overlay when app resumes
         if (rulesVisible) hideRulesOverlay(animate = false)

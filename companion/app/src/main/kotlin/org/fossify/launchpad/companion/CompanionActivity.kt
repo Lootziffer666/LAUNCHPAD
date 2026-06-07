@@ -371,9 +371,20 @@ class CompanionActivity : AppCompatActivity() {
             val json = JSONObject(pendingJson)
             val doge = json.optJSONArray("doge") ?: JSONArray()
             val zusagen = json.optJSONArray("zusagen") ?: JSONArray()
-            if (doge.length() == 0 && zusagen.length() == 0) {
+            val newApps = json.optJSONArray("pendingApps") ?: JSONArray()
+            if (doge.length() == 0 && zusagen.length() == 0 && newApps.length() == 0) {
                 content.addView(statusText("Keine ausstehenden Anfragen"))
                 return
+            }
+            for (i in 0 until newApps.length()) {
+                val item = newApps.getJSONObject(i)
+                val pkg = item.optString("packageName")
+                val name = item.optString("displayName", pkg)
+                content.addView(
+                    renderApprovalItem("📦 Neue App: $name", pkg,
+                        """{"type":"allow_new_app","package":"$pkg"}""",
+                        """{"type":"dismiss_new_app","package":"$pkg"}""")
+                )
             }
             for (i in 0 until doge.length()) {
                 val item = doge.getJSONObject(i)

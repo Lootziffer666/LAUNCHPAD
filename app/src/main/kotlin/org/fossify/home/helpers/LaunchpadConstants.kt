@@ -176,6 +176,13 @@ object LaunchpadPrefs {
     const val PREF_PAIR_PARENT_ID = "pair_parent_id"
     const val PREF_PAIR_NONCE = "pair_nonce"
 
+    // New-app review: snapshot of known launchable packages + the not-yet-reviewed set, so a
+    // parent can allow/deny apps that appeared (e.g. installed via Family Link). Default-deny
+    // keeps them unusable until reviewed; this just surfaces them instead of letting them sit.
+    const val PREF_KNOWN_PACKAGES = "known_packages"
+    const val PREF_PENDING_REVIEW_PACKAGES = "pending_review_packages"
+    const val PREF_LAST_APP_SCAN = "last_app_scan"
+
     // Dedicated SharedPreferences file for LAUNCHPAD (separate from commons config).
     const val PREFS_FILE = "launchpad_prefs"
 }

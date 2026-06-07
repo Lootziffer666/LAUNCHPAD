@@ -184,9 +184,25 @@ object LaunchpadServer {
             })
         }
 
+        val pm = context.packageManager
+        val pendingAppsArr = JSONArray()
+        NewAppsTracker.pending(context).forEach { pkg ->
+            val label = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            } catch (e: Exception) {
+                Log.w(TAG, "Label not found for $pkg", e)
+                pkg
+            }
+            pendingAppsArr.put(JSONObject().apply {
+                put("packageName", pkg)
+                put("displayName", label)
+            })
+        }
+
         return 200 to JSONObject().apply {
             put("doge", dogeArr)
             put("zusagen", zusageArr)
+            put("pendingApps", pendingAppsArr)
         }.toString()
     }
 
