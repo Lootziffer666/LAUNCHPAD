@@ -72,6 +72,7 @@ object LaunchpadConstants {
     const val REASON_LOCKDOWN = "lockdown"
     const val REASON_SCHEDULE_WINDOW = "schedule_window"
     const val REASON_APP_DAILY_LIMIT = "app_daily_limit"
+    const val REASON_SCHOOL_MODE = "school_mode"
 
     // Audit / tamper event types
     const val AUDIT_TIME_CHANGED = "TIME_CHANGED"
@@ -140,6 +141,11 @@ object LaunchpadPrefs {
     // Eltern-Modus after configuring the whitelist + PIN + time budget.
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
+    const val PREF_SCHOOL_MODE = "school_mode_enabled" // one-tap: pause ACTIVE_LEISURE apps
+    const val PREF_SCHOOL_AUTO_ENABLED = "school_auto_enabled"
+    const val PREF_SCHOOL_START_MIN = "school_start_min" // minutes since midnight
+    const val PREF_SCHOOL_END_MIN = "school_end_min"
+    const val PREF_SCHOOL_DAYS = "school_days" // CSV of Calendar.DAY_OF_WEEK ints (Mon=2 … Sun=1)
     const val PREF_CHILD_NAME = "child_name" // display name shown across the launcher (default "Jake")
     // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
     // apps that reach the foreground via side channels (links, notifications, recents). Essential
@@ -175,6 +181,13 @@ object LaunchpadPrefs {
     const val PREF_PAIR_SESSION_KEY = "pair_session_key" // AES raw Base64
     const val PREF_PAIR_PARENT_ID = "pair_parent_id"
     const val PREF_PAIR_NONCE = "pair_nonce"
+
+    // New-app review: snapshot of known launchable packages + the not-yet-reviewed set, so a
+    // parent can allow/deny apps that appeared (e.g. installed via Family Link). Default-deny
+    // keeps them unusable until reviewed; this just surfaces them instead of letting them sit.
+    const val PREF_KNOWN_PACKAGES = "known_packages"
+    const val PREF_PENDING_REVIEW_PACKAGES = "pending_review_packages"
+    const val PREF_LAST_APP_SCAN = "last_app_scan"
 
     // Dedicated SharedPreferences file for LAUNCHPAD (separate from commons config).
     const val PREFS_FILE = "launchpad_prefs"

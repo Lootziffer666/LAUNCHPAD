@@ -38,8 +38,9 @@ class CompanionWidgetProvider : AppWidgetProvider() {
 }
 
 private suspend fun render(context: Context, manager: AppWidgetManager, widgetId: Int) {
-    val ip = context.getSharedPreferences("companion_prefs", Context.MODE_PRIVATE)
-        .getString("launcher_ip", null)
+    val prefs = context.getSharedPreferences("LAUNCHPAD_COMPANION", Context.MODE_PRIVATE)
+    val ip = prefs.getString("launcher_ip", null)
+    val token = prefs.getString("session_key", null)
 
     val views = RemoteViews(context.packageName, R.layout.widget_companion)
 
@@ -72,12 +73,14 @@ private suspend fun render(context: Context, manager: AppWidgetManager, widgetId
     }
 
     try {
-        val response = get("http://$ip:7391/api/pending", timeoutMs = 3000)
+        val base = if (ip.startsWith("http")) ip else "http://$ip:7391"
+        val response = get("$base/api/pending", timeoutMs = 3000, token = token)
         if (response != null) {
             val obj = JSONObject(response)
             val dogeCount = obj.optJSONArray("doge")?.length() ?: 0
             val zusageCount = obj.optJSONArray("zusagen")?.length() ?: 0
-            val total = dogeCount + zusageCount
+            val newAppsCount = obj.optJSONArray("pendingApps")?.length() ?: 0
+            val total = dogeCount + zusageCount + newAppsCount
 
             views.setTextViewText(R.id.widget_doge_count, dogeCount.toString())
             views.setTextViewText(R.id.widget_zusagen_count, zusageCount.toString())
@@ -91,8 +94,12 @@ private suspend fun render(context: Context, manager: AppWidgetManager, widgetId
             views.setTextColor(R.id.widget_zusagen_count, countColor)
 
             views.setTextViewText(R.id.widget_status_text,
-                if (total > 0) "$total offen — tippen zum Genehmigen"
-                else "Alles erledigt ✓"
+                when {
+                    total == 0 -> "Alles erledigt ✓"
+                    newAppsCount > 0 ->
+                        "$total offen · $newAppsCount neue App${if (newAppsCount == 1) "" else "s"} — tippen"
+                    else -> "$total offen — tippen zum Genehmigen"
+                }
             )
         } else {
             views.setTextViewText(R.id.widget_doge_count, "!")
@@ -107,10 +114,11 @@ private suspend fun render(context: Context, manager: AppWidgetManager, widgetId
     manager.updateAppWidget(widgetId, views)
 }
 
-private fun get(url: String, timeoutMs: Int): String? = try {
+private fun get(url: String, timeoutMs: Int, token: String?): String? = try {
     val conn = URL(url).openConnection() as HttpURLConnection
     conn.connectTimeout = timeoutMs
     conn.readTimeout = timeoutMs
+    if (!token.isNullOrBlank()) conn.setRequestProperty("Authorization", "Bearer $token")
     conn.connect()
     if (conn.responseCode == 200) conn.inputStream.bufferedReader().readText() else null
 } catch (e: Exception) { null }

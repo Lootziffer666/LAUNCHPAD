@@ -4,7 +4,7 @@
 // records the command into the parent_commands audit table. Works the same whether the command
 // arrived via QR pairing, LAN sync, or a manual paste.
 
-@file:Suppress("MagicNumber", "TooGenericExceptionCaught") // fail-safe catches
+@file:Suppress("MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions") // fail-safe catches
 
 package org.fossify.home.helpers
 
@@ -32,6 +32,7 @@ class CommandProcessor(
      * Apply a single command. Returns a human-readable result. Never throws — failures are
      * captured in the Result and the command is still recorded (status REJECTED).
      */
+    @Suppress("CyclomaticComplexMethod")
     suspend fun apply(commandJson: String): Result {
         val obj = try {
             JSONObject(commandJson)
@@ -49,6 +50,9 @@ class CommandProcessor(
                 "approve_doge" -> applyApproveDoge(obj)
                 "deny_zusage" -> applyRejectZusage(obj)
                 "deny_doge" -> applyRejectDoge(obj)
+                "allow_new_app" -> applyAllowNewApp(obj)
+                "dismiss_new_app" -> applyDismissNewApp(obj)
+                "set_school_mode" -> applySchoolMode(obj)
                 else -> {
                     record(type, commandJson, applied = false, note = "Unbekannter Typ")
                     return Result(false, "Unbekannter Befehl: $type")
@@ -146,6 +150,26 @@ class CommandProcessor(
         val updated = DogeManager().rejectRequest(entity.toModel(), parentId, reason)
         database.dogeRequestDao().updateRequest(updated.toEntity())
         return "Medien-Anfrage abgelehnt"
+    }
+
+    private suspend fun applyAllowNewApp(obj: JSONObject): String {
+        val pkg = obj.getString("package")
+        val category = CategorySuggester.suggest(pkg) ?: LaunchpadConstants.CATEGORY_NEUTRAL
+        database.allowedAppDao().insertApp(AllowedApp(packageName = pkg, category = category))
+        NewAppsTracker.clearPending(context, pkg)
+        return "App freigegeben: $pkg"
+    }
+
+    private fun applyDismissNewApp(obj: JSONObject): String {
+        val pkg = obj.getString("package")
+        NewAppsTracker.clearPending(context, pkg)
+        return "Neue App ignoriert: $pkg"
+    }
+
+    private fun applySchoolMode(obj: JSONObject): String {
+        val on = obj.optBoolean("on", true)
+        SchoolMode.setEnabled(context, on)
+        return if (on) "Schulmodus an" else "Schulmodus aus"
     }
 
     private suspend fun record(type: String, payloadJson: String, applied: Boolean, note: String) {

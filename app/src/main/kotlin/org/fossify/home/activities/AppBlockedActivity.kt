@@ -135,6 +135,7 @@ class AppBlockedActivity : AppCompatActivity() {
         LaunchpadConstants.REASON_NOT_ALLOWED -> "🌱" to "Diese App schläft noch"
         LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🌞" to "Gleich ist Spielzeit"
         LaunchpadConstants.REASON_APP_DAILY_LIMIT -> "🎒" to "Diese App macht Feierabend"
+        LaunchpadConstants.REASON_SCHOOL_MODE -> "📚" to "Schulmodus — Lernzeit"
         else -> "🚀" to "Gleich geht's weiter"
     }
 
@@ -190,6 +191,8 @@ class AppBlockedActivity : AppCompatActivity() {
                 "Mama oder Papa schauen kurz drauf und schalten dich wieder frei. 💛"
             LaunchpadConstants.REASON_APP_DAILY_LIMIT ->
                 "Morgen gibt's wieder frische Zeit für diese App. 🌅"
+            LaunchpadConstants.REASON_SCHOOL_MODE ->
+                "Spiele & Co. machen während der Schulzeit Pause. Lern-Apps gehen. ✏️"
             else -> ""
         }
     }

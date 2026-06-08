@@ -35,13 +35,14 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.SchoolMode
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
 import org.fossify.home.services.TimeTrackingService
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
+@Suppress("MagicNumber", "TooManyFunctions", "LargeClass") // settings screen, UI built programmatically
 class ElternModusActivity : AppCompatActivity() {
 
     private lateinit var db: AppsDatabase
@@ -69,10 +70,12 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var auditStatus: android.widget.TextView
     private lateinit var strictStatus: android.widget.TextView
     private lateinit var childNameStatus: android.widget.TextView
+    private lateinit var schoolTimesStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
     private lateinit var kioskSwitch: org.fossify.commons.views.MyMaterialSwitch
+    private lateinit var schoolSwitch: org.fossify.commons.views.MyMaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,10 +175,12 @@ class ElternModusActivity : AppCompatActivity() {
         auditStatus = findViewById(R.id.em_audit_status)
         strictStatus = findViewById(R.id.em_strict_status)
         childNameStatus = findViewById(R.id.em_child_name)
+        schoolTimesStatus = findViewById(R.id.em_school_times_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
         kioskSwitch = findViewById(R.id.em_kiosk_switch)
+        schoolSwitch = findViewById(R.id.em_school_switch)
 
         // Wire rows. NOTE: fossify-commons' SettingsSwitchStyle sets the MyMaterialSwitch to
         // android:clickable="false" — the switch never reacts to taps itself. The surrounding
@@ -214,6 +219,8 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
+            R.id.em_row_school to { schoolSwitch.toggle() },
+            R.id.em_row_school_times to { showSchoolScheduleDialog() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
             R.id.em_row_familylink to { showFamilyLinkInfo() },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
@@ -237,6 +244,12 @@ class ElternModusActivity : AppCompatActivity() {
                 KioskManager.setKioskEnabled(this, checked)
                 if (checked) KioskManager.applyRestrictions(this) else KioskManager.stopKiosk(this)
             }
+        }
+
+        schoolSwitch.isChecked = SchoolMode.isManualOn(this)
+        schoolSwitch.setOnCheckedChangeListener { _, checked ->
+            SchoolMode.setEnabled(applicationContext, checked)
+            toast(if (checked) "Schulmodus an — Spiele pausiert 📚" else "Schulmodus aus")
         }
     }
 
@@ -337,6 +350,15 @@ class ElternModusActivity : AppCompatActivity() {
                 .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
             strictStatus.text = if (strict) "An — nur erlaubte Apps" else "Aus"
             childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
+
+            val ctx = this@ElternModusActivity
+            schoolTimesStatus.text = if (SchoolMode.autoEnabled(ctx)) {
+                val summary = "${schoolDaysLabel(SchoolMode.days(ctx))} " +
+                    "${fmtMinutes(SchoolMode.startMinutes(ctx))}–${fmtMinutes(SchoolMode.endMinutes(ctx))}"
+                if (SchoolMode.isAutoActiveNow(ctx)) "● Jetzt aktiv · $summary" else summary
+            } else {
+                "Aus"
+            }
         }
     }
 
@@ -354,6 +376,93 @@ class ElternModusActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton("Speichern") { _, _ ->
                 ChildProfile.setName(this, input.text.toString())
+                scope.launch { refresh() }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun fmtMinutes(m: Int): String = "%02d:%02d".format(m / 60, m % 60)
+
+    private fun schoolDaysLabel(days: Set<Int>): String {
+        if (days == setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY,
+                Calendar.THURSDAY, Calendar.FRIDAY)) {
+            return "Mo–Fr"
+        }
+        val order = listOf(
+            Calendar.MONDAY to "Mo", Calendar.TUESDAY to "Di", Calendar.WEDNESDAY to "Mi",
+            Calendar.THURSDAY to "Do", Calendar.FRIDAY to "Fr", Calendar.SATURDAY to "Sa",
+            Calendar.SUNDAY to "So"
+        )
+        return order.filter { it.first in days }.joinToString(" ") { it.second }.ifEmpty { "keine Tage" }
+    }
+
+    private fun showSchoolScheduleDialog() {
+        var startMin = SchoolMode.startMinutes(this)
+        var endMin = SchoolMode.endMinutes(this)
+        val selectedDays = SchoolMode.days(this).toMutableSet()
+
+        val enableCb = android.widget.CheckBox(this).apply {
+            text = "Automatisch zu Schulzeiten"
+            isChecked = SchoolMode.autoEnabled(this@ElternModusActivity)
+        }
+        val fromBtn = Button(this).apply { isAllCaps = false }
+        val toBtn = Button(this).apply { isAllCaps = false }
+        fun syncBtns() {
+            fromBtn.text = "Von:  ${fmtMinutes(startMin)}"
+            toBtn.text = "Bis:  ${fmtMinutes(endMin)}"
+        }
+        syncBtns()
+        fromBtn.setOnClickListener {
+            android.app.TimePickerDialog(this, { _, h, m -> startMin = h * 60 + m; syncBtns() },
+                startMin / 60, startMin % 60, true).show()
+        }
+        toBtn.setOnClickListener {
+            android.app.TimePickerDialog(this, { _, h, m -> endMin = h * 60 + m; syncBtns() },
+                endMin / 60, endMin % 60, true).show()
+        }
+
+        val dayDefs = listOf(
+            Calendar.MONDAY to "Mo", Calendar.TUESDAY to "Di", Calendar.WEDNESDAY to "Mi",
+            Calendar.THURSDAY to "Do", Calendar.FRIDAY to "Fr", Calendar.SATURDAY to "Sa",
+            Calendar.SUNDAY to "So"
+        )
+        val dayRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        dayDefs.forEach { (dayInt, label) ->
+            dayRow.addView(android.widget.CheckBox(this).apply {
+                text = label
+                isChecked = dayInt in selectedDays
+                setOnCheckedChangeListener { _, c ->
+                    if (c) selectedDays.add(dayInt) else selectedDays.remove(dayInt)
+                }
+            })
+        }
+
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+            addView(enableCb)
+            addView(fromBtn)
+            addView(toBtn)
+            addView(android.widget.TextView(this@ElternModusActivity).apply {
+                text = "Tage"
+                setPadding(0, 16, 0, 4)
+            })
+            addView(android.widget.HorizontalScrollView(this@ElternModusActivity).apply {
+                addView(dayRow)
+            })
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Schulzeiten")
+            .setView(android.widget.ScrollView(this).apply { addView(box) })
+            .setPositiveButton("Speichern") { _, _ ->
+                if (startMin >= endMin) {
+                    toast("Bis-Zeit muss nach Von-Zeit liegen")
+                    return@setPositiveButton
+                }
+                SchoolMode.saveSchedule(this, enableCb.isChecked, startMin, endMin, selectedDays)
+                toast("Schulzeiten gespeichert")
                 scope.launch { refresh() }
             }
             .setNegativeButton("Abbrechen", null)

@@ -352,9 +352,27 @@ class CompanionActivity : AppCompatActivity() {
             val balance = json.optInt("balance", 0)
             val enforcement = json.optBoolean("enforcement", false)
             val cooldown = json.optBoolean("cooldown", false)
+            val schoolMode = json.optBoolean("schoolMode", false)
+            val schoolAuto = json.optBoolean("schoolAuto", false)
             content.addView(statusText("Guthaben: $balance Min"))
             content.addView(statusText("Kontrolle aktiv: ${if (enforcement) "ja" else "nein"}"))
             content.addView(statusText("Ruhezeit aktiv: ${if (cooldown) "ja" else "nein"}"))
+            content.addView(statusText("Schulmodus: " + when {
+                schoolMode && schoolAuto -> "an 📚 (Schulzeit)"
+                schoolMode -> "an 📚"
+                else -> "aus"
+            }))
+            content.addView(
+                if (schoolMode) {
+                    secondaryButton("Schulmodus AUS") {
+                        sendCommand("""{"type":"set_school_mode","on":false}""")
+                    }
+                } else {
+                    primaryButton("📚 Schulmodus AN") {
+                        sendCommand("""{"type":"set_school_mode","on":true}""")
+                    }
+                }
+            )
         } catch (e: Exception) {
             Log.e("API", "Status parse failed", e)
             content.addView(statusText("Status: OK"))
@@ -371,9 +389,20 @@ class CompanionActivity : AppCompatActivity() {
             val json = JSONObject(pendingJson)
             val doge = json.optJSONArray("doge") ?: JSONArray()
             val zusagen = json.optJSONArray("zusagen") ?: JSONArray()
-            if (doge.length() == 0 && zusagen.length() == 0) {
+            val newApps = json.optJSONArray("pendingApps") ?: JSONArray()
+            if (doge.length() == 0 && zusagen.length() == 0 && newApps.length() == 0) {
                 content.addView(statusText("Keine ausstehenden Anfragen"))
                 return
+            }
+            for (i in 0 until newApps.length()) {
+                val item = newApps.getJSONObject(i)
+                val pkg = item.optString("packageName")
+                val name = item.optString("displayName", pkg)
+                content.addView(
+                    renderApprovalItem("📦 Neue App: $name", pkg,
+                        """{"type":"allow_new_app","package":"$pkg"}""",
+                        """{"type":"dismiss_new_app","package":"$pkg"}""")
+                )
             }
             for (i in 0 until doge.length()) {
                 val item = doge.getJSONObject(i)
