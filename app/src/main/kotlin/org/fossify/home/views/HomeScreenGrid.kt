@@ -240,18 +240,27 @@ class HomeScreenGrid(context: Context, attrs: AttributeSet, defStyle: Int) :
             val providers = appWidgetManager.installedProviders
             gridItems = context.homeScreenGridItemsDB.getAllItems() as ArrayList<HomeScreenGridItem>
 
-            // LAUNCHPAD: hide non-whitelisted app icons when Kindermodus is active.
-            // Items are only removed from the in-memory list, not from the DB, so they
-            // reappear immediately if the parent removes a package from the whitelist.
+            // LAUNCHPAD: hide non-whitelisted icons when Kindermodus is active, and hide leisure
+            // apps while Schulmodus runs (don't even tempt — a calm "school room"). In-memory only,
+            // so icons reappear when the parent removes a package or ends Schulmodus.
             val enforce = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
                 .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
-            if (enforce) {
-                val allowed = kotlinx.coroutines.runBlocking {
-                    AppsDatabase.getInstance(context).allowedAppDao()
-                        .getAllEnabledApps().map { it.packageName }.toSet()
+            val schoolActive = org.fossify.home.helpers.SchoolMode.isActive(context)
+            if (enforce || schoolActive) {
+                val enabledApps = kotlinx.coroutines.runBlocking {
+                    AppsDatabase.getInstance(context).allowedAppDao().getAllEnabledApps()
                 }
-                if (allowed.isNotEmpty()) {
-                    gridItems.removeIf { it.type == ITEM_TYPE_ICON && it.packageName !in allowed }
+                if (enforce) {
+                    val allowed = enabledApps.map { it.packageName }.toSet()
+                    if (allowed.isNotEmpty()) {
+                        gridItems.removeIf { it.type == ITEM_TYPE_ICON && it.packageName !in allowed }
+                    }
+                }
+                if (schoolActive) {
+                    val leisureCat = org.fossify.home.helpers.LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
+                    val leisure = enabledApps.filter { it.category == leisureCat }
+                        .map { it.packageName }.toSet()
+                    gridItems.removeIf { it.type == ITEM_TYPE_ICON && it.packageName in leisure }
                 }
             }
 

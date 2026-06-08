@@ -283,18 +283,7 @@
                     android:text="Erlaubte Apps + Zeitbudget" />
             </RelativeLayout>
 
-            <RelativeLayout android:id="@+id/em_row_school"
-                style="@style/SettingsHolderSwitchStyle"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:background="@drawable/ripple_background">
-                <org.fossify.commons.views.MyMaterialSwitch
-                    android:id="@+id/em_school_switch"
-                    style="@style/SettingsSwitchStyle"
-                    android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="Schulmodus jetzt (manuell)" />
-            </RelativeLayout>
-
-            <LinearLayout android:id="@+id/em_row_school_times"
+            <LinearLayout android:id="@+id/em_row_school"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:background="@drawable/ripple_background" android:orientation="horizontal"
@@ -303,8 +292,8 @@
                     android:layout_weight="1" android:orientation="vertical">
                     <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Schulzeiten (automatisch)" />
-                    <TextView android:id="@+id/em_school_times_status"
+                        android:text="Schulmodus" />
+                    <TextView android:id="@+id/em_school_status"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="Aus"
                         android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />

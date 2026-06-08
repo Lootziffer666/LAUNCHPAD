@@ -73,7 +73,7 @@ class LaunchGate(
             return LaunchDecision(
                 false,
                 LaunchpadConstants.REASON_SCHOOL_MODE,
-                "Schulmodus: Spiele machen gerade Pause. Lern-Apps gehen. 📚",
+                "Schulzeit läuft. Das wartet bis später.",
                 category
             )
         }
