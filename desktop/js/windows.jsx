@@ -1,0 +1,224 @@
+/* ============================================================
+   LAUNCHPAD — Windows-style desktop + Start menu + PIN gate
+   Original "grown-up" desktop, reachable from LAUNCHPAD behind
+   a parent PIN. "Zurück zu LAUNCHPAD" returns instantly.
+   ============================================================ */
+const { useState: useStateW, useEffect: useEffectW } = React;
+const DW = window.CometData;
+
+const PARENT_PIN = "1234"; // demo PIN — documented for the handoff
+
+/* ---------------- PIN gate ---------------- */
+function PinGate({ onUnlock, onCancel }) {
+  const [pin, setPin] = useStateW("");
+  const [err, setErr] = useStateW(false);
+
+  const press = (d) => {
+    if (pin.length >= 4) return;
+    window.SFX && SFX.select();
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) {
+      setTimeout(() => {
+        if (next === PARENT_PIN) { window.SFX && SFX.launch(); onUnlock(); }
+        else { setErr(true); window.SFX && SFX.back(); setTimeout(() => { setErr(false); setPin(""); }, 500); }
+      }, 140);
+    }
+  };
+  const del = () => { window.SFX && SFX.back(); setPin((p) => p.slice(0, -1)); };
+
+  useEffectW(() => {
+    const onKey = (e) => {
+      if (e.key >= "0" && e.key <= "9") press(e.key);
+      else if (e.key === "Backspace") del();
+      else if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pin]);
+
+  return (
+    <div className="pin-gate">
+      <div className="pin-card">
+        <div className="pin-av">{window.Icon.lock()}</div>
+        <div className="pin-title">Elternzugang</div>
+        <div className="pin-sub">PIN eingeben, um zum Windows-Desktop zu wechseln</div>
+        <div className={`pin-dots ${err ? "err" : ""}`}>
+          {[0, 1, 2, 3].map((i) => <i key={i} className={i < pin.length ? "on" : ""}></i>)}
+        </div>
+        <div className="pin-pad">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} className="pin-key" onClick={() => press(String(n))}>{n}</button>
+          ))}
+          <button className="pin-key fn" onClick={onCancel}>Zurück</button>
+          <button className="pin-key" onClick={() => press("0")}>0</button>
+          <button className="pin-key fn" onClick={del}>⌫</button>
+        </div>
+        <div className="pin-hint">Demo-PIN: <b>1234</b></div>
+      </div>
+    </div>
+  );
+}
+window.PinGate = PinGate;
+
+/* ---------------- Start menu ---------------- */
+const START_APPS = [
+  { id: "play", name: "Spiele", ic: "gamepad", c: "#6d28d9" },
+  { id: "files", name: "Dateien", ic: "grid", c: "#0891b2" },
+  { id: "web", name: "Browser", ic: "globe", c: "#2563eb" },
+  { id: "parental", name: "Eltern", ic: "shield", c: "#0d9488" },
+  { id: "settings", name: "System", ic: "gear", c: "#64748b" },
+  { id: "music", name: "Medien", ic: "music", c: "#db2777" },
+  { id: "calc", name: "Rechner", ic: "calc", c: "#f59e0b" },
+  { id: "store", name: "Store", ic: "bolt", c: "#16a34a" },
+];
+
+function StartMenu({ kidName, onClose, onHome, onAction }) {
+  return (
+    <React.Fragment>
+      <div className="start-scrim" onClick={onClose}></div>
+      <div className="start-menu">
+        <div className="start-search">{window.Icon.search()} Suchen…</div>
+
+        <div className="start-home-tile" onClick={onHome}>
+          <div className="sht-ic"><span></span></div>
+          <div>
+            <b>Zurück zu LAUNCHPAD</b>
+            <small>{kidName}s sicherer Desktop</small>
+          </div>
+        </div>
+
+        <p className="start-label">Angeheftet</p>
+        <div className="start-grid">
+          {START_APPS.map((a) => (
+            <button key={a.id} className="start-app" onClick={() => onAction(a.id)}>
+              <div className="sa-ic" style={{ background: a.c }}>{window.Icon[a.ic]()}</div>
+              <span>{a.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="start-foot">
+          <div className="start-user">
+            <image-slot id="start-avatar" shape="circle" placeholder="Foto"></image-slot>
+            <span>Administrator</span>
+          </div>
+          <button className="start-power" onClick={onHome} title="Abmelden zu LAUNCHPAD">{window.Icon.power()}</button>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+/* ---------------- generic app window ---------------- */
+function FilesWindow({ onClose }) {
+  const folders = ["Dokumente", "Bilder", "Downloads", "Spiele", "Musik", "Videos", "Schule", "Projekte"];
+  return (
+    <div className="win-app">
+      <div className="win-app-bar">
+        <div className="wt-ic">{window.Icon.grid()}</div>
+        <b>Dateien</b>
+        <div className="wt-ctrls">
+          <button>—</button><button>▢</button><button className="x" onClick={onClose}>✕</button>
+        </div>
+      </div>
+      <div className="win-app-body">
+        <div className="win-side">
+          {[["home", "Schnellzugriff"], ["image", "Dieser PC"], ["grid", "Netzwerk"]].map(([ic, l]) => (
+            <div key={l} className="si">{window.Icon[ic]()} {l}</div>
+          ))}
+        </div>
+        <div className="win-main">
+          <div className="win-folder-grid">
+            {folders.map((f) => (
+              <div key={f} className="win-folder"><div className="ff"></div><span>{f}</span></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Windows desktop ---------------- */
+function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, onLaunchDirect }) {
+  const games = useGames();
+  const [now, setNow] = useStateW(new Date());
+  const [start, setStart] = useStateW(false);
+  const [sel, setSel] = useStateW(null);
+  const [filesOpen, setFilesOpen] = useStateW(false);
+
+  useEffectW(() => { const t = setInterval(() => setNow(new Date()), 20000); return () => clearInterval(t); }, []);
+  const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const mc = games.find((g) => g.id === "minecraft") || games[0];
+
+  const desktopIcons = [
+    { id: "home", label: "LAUNCHPAD", home: true, onOpen: onHome },
+    { id: "play", label: "Spiele", ic: "gamepad", c: "#6d28d9", onOpen: () => onOpenPlay() },
+    { id: "files", label: "Dateien", ic: "grid", c: "#0891b2", onOpen: () => setFilesOpen(true) },
+    { id: "parental", label: "Eltern", ic: "shield", c: "#0d9488", onOpen: onOpenParental },
+    { id: "mc", label: mc.name, cover: mc, src: "Minecraft", onOpen: () => onLaunchDirect(mc) },
+    { id: "recycle", label: "Papierkorb", ic: "close", c: "#475569", onOpen: () => {} },
+  ];
+
+  const startAction = (id) => {
+    setStart(false);
+    if (id === "play" || id === "store") onOpenPlay();
+    else if (id === "parental") onOpenParental();
+    else if (id === "files") setFilesOpen(true);
+    else if (id === "web") onOpenPlay(); // routed; real app maps to browser
+  };
+
+  return (
+    <div className="windows" onClick={() => setSel(null)}>
+      <div className="win-wall"><i></i><i></i><i></i></div>
+
+      {/* desktop icons */}
+      <div className="win-icons" onClick={(e) => e.stopPropagation()}>
+        {desktopIcons.map((ic) => (
+          <button key={ic.id} className={`win-ico ${ic.home ? "home" : ""} ${sel === ic.id ? "sel" : ""}`}
+            onClick={() => setSel(ic.id)} onDoubleClick={ic.onOpen}>
+            <div className="wi-badge cover" style={ic.cover ? window.gameCover(ic.cover) : (ic.c ? { background: ic.c } : {})}>
+              {ic.home && <span></span>}
+              {!ic.home && !ic.cover && window.Icon[ic.ic]()}
+              {ic.src && <span className="wi-src" style={{ background: DW.SOURCES[ic.src].c }}>{window.Icon.gamepad()}</span>}
+            </div>
+            <div className="wi-label">{ic.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {filesOpen && <FilesWindow onClose={() => setFilesOpen(false)} />}
+
+      {/* start menu */}
+      {start && <StartMenu kidName={kidName} onClose={() => setStart(false)} onHome={onHome} onAction={startAction} />}
+
+      {/* taskbar */}
+      <div className="win-taskbar" onClick={(e) => e.stopPropagation()}>
+        <button className="tb-start" onClick={() => { setStart(!start); window.SFX && SFX.select(); }} title="Start">
+          <div className="pad"><i></i><i></i><i></i><i></i></div>
+        </button>
+        <button className="tb-home" onClick={onHome}>
+          <div className="hm"><span></span></div> LAUNCHPAD
+        </button>
+        <div className="tb-search">{window.Icon.search()} Suchen</div>
+
+        <div className="tb-pins">
+          <button className="tb-pin" onClick={() => onOpenPlay()} title="Spiele"><div className="pi" style={{ background: "#6d28d9" }}>{window.Icon.gamepad()}</div></button>
+          <button className="tb-pin run" onClick={() => setFilesOpen(true)} title="Dateien"><div className="pi" style={{ background: "#0891b2" }}>{window.Icon.grid()}</div></button>
+          <button className="tb-pin" onClick={() => onOpenPlay()} title="Browser"><div className="pi" style={{ background: "#2563eb" }}>{window.Icon.globe()}</div></button>
+          <button className="tb-pin" onClick={onOpenParental} title="Eltern"><div className="pi" style={{ background: "#0d9488" }}>{window.Icon.shield()}</div></button>
+        </div>
+
+        <div className="tb-tray">
+          <div className="tb-sys">{window.Icon.wifi()}{window.Icon.volume()}{window.Icon.battery()}</div>
+          <div className="tb-clock"><div className="t">{timeStr}</div><div className="d">{dateStr}</div></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+window.WindowsDesktop = WindowsDesktop;

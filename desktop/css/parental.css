@@ -1,0 +1,103 @@
+/* ============================================================
+   COMET — Eltern & Sicherheit (parental panel)
+   ============================================================ */
+.par-layer { position: absolute; inset: 0; z-index: 90; display: flex; align-items: stretch; justify-content: center; }
+.par-scrim { position: absolute; inset: 0; background: rgba(3,6,18,.62); backdrop-filter: blur(4px); animation: scrimIn .25s ease; }
+
+.par-window {
+  position: absolute; inset: 30px 80px;
+  border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
+  background: #0b1430; border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 40px 90px rgba(0,0,0,.6);
+  transform-origin: center;
+  animation: appZoom .3s var(--ease-metro) forwards;
+}
+.par-window.closing { animation: appZoomOut .24s var(--ease-metro) forwards; }
+
+.par-head {
+  flex: none; display: flex; align-items: center; gap: 16px; padding: 22px 30px;
+  background: linear-gradient(120deg, #0d9488, #0c4a6e);
+}
+.par-head .p-ic { width: 38px; height: 38px; color: #fff; }
+.par-head h2 { margin: 0; font-size: 23px; font-weight: 800; }
+.par-head .p-sub { font-size: 13px; opacity: .85; }
+.par-pin {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,.28); padding: 8px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+}
+.par-pin svg { width: 15px; height: 15px; }
+.par-close { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255,255,255,.16); border: none; color: #fff; cursor: pointer; transition: transform .15s, background .15s; }
+.par-close:hover { background: rgba(255,255,255,.3); transform: rotate(90deg); }
+.par-close svg { width: 20px; height: 20px; }
+
+.par-body { flex: 1; overflow-y: auto; padding: 26px 30px 30px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-content: start; }
+
+.par-card {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+  border-radius: 16px; padding: 22px;
+}
+.par-card.span2 { grid-column: span 2; }
+.par-card h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.par-card h3 svg { width: 20px; height: 20px; color: var(--comet-cyan); }
+.par-card .desc { font-size: 13px; color: var(--ink-mute); margin: 0 0 16px; }
+
+/* time slider */
+.par-slider { display: flex; align-items: center; gap: 16px; }
+.par-slider input[type=range] { flex: 1; accent-color: var(--comet-cyan); height: 6px; }
+.par-slider .val { font-size: 26px; font-weight: 800; min-width: 96px; text-align: right; }
+.par-slider .val small { font-size: 14px; color: var(--ink-mute); font-weight: 600; }
+.par-used { margin-top: 16px; }
+.par-used .lbl { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 6px; }
+.par-used .bar { height: 8px; border-radius: 5px; background: rgba(255,255,255,.12); overflow: hidden; }
+.par-used .bar > i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--t-green), var(--gold)); }
+.par-used .bar > i.over { background: linear-gradient(90deg, var(--gold), var(--t-rose)); }
+
+/* segmented age rating */
+.par-seg { display: flex; gap: 8px; }
+.par-seg button {
+  flex: 1; padding: 14px 0; border-radius: 12px; cursor: pointer; font-family: inherit;
+  background: rgba(255,255,255,.06); border: 1.5px solid rgba(255,255,255,.12); color: var(--ink-soft);
+  font-size: 16px; font-weight: 800; transition: all .15s;
+}
+.par-seg button:hover { background: rgba(255,255,255,.1); }
+.par-seg button.on { background: var(--comet-cyan); color: #062033; border-color: transparent; }
+.par-seg .seg-sub { display: block; font-size: 11px; font-weight: 600; margin-top: 3px; opacity: .8; }
+
+/* approval rows */
+.par-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.par-row:last-child { border-bottom: none; }
+.par-row .r-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: #fff; }
+.par-row .r-ic svg { width: 20px; height: 20px; }
+.par-row .r-meta { flex: 1; } .par-row .r-meta b { font-size: 15px; font-weight: 700; display: block; }
+.par-row .r-meta span { font-size: 12px; color: var(--ink-mute); }
+.p-toggle { width: 50px; height: 28px; border-radius: 999px; background: rgba(255,255,255,.18); position: relative; cursor: pointer; flex: none; transition: background .2s; }
+.p-toggle.on { background: var(--t-green); }
+.p-toggle i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .2s; }
+.p-toggle.on i { left: 25px; }
+
+/* bedtime */
+.par-bed { display: flex; align-items: center; gap: 14px; }
+.par-bed input[type=time] {
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.14); color: #fff;
+  font-family: inherit; font-size: 18px; font-weight: 700; padding: 10px 14px; border-radius: 12px;
+}
+.par-bed .arrow { color: var(--ink-mute); }
+
+/* weekly activity bars */
+.par-week { display: flex; align-items: flex-end; gap: 12px; height: 130px; padding-top: 8px; }
+.par-week .day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+.par-week .day .col { width: 100%; max-width: 34px; border-radius: 6px 6px 3px 3px; background: linear-gradient(var(--comet-cyan), var(--comet-violet)); transition: height .4s var(--ease-metro); }
+.par-week .day .col.today { background: linear-gradient(var(--gold), var(--t-orange)); }
+.par-week .day .dl { font-size: 11.5px; color: var(--ink-mute); font-weight: 700; }
+.par-week .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.par-week-wrap .stat { font-size: 13px; color: var(--ink-soft); }
+.par-week-wrap .stat b { color: #fff; }
+
+.par-foot { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 16px 30px; border-top: 1px solid rgba(255,255,255,.08); }
+.par-foot .saved { font-size: 13px; color: var(--t-green); font-weight: 700; display: flex; align-items: center; gap: 8px; opacity: 0; transition: opacity .2s; }
+.par-foot .saved.show { opacity: 1; }
+.par-btn { padding: 12px 26px; border-radius: 999px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px; }
+.par-btn.primary { background: var(--comet-cyan); color: #062033; }
+.par-btn.primary:hover { filter: brightness(1.08); }
