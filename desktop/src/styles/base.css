@@ -1,0 +1,149 @@
+/* ============================================================
+   COMET — base tokens, themes, scaled stage
+   ============================================================ */
+
+:root {
+  /* brand accents */
+  --comet-cyan:   #38bdf8;
+  --comet-violet: #8b5cf6;
+  --gold:         #ffc83d;
+
+  /* tile palette (vibrant, inspired by bootmetro accents) */
+  --t-blue:   #2563eb;
+  --t-indigo: #4f46e5;
+  --t-teal:   #0d9488;
+  --t-cyan:   #0891b2;
+  --t-amber:  #f59e0b;
+  --t-orange: #ea6418;
+  --t-pink:   #db2777;
+  --t-rose:   #e11d48;
+  --t-purple: #7c3aed;
+  --t-violet: #6d28d9;
+  --t-green:  #16a34a;
+  --t-lime:   #5f9e0c;
+
+  /* surface (Deep Space — default) */
+  --bg-base:   #0a1538;
+  --bg-glow-a: #1a3a86;
+  --bg-glow-b: #122a63;
+  --bg-tile-glass: rgba(255,255,255,0.06);
+  --bg-tile-glass-border: rgba(255,255,255,0.12);
+
+  --ink:        #ffffff;
+  --ink-soft:   #c2cdec;
+  --ink-mute:   #8493bd;
+
+  --tile-radius: 10px;
+  --ease-metro: cubic-bezier(.25,1,.5,1);
+
+  --font: "Outfit", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---- Theme: Midnight (deep violet) ---- */
+[data-theme="midnight"] {
+  --bg-base:   #15081f;
+  --bg-glow-a: #4a1d6e;
+  --bg-glow-b: #2a1248;
+  --comet-cyan: #c084fc;
+  --comet-violet: #a855f7;
+}
+
+/* ---- Theme: Aurora (teal/green) ---- */
+[data-theme="aurora"] {
+  --bg-base:   #03201f;
+  --bg-glow-a: #0c5048;
+  --bg-glow-b: #073833;
+  --comet-cyan: #2dd4bf;
+  --comet-violet: #22c55e;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #05060f;
+  font-family: var(--font);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root { height: 100%; }
+
+/* ---------- scaled stage ---------- */
+.stage-wrap {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(1200px 800px at 18% -10%, var(--bg-glow-a) 0%, transparent 55%),
+    radial-gradient(1000px 700px at 95% 110%, var(--bg-glow-b) 0%, transparent 55%),
+    var(--bg-base);
+  overflow: hidden;
+}
+.stage-wrap::after {
+  /* subtle starfield vignette */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,.45) 100%);
+  pointer-events: none;
+}
+
+.stage {
+  position: relative;
+  width: 1440px;
+  height: 900px;
+  transform-origin: center center;
+  flex: none;
+}
+
+/* decorative drifting glints behind the desktop */
+.starfield {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.starfield i {
+  position: absolute;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: .5;
+  animation: twinkle 4s ease-in-out infinite;
+}
+@keyframes twinkle { 0%,100%{opacity:.15;transform:scale(.7)} 50%{opacity:.8;transform:scale(1.1)} }
+
+@media (prefers-reduced-motion: reduce) {
+  .starfield i { animation: none !important; }
+}
+
+/* tweak-driven reduce motion */
+[data-reduce] .starfield i,
+[data-reduce] .eq i,
+[data-reduce] .photo-stack > i,
+[data-reduce] .arcade-art > i,
+[data-reduce] .launch-art { animation: none !important; }
+[data-reduce] .photo-stack > i:nth-child(1),
+[data-reduce] .arcade-art > i:nth-child(1) { opacity: 1; }
+[data-reduce] .photo-stack > i:nth-child(2),
+[data-reduce] .photo-stack > i:nth-child(3),
+[data-reduce] .arcade-art > i:nth-child(2),
+[data-reduce] .arcade-art > i:nth-child(3) { display: none; }
+
+/* shared scrollbar styling */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 6px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.3); }
+
+/* utility */
+.lower { text-transform: lowercase; }
+.thin  { font-weight: 300; }

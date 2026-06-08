@@ -58,14 +58,22 @@ function createWindow() {
   maybeCaptureForVerification();
 }
 
-// Headless verification hook (dev/CI only): when LP_SHOT is set, screenshot the
-// first paint to that path and quit. Never runs in normal use.
+// Headless verification hook (dev/CI only): when LP_SHOT is set, screenshot to
+// that path and quit. LP_DRIVE optionally holds a JS snippet (run in the
+// renderer) to click into a shell/overlay first, so each surface can be proven
+// in one run. Never runs in normal use.
 function maybeCaptureForVerification() {
   const shotPath = process.env.LP_SHOT;
   if (!shotPath) return;
+  const drive = process.env.LP_DRIVE;
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   win.webContents.once('did-finish-load', async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900)); // let layout/paint settle
+      await sleep(900); // let layout/paint settle
+      if (drive) {
+        await win.webContents.executeJavaScript(drive, true);
+        await sleep(800);
+      }
       const image = await win.webContents.capturePage();
       fs.writeFileSync(shotPath, image.toPNG());
       console.log('[launchpad] verification shot saved -> ' + shotPath);

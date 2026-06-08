@@ -1,0 +1,192 @@
+/* ============================================================
+   LAUNCHPAD — Windows-style desktop (original, behind PIN gate)
+   ============================================================ */
+
+.windows {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(1100px 700px at 75% 18%, #2a6f8e 0%, transparent 60%),
+    radial-gradient(900px 700px at 12% 88%, #1c3f6e 0%, transparent 58%),
+    linear-gradient(165deg, #0e2a44, #0a1b30 60%, #07111f);
+  animation: winBoot .4s var(--ease-metro);
+}
+@keyframes winBoot { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: none; } }
+
+/* abstract wallpaper layers (original, not a brand clone) */
+.win-wall { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.win-wall i { position: absolute; border-radius: 46% 54% 50% 50% / 60% 55% 45% 40%; opacity: .5; filter: blur(2px); }
+.win-wall i:nth-child(1){ width: 760px; height: 420px; left: -120px; bottom: -120px; background: linear-gradient(120deg, rgba(45,212,191,.32), transparent); }
+.win-wall i:nth-child(2){ width: 620px; height: 360px; right: -100px; top: 60px; background: linear-gradient(140deg, rgba(96,165,250,.3), transparent); }
+.win-wall i:nth-child(3){ width: 520px; height: 300px; right: 180px; bottom: -80px; background: linear-gradient(160deg, rgba(139,92,246,.26), transparent); }
+
+/* ---------- desktop icons ---------- */
+.win-icons {
+  position: absolute; top: 28px; left: 28px; z-index: 2;
+  display: grid; grid-template-columns: 96px; gap: 6px; align-content: start;
+}
+.win-ico {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  width: 96px; padding: 12px 6px 10px; border-radius: 12px; cursor: pointer;
+  background: transparent; border: 1px solid transparent; color: #fff; font-family: inherit;
+  transition: background .12s, border-color .12s;
+}
+.win-ico:hover { background: rgba(255,255,255,.1); }
+.win-ico.sel { background: rgba(56,189,248,.22); border-color: rgba(56,189,248,.5); }
+.win-ico .wi-badge { width: 52px; height: 52px; border-radius: 13px; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(0,0,0,.4); position: relative; overflow: hidden; }
+.win-ico .wi-badge svg { width: 28px; height: 28px; }
+.win-ico .wi-badge.cover { background-size: cover; background-position: center; }
+.win-ico .wi-label { font-size: 12.5px; font-weight: 600; text-align: center; line-height: 1.2; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.win-ico .wi-src { position: absolute; bottom: 3px; right: 3px; width: 16px; height: 16px; border-radius: 5px; display: grid; place-items: center; }
+.win-ico .wi-src svg { width: 10px; height: 10px; }
+
+/* the LAUNCHPAD home icon stands out */
+.win-ico.home .wi-badge { background: linear-gradient(140deg, var(--comet-cyan), var(--comet-violet)); }
+.win-ico.home .wi-badge span { width: 18px; height: 18px; border-radius: 5px; background: #fff; transform: rotate(45deg); }
+
+/* ---------- generic app window ---------- */
+.win-app {
+  position: absolute; z-index: 5; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  width: 720px; height: 460px; border-radius: 12px; overflow: hidden;
+  background: #0f1f33; border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 40px 90px rgba(0,0,0,.6); display: flex; flex-direction: column;
+  animation: appZoom .26s var(--ease-metro);
+}
+.win-app-bar { flex: none; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; background: rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.08); }
+.win-app-bar .wt-ic { width: 18px; height: 18px; color: var(--comet-cyan); }
+.win-app-bar b { font-size: 13.5px; font-weight: 600; }
+.win-app-bar .wt-ctrls { margin-left: auto; display: flex; gap: 4px; }
+.win-app-bar .wt-ctrls button { width: 34px; height: 30px; border: none; background: none; color: var(--ink-soft); cursor: pointer; border-radius: 6px; display: grid; place-items: center; font-size: 14px; }
+.win-app-bar .wt-ctrls button:hover { background: rgba(255,255,255,.12); }
+.win-app-bar .wt-ctrls button.x:hover { background: #e11d48; color: #fff; }
+.win-app-body { flex: 1; display: flex; min-height: 0; }
+.win-side { width: 180px; border-right: 1px solid rgba(255,255,255,.08); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.win-side .si { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13.5px; color: var(--ink-soft); cursor: pointer; font-weight: 500; }
+.win-side .si:hover { background: rgba(255,255,255,.08); color: #fff; }
+.win-side .si svg { width: 16px; height: 16px; }
+.win-main { flex: 1; padding: 18px; overflow-y: auto; }
+.win-folder-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.win-folder { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 10px; cursor: pointer; }
+.win-folder:hover { background: rgba(255,255,255,.07); }
+.win-folder .ff { width: 46px; height: 38px; border-radius: 7px; background: linear-gradient(150deg, #f5c451, #e0992f); position: relative; }
+.win-folder .ff::before { content: ""; position: absolute; top: -5px; left: 5px; width: 22px; height: 8px; border-radius: 4px 4px 0 0; background: #e0992f; }
+.win-folder span { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- taskbar ---------- */
+.win-taskbar {
+  margin-top: auto; flex: none; height: 56px; z-index: 6;
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: rgba(8,18,32,.72); backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.tb-start {
+  width: 46px; height: 42px; border-radius: 9px; display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: none; transition: background .12s;
+}
+.tb-start:hover { background: rgba(255,255,255,.1); }
+.tb-start .pad { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; transform: rotate(0deg); }
+.tb-start .pad i { width: 9px; height: 9px; border-radius: 2px; background: var(--comet-cyan); }
+.tb-start .pad i:nth-child(2){ background: #60a5fa; } .tb-start .pad i:nth-child(3){ background: #a855f7; } .tb-start .pad i:nth-child(4){ background: #2dd4bf; }
+
+.tb-home {
+  display: inline-flex; align-items: center; gap: 9px; height: 42px; padding: 0 16px 0 12px; border-radius: 9px; cursor: pointer;
+  background: linear-gradient(140deg, rgba(56,189,248,.22), rgba(139,92,246,.22));
+  border: 1px solid rgba(56,189,248,.4); color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700;
+  transition: filter .12s;
+}
+.tb-home:hover { filter: brightness(1.12); }
+.tb-home .hm { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(140deg, var(--comet-cyan), var(--comet-violet)); display: grid; place-items: center; }
+.tb-home .hm span { width: 9px; height: 9px; background: #fff; border-radius: 2px; transform: rotate(45deg); }
+
+.tb-search {
+  flex: 0 1 280px; height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 16px; margin-left: 4px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); border-radius: 999px;
+  color: var(--ink-mute); font-size: 13px; cursor: text;
+}
+.tb-search svg { width: 15px; height: 15px; }
+
+.tb-pins { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+.tb-pin { width: 44px; height: 42px; border-radius: 9px; display: grid; place-items: center; cursor: pointer; background: none; border: none; position: relative; transition: background .12s; }
+.tb-pin:hover { background: rgba(255,255,255,.1); }
+.tb-pin .pi { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; }
+.tb-pin .pi svg { width: 16px; height: 16px; }
+.tb-pin.run::after { content: ""; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 16px; height: 3px; border-radius: 2px; background: var(--comet-cyan); }
+
+.tb-tray { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.tb-sys { display: flex; align-items: center; gap: 12px; padding: 0 12px; color: var(--ink-soft); }
+.tb-sys svg { width: 17px; height: 17px; }
+.tb-clock { text-align: right; line-height: 1.15; padding: 0 8px; cursor: default; }
+.tb-clock .t { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tb-clock .d { font-size: 11.5px; color: var(--ink-mute); }
+
+/* ---------- start menu ---------- */
+.start-scrim { position: absolute; inset: 0; z-index: 7; }
+.start-menu {
+  position: absolute; bottom: 64px; left: 12px; z-index: 8; width: 520px;
+  background: rgba(12,24,40,.92); backdrop-filter: blur(26px);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 22px;
+  box-shadow: 0 30px 70px rgba(0,0,0,.6);
+  animation: startUp .2s var(--ease-metro);
+}
+@keyframes startUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.start-search { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: var(--ink-mute); font-size: 13.5px; margin-bottom: 18px; }
+.start-search svg { width: 16px; height: 16px; }
+.start-label { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-mute); margin: 0 0 12px; }
+.start-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+.start-app { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 11px; cursor: pointer; background: none; border: none; color: #fff; font-family: inherit; transition: background .12s; }
+.start-app:hover { background: rgba(255,255,255,.1); }
+.start-app .sa-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; }
+.start-app .sa-ic svg { width: 22px; height: 22px; }
+.start-app span { font-size: 12px; font-weight: 500; }
+.start-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); }
+.start-user { display: flex; align-items: center; gap: 11px; font-size: 14px; font-weight: 600; }
+.start-user image-slot { width: 36px; height: 36px; border: 2px solid rgba(255,255,255,.4); flex: none; }
+.start-power { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.08); border: none; color: var(--ink-soft); cursor: pointer; }
+.start-power:hover { background: rgba(225,29,72,.3); color: #fff; }
+.start-power svg { width: 18px; height: 18px; }
+.start-home-tile {
+  display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 13px; cursor: pointer; margin-bottom: 18px;
+  background: linear-gradient(135deg, rgba(56,189,248,.2), rgba(139,92,246,.2)); border: 1px solid rgba(56,189,248,.4);
+}
+.start-home-tile:hover { filter: brightness(1.1); }
+.start-home-tile .sht-ic { width: 42px; height: 42px; border-radius: 11px; background: linear-gradient(140deg, var(--comet-cyan), var(--comet-violet)); display: grid; place-items: center; flex: none; }
+.start-home-tile .sht-ic span { width: 16px; height: 16px; background: #fff; border-radius: 4px; transform: rotate(45deg); }
+.start-home-tile b { font-size: 16px; font-weight: 700; display: block; }
+.start-home-tile small { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- PIN gate ---------- */
+.pin-gate {
+  position: absolute; inset: 0; z-index: 75; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(900px 600px at 50% 30%, rgba(20,50,84,.6), transparent 60%),
+    linear-gradient(165deg, #0a1b30, #060d1a);
+  animation: scrimIn .3s ease;
+}
+.pin-gate::before { content: ""; position: absolute; inset: 0; backdrop-filter: blur(20px); }
+.pin-card { position: relative; display: flex; flex-direction: column; align-items: center; }
+.pin-av { width: 92px; height: 92px; border-radius: 50%; background: linear-gradient(140deg, #2a6f8e, #1c3f6e); display: grid; place-items: center; box-shadow: 0 16px 40px rgba(0,0,0,.5); margin-bottom: 18px; }
+.pin-av svg { width: 44px; height: 44px; color: #fff; }
+.pin-title { font-size: 26px; font-weight: 800; }
+.pin-sub { font-size: 14px; color: var(--ink-soft); margin-top: 6px; }
+.pin-dots { display: flex; gap: 14px; margin: 28px 0 26px; }
+.pin-dots i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.4); transition: all .15s; }
+.pin-dots i.on { background: var(--comet-cyan); border-color: var(--comet-cyan); box-shadow: 0 0 12px var(--comet-cyan); }
+.pin-dots.err i { border-color: #fb7185; animation: pinShake .4s; }
+@keyframes pinShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)} }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 78px); gap: 14px; }
+.pin-key {
+  height: 70px; border-radius: 16px; font-size: 26px; font-weight: 600; cursor: pointer; font-family: inherit;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #fff;
+  transition: background .12s, transform .08s;
+}
+.pin-key:hover { background: rgba(255,255,255,.16); }
+.pin-key:active { transform: scale(.94); }
+.pin-key.fn { font-size: 14px; font-weight: 700; color: var(--ink-soft); background: transparent; border-color: transparent; }
+.pin-key.fn:hover { background: rgba(255,255,255,.08); }
+.pin-hint { margin-top: 24px; font-size: 12.5px; color: var(--ink-mute); }
+.pin-hint b { color: var(--comet-cyan); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .windows, .win-app, .start-menu, .pin-gate { animation: none; }
+}
