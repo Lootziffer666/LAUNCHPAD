@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('launchpad', {
   setCover: (id, source) => invoke('lp:games:cover', id, source),
   upsertGame: (patch) => invoke('lp:games:upsert', patch),
   removeGame: (id) => invoke('lp:games:remove', id),
+  resetGames: () => invoke('lp:games:reset'),
 
   // covers
   searchCovers: (q) => invoke('lp:covers:search', q),

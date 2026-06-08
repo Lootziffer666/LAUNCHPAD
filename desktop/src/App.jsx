@@ -3,6 +3,7 @@
    ============================================================ */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useProfile } from './lib/useProfile.js';
+import { GameStore } from './games/useGames.js';
 import { SFX } from './lib/sfx.js';
 import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
@@ -52,6 +53,14 @@ export default function App() {
   const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows'
   const [gate, setGate] = useState(false); // PIN gate before windows
 
+  // Games load over IPC (async). Hold the shells until the first load lands so
+  // nothing renders against an empty catalogue. Brief navy splash on cold start.
+  const [ready, setReady] = useState(GameStore.isLoaded());
+  useEffect(() => {
+    if (GameStore.isLoaded()) { setReady(true); return undefined; }
+    return GameStore.subscribe(() => { if (GameStore.isLoaded()) setReady(true); });
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', t.theme);
     document.documentElement.style.setProperty('--comet-cyan', t.accent);
@@ -69,6 +78,8 @@ export default function App() {
   const openWindows = () => { SFX.select(); setGate(true); };
   const unlockWindows = () => { setGate(false); setMode('windows'); };
   const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
+
+  if (!ready) return <div className="stage-wrap" />;
 
   return (
     <div className="stage-wrap">

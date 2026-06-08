@@ -1,81 +1,80 @@
 /* ============================================================
-   LAUNCHPAD — GameStore (the data seam)
-   Merges base games (CometData.GAMES) with user overrides
-   (cover image, title, category) persisted in localStorage.
-   Covers can be a SteamGridDB URL or a dropped data-URL.
-
-   M2: re-back this on window.launchpad.* (IPC) — the public surface
-   (GameStore, useGames, gameCover) stays identical so no caller changes.
+   LAUNCHPAD — GameStore (the data seam), now backed by IPC.
+   Reads/writes go through window.launchpad.* (handled in main by
+   electron/services/gameRegistry.js, persisted via electron-store).
+   The public surface (GameStore, useGames, gameCover) is unchanged from
+   M1, so no other renderer file changes. Mutations are fire-and-forget:
+   they call IPC, then refetch and notify subscribers to re-render.
    ============================================================ */
 import React from 'react';
 import { CometData } from '../lib/data.js';
 
-const GS_KEY = 'comet.games.v2';
+const api = (typeof window !== 'undefined' && window.launchpad) || null;
 
-function gsLoad() {
+let cache = [];
+let loaded = false;
+const subs = new Set();
+const notify = () => subs.forEach((f) => f());
+
+async function refresh() {
+  if (!api) { loaded = true; notify(); return; }
   try {
-    return JSON.parse(localStorage.getItem(GS_KEY)) || { ov: {}, custom: [] };
+    cache = await api.listGames();
   } catch (e) {
-    return { ov: {}, custom: [] };
+    cache = [];
   }
+  loaded = true;
+  notify();
 }
-let gsState = gsLoad();
-const gsSubs = new Set();
 
-function gsPersist() {
-  try {
-    localStorage.setItem(GS_KEY, JSON.stringify(gsState));
-  } catch (e) {
-    /* ignore */
-  }
-  gsSubs.forEach((f) => f());
-}
-function gsBase() { return CometData.GAMES || []; }
-function gsIsBase(id) { return gsBase().some((g) => g.id === id); }
+// Prime the cache as soon as this module loads.
+refresh();
 
-function gsPatch(id, p) {
-  if (gsIsBase(id)) gsState.ov[id] = { ...(gsState.ov[id] || {}), ...p };
-  else { const c = gsState.custom.find((g) => g.id === id); if (c) Object.assign(c, p); }
-  gsPersist();
+// The prototype passed setCover a raw string (URL or data-URL) or null. Map it
+// to the IPC CoverSource shape; keep null as "clear".
+function coverSource(url) {
+  if (url == null) return null;
+  return String(url).startsWith('data:') ? { kind: 'dataUrl', data: url } : { kind: 'url', url };
 }
 
 export const GameStore = {
-  merged() {
-    const list = gsBase().map((g) => ({ ...g, ...(gsState.ov[g.id] || {}) }));
-    return list.concat(gsState.custom.map((c) => ({ ...c })));
+  visible() { return cache; },
+  isLoaded() { return loaded; },
+  async setCover(id, url) { if (!api) return; await api.setCover(id, coverSource(url)); await refresh(); },
+  async setField(id, k, v) { if (!api) return; await api.upsertGame({ id, [k]: v }); await refresh(); },
+  async toggleFavorite(id) {
+    if (!api) return;
+    const g = cache.find((x) => x.id === id);
+    await api.setFavorite(id, !(g && g.favorite));
+    await refresh();
   },
-  setCover(id, url) { gsPatch(id, { cover: url || null }); },
-  setField(id, k, v) { gsPatch(id, { [k]: v }); },
-  toggleFavorite(id) { const g = this.merged().find((x) => x.id === id); gsPatch(id, { favorite: !(g && g.favorite) }); },
-  install(id) { gsPatch(id, { installed: true }); },
-  addGame() {
-    const id = 'custom-' + Date.now();
-    gsState.custom.push({ id, name: 'Neues Spiel', cat: 'Spiel', stars: 4, progress: 0,
-      c1: '#475569', c2: '#0f172a', emblem: 'gamepad', _custom: true });
-    gsPersist();
-    return id;
+  async install(id) { if (!api) return; await api.installGame(id); await refresh(); },
+  async addGame() {
+    if (!api) return null;
+    const g = await api.upsertGame({});
+    await refresh();
+    return g && g.id;
   },
-  remove(id) {
-    if (gsIsBase(id)) { gsState.ov[id] = { ...(gsState.ov[id] || {}), _hidden: true }; }
-    else { gsState.custom = gsState.custom.filter((g) => g.id !== id); }
-    gsPersist();
-  },
-  restore(id) { if (gsState.ov[id]) { delete gsState.ov[id]._hidden; gsPersist(); } },
-  reset() { gsState = { ov: {}, custom: [] }; gsPersist(); },
-  visible() { return this.merged().filter((g) => !g._hidden); },
-  subscribe(fn) { gsSubs.add(fn); return () => gsSubs.delete(fn); },
+  async remove(id) { if (!api) return; await api.removeGame(id); await refresh(); },
+  async reset() { if (!api) return; await api.resetGames(); await refresh(); },
+  subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
 };
 
-// React hook: re-render on store change, returns visible games
+// React hook: re-render on store change, returns the current visible games.
 export function useGames() {
   const [, force] = React.useState(0);
-  React.useEffect(() => GameStore.subscribe(() => force((n) => n + 1)), []);
-  return GameStore.visible();
+  React.useEffect(() => {
+    const off = GameStore.subscribe(() => force((n) => n + 1));
+    if (loaded) force((n) => n + 1); // catch a load that resolved before mount
+    return off;
+  }, []);
+  return cache;
 }
 
 // background style for a cover (image overrides duotone key-art)
 export function gameCover(g, ang) {
   if (g && g.cover) return { backgroundImage: `url("${g.cover}")`, backgroundSize: 'cover', backgroundPosition: 'center' };
+  if (!g) return { background: '#1e293b' }; // neutral while data loads
   return { background: CometData.cover(g.c1, g.c2, ang || 145) };
 }
 
