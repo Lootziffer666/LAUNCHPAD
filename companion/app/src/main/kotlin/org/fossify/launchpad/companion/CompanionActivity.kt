@@ -353,10 +353,15 @@ class CompanionActivity : AppCompatActivity() {
             val enforcement = json.optBoolean("enforcement", false)
             val cooldown = json.optBoolean("cooldown", false)
             val schoolMode = json.optBoolean("schoolMode", false)
+            val schoolAuto = json.optBoolean("schoolAuto", false)
             content.addView(statusText("Guthaben: $balance Min"))
             content.addView(statusText("Kontrolle aktiv: ${if (enforcement) "ja" else "nein"}"))
             content.addView(statusText("Ruhezeit aktiv: ${if (cooldown) "ja" else "nein"}"))
-            content.addView(statusText("Schulmodus: ${if (schoolMode) "an 📚" else "aus"}"))
+            content.addView(statusText("Schulmodus: " + when {
+                schoolMode && schoolAuto -> "an 📚 (Schulzeit)"
+                schoolMode -> "an 📚"
+                else -> "aus"
+            }))
             content.addView(
                 if (schoolMode) {
                     secondaryButton("Schulmodus AUS") {

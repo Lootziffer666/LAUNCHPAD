@@ -142,6 +142,10 @@ object LaunchpadPrefs {
     const val PREF_ENFORCEMENT_ENABLED = "enforcement_enabled"
     const val PREF_SETUP_DONE = "setup_done"
     const val PREF_SCHOOL_MODE = "school_mode_enabled" // one-tap: pause ACTIVE_LEISURE apps
+    const val PREF_SCHOOL_AUTO_ENABLED = "school_auto_enabled"
+    const val PREF_SCHOOL_START_MIN = "school_start_min" // minutes since midnight
+    const val PREF_SCHOOL_END_MIN = "school_end_min"
+    const val PREF_SCHOOL_DAYS = "school_days" // CSV of Calendar.DAY_OF_WEEK ints (Mon=2 … Sun=1)
     const val PREF_CHILD_NAME = "child_name" // display name shown across the launcher (default "Jake")
     // Strict foreground block (default OFF): the tracking service also blocks NON-whitelisted
     // apps that reach the foreground via side channels (links, notifications, recents). Essential
