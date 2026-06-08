@@ -35,6 +35,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.Playful
 import org.fossify.home.helpers.SchoolMode
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
@@ -152,6 +153,17 @@ class ElternModusActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.apply { title = "Eltern-Modus"; setDisplayHomeAsUpEnabled(true) }
         toolbar.setNavigationOnClickListener { finish() }
+
+        // Warm, wallpaper-adaptive accents (toolbar, section headers, status bar) — coherent with
+        // the launch screen; the tints follow the wallpaper via Playful.palette.
+        val pal = Playful.palette(this)
+        toolbar.setBackgroundColor(pal.accent)
+        toolbar.setTitleTextColor(android.graphics.Color.WHITE)
+        window.statusBarColor = pal.accentDark
+        listOf(
+            R.id.em_sec_zeit, R.id.em_sec_apps, R.id.em_sec_inhalte,
+            R.id.em_sec_modus, R.id.em_sec_schutz, R.id.em_sec_mehr
+        ).forEach { findViewById<android.widget.TextView>(it).setTextColor(pal.accent) }
 
         // Dashboard
         balanceBig = findViewById(R.id.em_balance_big)
