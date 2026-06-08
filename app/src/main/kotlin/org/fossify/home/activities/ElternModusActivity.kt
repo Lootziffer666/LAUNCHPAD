@@ -49,6 +49,8 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var db: AppsDatabase
     private lateinit var pinGate: PinGateHelper
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var uiInitialized = false
+    private var navigatingInternally = false
 
     // Dashboard views
     private lateinit var balanceBig: android.widget.TextView
@@ -82,21 +84,54 @@ class ElternModusActivity : AppCompatActivity() {
 
         db = AppsDatabase.getInstance(this)
         pinGate = PinGateHelper(this)
+    }
 
-        // Require PIN (or first-time setup)
+    // Re-gate on every entry (incl. reopen from recents/back) AND drop the parent session when the
+    // parent leaves — so the child can't reopen the Eltern-Modus during the old 30-min window.
+    // Navigating into a parent sub-screen keeps the session alive (see the startActivity override).
+    override fun onStart() {
+        super.onStart()
         if (pinGate.isPinConfigured() && !pinGate.isParentModeActive()) {
+            showLockedPlaceholder()
             requestPin()
             return
         }
-
-        initUi()
+        showUiAndRefresh()
     }
 
     override fun onResume() {
         super.onResume()
-        if (pinGate.isParentModeActive() || !pinGate.isPinConfigured()) {
-            refresh()
+        navigatingInternally = false
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Left the parent area (not just opening a sub-screen / rotating) → re-lock immediately.
+        if (!navigatingInternally && !isChangingConfigurations) {
+            pinGate.deactivateParentMode()
+            uiInitialized = false
         }
+    }
+
+    override fun startActivity(intent: Intent?) {
+        // Any explicit navigation FROM the parent area counts as staying in the session.
+        navigatingInternally = true
+        super.startActivity(intent)
+    }
+
+    private fun showUiAndRefresh() {
+        if (!uiInitialized) {
+            initUi()
+            uiInitialized = true
+        }
+        refresh()
+    }
+
+    private fun showLockedPlaceholder() {
+        uiInitialized = false
+        setContentView(android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
+        })
     }
 
     override fun onDestroy() {
@@ -124,8 +159,7 @@ class ElternModusActivity : AppCompatActivity() {
                 when (val result = pinGate.verifyPin(input.text.toString())) {
                     is PinGateHelper.VerifyResult.Success -> {
                         pinGate.activateParentMode(30)
-                        initUi()
-                        refresh()
+                        showUiAndRefresh()
                     }
                     is PinGateHelper.VerifyResult.Wrong -> {
                         if (result.newLockoutSeconds > 0) {

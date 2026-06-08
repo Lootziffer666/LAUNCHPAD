@@ -317,6 +317,10 @@ class MainActivity : SimpleActivity(), FlingListener {
         super.onResume()
         wasJustPaused = false
 
+        // LAUNCHPAD: back at the child's home → end any active parent session, so the Eltern-Modus
+        // re-asks for the PIN next time (parent mode is consumed only there).
+        org.fossify.home.helpers.PinGateHelper(this).deactivateParentMode()
+
         // LAUNCHPAD M3: enter kiosk lock-task if enabled and provisioned as device owner.
         KioskManager.onLauncherResumed(this, AppsDatabase.getInstance(this))
 
