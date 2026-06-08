@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import org.fossify.home.R
+import org.fossify.home.extensions.goHome
 import org.fossify.home.extensions.launchAppDirect
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.Playful
@@ -98,7 +99,7 @@ class ImpulseDelayActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = 48 }
-            setOnClickListener { finish() } // step back to the launcher
+            setOnClickListener { goHome() } // step back to the launcher, not the blocked app
         })
 
         setContentView(root)
@@ -115,6 +116,11 @@ class ImpulseDelayActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(tick)
+    }
+
+    @Suppress("MissingSuperCall", "GestureBackNavigation", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        goHome()
     }
 
     companion object {

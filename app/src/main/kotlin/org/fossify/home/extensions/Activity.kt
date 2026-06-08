@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions") // cohesive launcher activity extensions
+
 package org.fossify.home.extensions
 
 import android.app.Activity
@@ -114,6 +116,25 @@ private fun Activity.showBlockScreen(
             .putExtra(AppBlockedActivity.EXTRA_COOLDOWN_UNTIL, budget.cooldownExpiresAt ?: 0L)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     )
+}
+
+/**
+ * Return to the launcher home instead of falling back to whatever sits beneath this screen
+ * (often the just-blocked app, when it reached the foreground via a side channel). Used by the
+ * block / pause screens so dismissing them always lands the child safely on home.
+ */
+fun Activity.goHome() {
+    try {
+        startActivity(
+            Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        )
+    } catch (e: android.content.ActivityNotFoundException) {
+        android.util.Log.w("LAUNCHPAD", "No home activity for goHome", e)
+    }
+    finish()
 }
 
 /**
