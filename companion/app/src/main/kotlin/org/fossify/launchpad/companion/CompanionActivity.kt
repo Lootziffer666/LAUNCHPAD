@@ -1,6 +1,11 @@
 // File: companion/app/src/main/kotlin/org/fossify/launchpad/companion/CompanionActivity.kt
-// Companion app for LAUNCHPAD. Scans parent QR code, establishes encrypted session, displays
-// pending approvals/commands, sends approval/denial responses.
+// Companion app for LAUNCHPAD. Scans the launcher QR code, establishes an encrypted session,
+// and lets a parent see status, grant time, answer requests and manage apps over the LAN.
+//
+// UI goals (this revision): clear & friendly for non-technical parents — a decluttered Home
+// (status hero + give-time + requests) with separate Apps / Settings screens, a first-run
+// welcome wizard, ⓘ explanations on every concept, dp-correct sizing, and a calm palette.
+// All networking/endpoints are unchanged from before — this is a presentation redesign.
 
 package org.fossify.launchpad.companion
 
@@ -15,6 +20,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -86,41 +93,47 @@ object TestModeManager {
     }
 }
 
-@Suppress("MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions", "LongMethod")
+@Suppress("MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions", "LargeClass")
 class CompanionActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private val mp = LinearLayout.LayoutParams.MATCH_PARENT
+    private val wc = LinearLayout.LayoutParams.WRAP_CONTENT
+
     companion object {
         private const val LAUNCHER_PORT = 7391
-        private const val HW_NAVY = "#0D2847"
-        private const val HW_ORANGE = "#F2994A"
-        private const val HW_DANGER = "#D32F2F"
-        private const val HW_CARD_BG = "#F7F9FC"
-        private const val HW_GREY = "#828282"
-        private const val HW_LINE = "#E0E0E0"
+
+        // Palette — calm navy brand, warm orange action, soft surfaces.
+        private const val NAVY = "#16263F"
+        private const val NAVY2 = "#2A5083"
+        private const val ORANGE = "#F2994A"
+        private const val GREEN = "#27AE60"
+        private const val BLUE = "#2F80ED"
+        private const val PURPLE = "#9B51E0"
+        private const val DANGER = "#E0563E"
+        private const val BG = "#F2F4F9"
+        private const val CARD = "#FFFFFF"
+        private const val INK = "#1B2A41"
+        private const val INK_SOFT = "#5B6B82"
+        private const val INK_MUTE = "#97A3B4"
+        private const val LINE = "#E6EAF1"
+        private const val HERO_SUB = "#AEC4E6"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("LAUNCHPAD_COMPANION", Context.MODE_PRIVATE)
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 24)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
-
-        content.addView(heading("LAUNCHPAD Companion"))
-        content.addView(spacer(8))
-
         val launcherIp = prefs.getString("launcher_ip", null)
         if (launcherIp != null && launcherIp.isNotBlank()) {
-            content.addView(statusText("Verbunden mit: $launcherIp"))
+            showLoading()
             loadData()
         } else {
-            showPairingScreen(content)
+            showPairingScreen(newScreen())
         }
+
+        if (!prefs.getBoolean("welcomed", false)) showWelcome(0)
     }
 
     override fun onDestroy() {
@@ -128,16 +141,23 @@ class CompanionActivity : AppCompatActivity() {
         scope.cancel()
     }
 
+    // ─────────────────────────── Pairing ───────────────────────────
+
     private fun showPairingScreen(content: LinearLayout) {
-        content.removeAllViews()
-        content.addView(heading("Gerät koppeln"))
-        content.addView(spacer(16))
+        appHeader(content, "Mit Jakes Gerät koppeln")
+
+        content.addView(card().apply {
+            addView(bodyText("So koppelst du in 3 Schritten:", bold = true, color = INK))
+            addView(stepLine("1", "Öffne LAUNCHPAD auf Jakes Gerät"))
+            addView(stepLine("2", "Tippe dort auf „Eltern koppeln“ (Eltern-PIN)"))
+            addView(stepLine("3", "Scanne den angezeigten QR-Code hier"))
+        })
 
         val scanQrLauncher = registerForActivityResult(ScanContract()) { result ->
             if (result.contents != null) handleQrResult(result.contents)
         }
 
-        content.addView(primaryButton("QR-Code scannen") {
+        content.addView(primaryButton("📷  QR-Code scannen") {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED
             ) {
@@ -146,17 +166,12 @@ class CompanionActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1)
             }
         })
-        content.addView(secondaryButton("IP manuell eingeben") { promptForIpFallback() })
-        content.addView(secondaryButton("🧪 Test auf diesem Gerät") {
-            scope.launch { activateTestMode() }
-        })
+        content.addView(secondaryButton("IP-Adresse manuell eingeben") { promptForIpFallback() })
+        content.addView(ghostButton("🧪  Test auf diesem Gerät") { scope.launch { activateTestMode() } })
 
-        content.addView(spacer(32))
-        content.addView(TextView(this).apply {
-            text = "Tipp: Titel lang gedrückt halten → Demo-Modus (kein Gerät nötig)"
-            textSize = 12f
-            setTextColor(Color.parseColor(HW_GREY))
-        })
+        content.addView(spacer(12))
+        content.addView(centerHint("Kein Gerät zur Hand? Tippe oben auf „Hilfe“ für eine Erklärung."))
+        content.addView(ghostButton("❔  Wie funktioniert das?") { showWelcome(0) })
     }
 
     private fun handleQrResult(qrContent: String) {
@@ -190,7 +205,8 @@ class CompanionActivity : AppCompatActivity() {
 
     private fun connectTo(baseUrl: String) {
         prefs.edit().putString("launcher_ip", baseUrl).apply()
-        toast("Verbunden mit $baseUrl ✓")
+        toast("Verbunden ✓")
+        showLoading()
         loadData()
     }
 
@@ -208,8 +224,7 @@ class CompanionActivity : AppCompatActivity() {
         return sessionKeyB64 to encryptedKeyB64
     }
 
-    /** Real-device pairing: hand the launcher our RSA-encrypted session key, store it, then connect.
-     *  After this the launcher only accepts commands carrying this key (Authorization: Bearer …). */
+    /** Real-device pairing: hand the launcher our RSA-encrypted session key, store it, then connect. */
     private fun pairThenConnect(baseUrl: String, publicKeyB64: String) {
         scope.launch {
             val sessionKeyB64 = withContext(Dispatchers.IO) {
@@ -269,7 +284,6 @@ class CompanionActivity : AppCompatActivity() {
             if (posted) {
                 prefs.edit().putString("session_key", sessionKeyB64).apply()
                 connectTo("http://127.0.0.1:$LAUNCHER_PORT")
-                toast("🧪 Test-Modus aktiv — verbunden via 127.0.0.1:$LAUNCHER_PORT")
             } else {
                 toast("⚠️ Session Key abgelehnt (Entschlüsselung fehlgeschlagen)")
             }
@@ -281,11 +295,12 @@ class CompanionActivity : AppCompatActivity() {
 
     private fun promptForIpFallback() {
         val input = EditText(this).apply {
-            hint = "z.B. 192.168.1.100"
+            hint = "z. B. 192.168.1.100"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
         AlertDialog.Builder(this)
-            .setTitle("Gerät-IP eingeben")
+            .setTitle("Geräte-IP eingeben")
+            .setMessage("Die IP siehst du in LAUNCHPAD auf Jakes Gerät, im Kopplungs-Fenster.")
             .setView(input)
             .setPositiveButton("Verbinden") { _, _ ->
                 val ip = input.text.toString().trim()
@@ -294,6 +309,8 @@ class CompanionActivity : AppCompatActivity() {
             .setNegativeButton("Abbrechen", null)
             .show()
     }
+
+    // ─────────────────────────── Home (dashboard) ───────────────────────────
 
     private fun loadData() {
         scope.launch {
@@ -305,127 +322,139 @@ class CompanionActivity : AppCompatActivity() {
                     null
                 }
             }
-
             if (statusJson != null) {
-                val content = LinearLayout(this@CompanionActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(24, 24, 24, 24)
-                }
-                setContentView(ScrollView(this@CompanionActivity).apply { addView(content) })
-
-                content.addView(heading("Geräte-Status"))
-                renderStatus(content, statusJson)
-
-                content.addView(divider())
-                renderGrantTimeSection(content)
-
-                content.addView(divider())
-                content.addView(heading("Ausstehende Anfragen", 18f))
                 val pendingJson = withContext(Dispatchers.IO) {
                     try { fetchApi("/api/pending") } catch (e: Exception) {
-                        Log.e("API", "Pending fetch failed", e)
-                        null
+                        Log.e("API", "Pending fetch failed", e); null
                     }
                 }
-                renderPending(content, pendingJson)
-
-                content.addView(divider())
-                content.addView(heading("Apps verwalten", 18f))
-                val appsJson = withContext(Dispatchers.IO) {
-                    try { fetchApi("/api/apps") } catch (e: Exception) {
-                        Log.e("API", "Apps fetch failed", e)
-                        null
-                    }
-                }
-                renderAppsSection(content, appsJson)
-
-                content.addView(divider())
-                content.addView(heading("Einstellungen", 18f))
-                renderSettingsSection(content)
+                renderHome(statusJson, pendingJson)
             } else {
                 showConnectionError(failure)
             }
         }
     }
 
-    /** Never leave the parent on a blank screen: show why /api/status failed and a way out. */
-    private fun showConnectionError(reason: String?) {
-        val content = LinearLayout(this).apply {
+    private fun renderHome(statusJson: String, pendingJson: String?) {
+        val content = newScreen()
+        appHeader(content, "Übersicht", showHelp = true)
+        renderStatusHero(content, statusJson)
+        renderGiveTime(content)
+        renderRequests(content, pendingJson)
+
+        content.addView(spacer(4))
+        content.addView(navButton("📱  Apps verwalten", "Erlaubte Apps & Tageslimits") { openAppsScreen() })
+        content.addView(navButton("⚙️  Einstellungen", "Sichern, übertragen, neu koppeln") { openSettingsScreen() })
+        content.addView(spacer(4))
+        content.addView(ghostButton("🔄  Aktualisieren") { showLoading(); loadData() })
+    }
+
+    private fun renderStatusHero(content: LinearLayout, statusJson: String) {
+        val json = try { JSONObject(statusJson) } catch (e: Exception) { JSONObject() }
+        val balance = json.optInt("balance", 0)
+        val enforcement = json.optBoolean("enforcement", false)
+        val cooldown = json.optBoolean("cooldown", false)
+        val schoolMode = json.optBoolean("schoolMode", false)
+        val schoolUntil = json.optLong("schoolUntil", 0L)
+
+        val hero = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 24)
+            setPadding(dp(20), dp(18), dp(20), dp(18))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.parseColor(NAVY2), Color.parseColor(NAVY))
+            ).apply { cornerRadius = dpf(20f) }
+            layoutParams = lp(mp, wc, top = 8, bottom = 12)
+            elevation = dpf(3f)
         }
-        setContentView(ScrollView(this).apply { addView(content) })
+        hero.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(this@CompanionActivity).apply {
+                text = "Verfügbare Zeit heute"
+                textSize = 13f
+                setTextColor(Color.parseColor(HERO_SUB))
+                layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+            })
+            addView(infoBadge(HERO_SUB) {
+                infoDialog("Guthaben", "So viele Minuten darf Jake heute noch spielen/nutzen. " +
+                    "Es zählt herunter, während er erlaubte Apps benutzt. Mit „Zeit geben“ kannst du " +
+                    "Bonus-Minuten schenken.")
+            })
+        })
+        hero.addView(TextView(this).apply {
+            text = "$balance Min"
+            textSize = 44f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            setPadding(0, dp(2), 0, dp(2))
+        })
 
-        content.addView(heading("LAUNCHPAD Companion"))
-        content.addView(statusText("Verbunden mit: ${prefs.getString("launcher_ip", "—")}"))
-        content.addView(divider())
-        content.addView(heading("Verbindung fehlgeschlagen", 18f))
+        val chips = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(8), 0, 0)
+        }
+        chips.addView(statusChip(if (enforcement) "Kontrolle aktiv" else "Kontrolle aus", if (enforcement) GREEN else INK_MUTE))
+        if (cooldown) chips.addView(statusChip("🌙 Ruhezeit", BLUE))
+        if (schoolMode) {
+            val mins = ((schoolUntil - System.currentTimeMillis()) / 60000L).coerceAtLeast(0)
+            chips.addView(statusChip(if (schoolUntil == Long.MAX_VALUE) "📚 Schule" else "📚 Schule $mins′", PURPLE))
+        }
+        hero.addView(chips)
+        content.addView(hero)
 
-        val unauthorized = reason?.contains("401") == true || reason?.contains("403") == true
-        content.addView(statusText(
-            if (unauthorized) {
-                "Nicht autorisiert (401). Die Kopplung ist abgelaufen oder das Gerät wurde neu " +
-                    "eingerichtet — bitte erneut koppeln."
-            } else {
-                "Status konnte nicht geladen werden:\n${reason ?: "Keine Antwort vom Gerät"}\n\n" +
-                    "Ist das LAUNCHPAD-Gerät eingeschaltet und im selben WLAN?"
-            }
-        ))
-
-        content.addView(primaryButton("🔄 Erneut versuchen") { loadData() })
         content.addView(
-            if (unauthorized) {
-                primaryButton("📷 Neu koppeln") { resetToPairing() }
+            if (schoolMode) {
+                secondaryButton("Schulmodus beenden") {
+                    confirm("Schulmodus beenden?", "Jake kann dann wieder normal Apps nutzen.") {
+                        sendCommand("""{"type":"set_school_mode","on":false}""")
+                    }
+                }
             } else {
-                secondaryButton("Neu koppeln") { resetToPairing() }
+                rowWithInfo(
+                    ghostButton("📚  Schulmodus 60 Min starten") {
+                        confirm("Schulmodus starten?", "Für 60 Minuten sind nur Lern-Apps erlaubt — gut für Hausaufgaben.") {
+                            sendCommand("""{"type":"set_school_mode","on":true,"minutes":60}""")
+                        }
+                    },
+                    "Schulmodus", "Sperrt für eine Weile Spiele & Unterhaltung und lässt nur Lern-Apps zu."
+                )
             }
         )
     }
 
-    /** Clear the saved device + key and re-run onCreate, which lands on the pairing screen.
-     *  recreate() keeps QR registration in onCreate (before STARTED), avoiding a late-register crash. */
-    private fun resetToPairing() {
-        prefs.edit().remove("launcher_ip").remove("session_key").apply()
-        recreate()
-    }
-
-    private fun renderStatus(content: LinearLayout, statusJson: String) {
-        try {
-            val json = JSONObject(statusJson)
-            val balance = json.optInt("balance", 0)
-            val enforcement = json.optBoolean("enforcement", false)
-            val cooldown = json.optBoolean("cooldown", false)
-            val schoolMode = json.optBoolean("schoolMode", false)
-            val schoolUntil = json.optLong("schoolUntil", 0L)
-            content.addView(statusText("Guthaben: $balance Min"))
-            content.addView(statusText("Kontrolle aktiv: ${if (enforcement) "ja" else "nein"}"))
-            content.addView(statusText("Ruhezeit aktiv: ${if (cooldown) "ja" else "nein"}"))
-            content.addView(statusText("Schulmodus: " + if (schoolMode) {
-                val mins = ((schoolUntil - System.currentTimeMillis()) / 60000L).coerceAtLeast(0)
-                if (schoolUntil == Long.MAX_VALUE) "an 📚" else "an 📚 (noch $mins Min)"
-            } else "aus"))
-            content.addView(
-                if (schoolMode) {
-                    secondaryButton("Schulmodus beenden") {
-                        sendCommand("""{"type":"set_school_mode","on":false}""")
+    private fun renderGiveTime(content: LinearLayout) {
+        content.addView(card().apply {
+            addView(sectionTitleRow("Zeit geben", "Zeit geben",
+                "Schenke Jake Bonus-Minuten (z. B. als Belohnung). Minus zieht Zeit ab — nie unter 0."))
+            val row = LinearLayout(this@CompanionActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = lp(mp, wc, top = 4)
+            }
+            listOf(15, 30, 60).forEachIndexed { i, m ->
+                row.addView(primaryButton("+$m") {
+                    sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
+                }.apply {
+                    layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply {
+                        setMargins(if (i == 0) 0 else dp(4), 0, if (i == 2) 0 else dp(4), 0)
                     }
-                } else {
-                    primaryButton("📚 Schulmodus 60 Min") {
-                        sendCommand("""{"type":"set_school_mode","on":true,"minutes":60}""")
-                    }
-                }
-            )
-        } catch (e: Exception) {
-            Log.e("API", "Status parse failed", e)
-            content.addView(statusText("Status: OK"))
-        }
+                })
+            }
+            addView(row)
+            addView(ghostButton("Andere Minutenzahl…") { showGrantTimeDialog() })
+        })
     }
 
     @Suppress("NestedBlockDepth")
-    private fun renderPending(content: LinearLayout, pendingJson: String?) {
+    private fun renderRequests(content: LinearLayout, pendingJson: String?) {
+        val cardView = card()
+        cardView.addView(sectionTitleRow("Anfragen", "Anfragen",
+            "Wenn Jake etwas möchte (Video, neue App, eine Zusage einlösen), erscheint es hier. " +
+                "Du erlaubst oder lehnst mit einem Tipp ab."))
+
         if (pendingJson == null) {
-            content.addView(statusText("Anfragen konnten nicht geladen werden"))
-            return
+            cardView.addView(bodyText("Anfragen konnten nicht geladen werden.", color = INK_MUTE))
+            content.addView(cardView); return
         }
         try {
             val json = JSONObject(pendingJson)
@@ -433,61 +462,77 @@ class CompanionActivity : AppCompatActivity() {
             val zusagen = json.optJSONArray("zusagen") ?: JSONArray()
             val newApps = json.optJSONArray("pendingApps") ?: JSONArray()
             if (doge.length() == 0 && zusagen.length() == 0 && newApps.length() == 0) {
-                content.addView(statusText("Keine ausstehenden Anfragen"))
-                return
+                cardView.addView(emptyState("🎉", "Keine offenen Anfragen", "Alles erledigt!"))
+                content.addView(cardView); return
             }
             for (i in 0 until newApps.length()) {
                 val item = newApps.getJSONObject(i)
                 val pkg = item.optString("packageName")
                 val name = item.optString("displayName", pkg)
-                content.addView(
-                    renderApprovalItem("📦 Neue App: $name", pkg,
-                        """{"type":"allow_new_app","package":"$pkg"}""",
-                        """{"type":"dismiss_new_app","package":"$pkg"}""")
-                )
+                cardView.addView(approvalItem("📦 Neue App: $name", pkg,
+                    """{"type":"allow_new_app","package":"$pkg"}""",
+                    """{"type":"dismiss_new_app","package":"$pkg"}"""))
             }
             for (i in 0 until doge.length()) {
                 val item = doge.getJSONObject(i)
                 val id = item.optString("id")
                 val desc = item.optString("description", "Medien-Anfrage")
-                content.addView(renderDogeApprovalItem("📺 Medien-Anfrage", desc, id))
+                cardView.addView(dogeApprovalItem("📺 Medien-Anfrage", desc, id))
             }
             for (i in 0 until zusagen.length()) {
                 val item = zusagen.getJSONObject(i)
                 val id = item.optString("id")
                 val text = item.optString("text", "Zusage")
-                content.addView(
-                    renderApprovalItem("🤝 Zusage", text,
-                        """{"type":"approve_zusage","id":"$id"}""",
-                        """{"type":"deny_zusage","id":"$id"}""")
-                )
+                cardView.addView(approvalItem("🤝 Zusage", text,
+                    """{"type":"approve_zusage","id":"$id"}""",
+                    """{"type":"deny_zusage","id":"$id"}"""))
             }
         } catch (e: Exception) {
             Log.e("API", "Pending parse failed", e)
-            content.addView(statusText("Keine ausstehenden Anfragen"))
+            cardView.addView(emptyState("🎉", "Keine offenen Anfragen", "Alles erledigt!"))
+        }
+        content.addView(cardView)
+    }
+
+    // ─────────────────────────── Apps screen ───────────────────────────
+
+    private fun openAppsScreen() {
+        showLoading()
+        scope.launch {
+            val appsJson = withContext(Dispatchers.IO) {
+                try { fetchApi("/api/apps") } catch (e: Exception) {
+                    Log.e("API", "Apps fetch failed", e); null
+                }
+            }
+            val content = newScreen()
+            backHeader("Apps verwalten") { showLoading(); loadData() }
+                .also { content.addView(it) }
+            content.addView(card().apply {
+                addView(bodyText("Hier legst du fest, welche Apps Jake öffnen darf und wie lange pro Tag.",
+                    color = INK_SOFT))
+            })
+            renderAppsList(content, appsJson)
         }
     }
 
     @Suppress("NestedBlockDepth")
-    private fun renderAppsSection(content: LinearLayout, appsJson: String?) {
+    private fun renderAppsList(content: LinearLayout, appsJson: String?) {
         if (appsJson == null) {
-            content.addView(statusText("Apps konnten nicht geladen werden"))
+            content.addView(card().apply { addView(bodyText("Apps konnten nicht geladen werden.", color = INK_MUTE)) })
             return
         }
         try {
             val json = JSONObject(appsJson)
             val apps = json.optJSONArray("apps") ?: JSONArray()
             if (apps.length() == 0) {
-                content.addView(statusText("Keine Apps in der Whitelist"))
+                content.addView(card().apply { addView(emptyState("📭", "Keine Apps freigegeben", "Noch nichts auf der Liste.")) })
                 return
             }
-            content.addView(statusText("${apps.length()} Apps in der Whitelist"))
-            for (i in 0 until apps.length()) {
-                content.addView(renderAppCard(apps.getJSONObject(i)))
-            }
+            content.addView(sectionLabel("${apps.length()} Apps freigegeben"))
+            for (i in 0 until apps.length()) content.addView(renderAppCard(apps.getJSONObject(i)))
         } catch (e: Exception) {
             Log.e("API", "Apps parse failed", e)
-            content.addView(statusText("Fehler beim Laden der Apps"))
+            content.addView(card().apply { addView(bodyText("Fehler beim Laden der Apps.", color = INK_MUTE)) })
         }
     }
 
@@ -503,52 +548,43 @@ class CompanionActivity : AppCompatActivity() {
         return card().apply {
             addView(LinearLayout(this@CompanionActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-
+                gravity = Gravity.CENTER_VERTICAL
                 addView(TextView(this@CompanionActivity).apply {
                     text = displayName
-                    textSize = 15f
+                    textSize = 16f
                     setTypeface(null, Typeface.BOLD)
-                    setTextColor(Color.parseColor(HW_NAVY))
-                    layoutParams = LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    setTextColor(Color.parseColor(INK))
+                    layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
                 })
                 addView(categoryBadge(category))
-            })
-
-            addView(TextView(this@CompanionActivity).apply {
-                text = pkg
-                textSize = 11f
-                setTextColor(Color.parseColor(HW_GREY))
-                setPadding(0, 2, 0, 0)
             })
             addView(TextView(this@CompanionActivity).apply {
                 text = "Hinzugefügt ${relativeTime(addedAt)} · von $addedBy"
                 textSize = 11f
-                setTextColor(Color.parseColor(HW_GREY))
-                setPadding(0, 2, 0, 8)
+                setTextColor(Color.parseColor(INK_MUTE))
+                setPadding(0, dp(2), 0, dp(10))
             })
 
-            // Time limit row
             val limitField = EditText(this@CompanionActivity).apply {
                 inputType = android.text.InputType.TYPE_CLASS_NUMBER
                 setText(if (dailyMinutes > 0) dailyMinutes.toString() else "0")
-                textSize = 15f
-                gravity = android.view.Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(100,
-                    LinearLayout.LayoutParams.WRAP_CONTENT)
+                textSize = 16f
+                gravity = Gravity.CENTER
+                setTextColor(Color.parseColor(INK))
+                layoutParams = LinearLayout.LayoutParams(dp(56), wc)
             }
-            val limitRow = LinearLayout(this@CompanionActivity).apply {
+            addView(LinearLayout(this@CompanionActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = 8 }
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = lp(wc, wc, bottom = 10)
                 addView(TextView(this@CompanionActivity).apply {
-                    text = "Tageslimit: "
-                    textSize = 13f
-                    setTextColor(Color.parseColor(HW_NAVY))
+                    text = "Tageslimit "
+                    textSize = 14f
+                    setTextColor(Color.parseColor(INK_SOFT))
+                })
+                addView(infoBadge(INK_MUTE) {
+                    infoDialog("Tageslimit", "Wie viele Minuten diese App pro Tag laufen darf. " +
+                        "0 bedeutet: kein eigenes Limit (zählt aufs allgemeine Guthaben).")
                 })
                 addView(compactButton("−") {
                     val v = limitField.text.toString().toIntOrNull() ?: 0
@@ -560,141 +596,102 @@ class CompanionActivity : AppCompatActivity() {
                     limitField.setText((v + 5).toString())
                 })
                 addView(TextView(this@CompanionActivity).apply {
-                    text = " Min/Tag"
-                    textSize = 13f
-                    setTextColor(Color.parseColor(HW_GREY))
-                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    text = " Min"
+                    textSize = 14f
+                    setTextColor(Color.parseColor(INK_MUTE))
                 })
-            }
-            addView(limitRow)
+            })
 
-            // Action row
             addView(LinearLayout(this@CompanionActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
-
-                addView(secondaryButton(if (enabled) "Deaktivieren" else "Aktivieren") {
+                addView(secondaryButton(if (enabled) "Pausieren" else "Aktivieren") {
                     val newEnabled = !enabled
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             try {
-                                fetchApi("/api/apps/toggle", "POST",
-                                    """{"packageName":"$pkg","enabled":$newEnabled}""")
+                                fetchApi("/api/apps/toggle", "POST", """{"packageName":"$pkg","enabled":$newEnabled}""")
                             } catch (e: Exception) { null }
                         }
-                        loadData()
+                        openAppsScreen()
                     }
-                }.apply {
-                    layoutParams = LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                    ).apply { setMargins(0, 0, 4, 0) }
-                })
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(0, 0, dp(4), 0) } })
 
-                addView(primaryButton("Setzen") {
+                addView(primaryButton("Limit setzen") {
                     val mins = limitField.text.toString().toIntOrNull() ?: 0
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             try {
-                                fetchApi("/api/limits", "POST",
-                                    """{"packageName":"$pkg","dailyMinutes":$mins}""")
+                                fetchApi("/api/limits", "POST", """{"packageName":"$pkg","dailyMinutes":$mins}""")
                             } catch (e: Exception) { null }
                         }
-                        toast(if (mins > 0) "Limit auf $mins Min/Tag gesetzt" else "Limit entfernt")
+                        toast(if (mins > 0) "Limit: $mins Min/Tag ✓" else "Limit entfernt")
                     }
-                }.apply {
-                    layoutParams = LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                    ).apply { setMargins(4, 0, 4, 0) }
-                })
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(dp(4), 0, dp(4), 0) } })
 
                 addView(dangerButton("Entfernen") {
-                    AlertDialog.Builder(this@CompanionActivity)
-                        .setTitle("App entfernen?")
-                        .setMessage("$displayName wird aus der Whitelist entfernt. Jake kann sie nicht mehr starten.")
-                        .setPositiveButton("Entfernen") { _, _ ->
-                            scope.launch {
-                                withContext(Dispatchers.IO) {
-                                    try {
-                                        fetchApi("/api/apps/remove", "POST",
-                                            """{"packageName":"$pkg"}""")
-                                    } catch (e: Exception) { null }
-                                }
-                                loadData()
+                    confirm("App entfernen?", "$displayName wird aus der Liste entfernt. Jake kann sie dann nicht mehr starten.") {
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                try { fetchApi("/api/apps/remove", "POST", """{"packageName":"$pkg"}""") }
+                                catch (e: Exception) { null }
                             }
+                            openAppsScreen()
                         }
-                        .setNegativeButton("Abbrechen", null)
-                        .show()
-                }.apply {
-                    layoutParams = LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                    ).apply { setMargins(4, 0, 0, 0) }
-                })
+                    }
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(dp(4), 0, 0, 0) } })
             })
         }
     }
 
-    private fun renderSettingsSection(content: LinearLayout) {
-        val exportRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        exportRow.addView(primaryButton("📤 Exportieren") {
-            scope.launch {
-                val json = withContext(Dispatchers.IO) {
-                    try { fetchApi("/api/export") } catch (e: Exception) { null }
-                }
-                if (json != null) {
-                    showExportDialog(json)
-                } else {
-                    toast("Export fehlgeschlagen")
-                }
-            }
-        }.apply {
-            layoutParams = LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            ).apply { setMargins(0, 0, 4, 0) }
-        })
-        exportRow.addView(secondaryButton("📥 Importieren") {
-            showImportDialog()
-        }.apply {
-            layoutParams = LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            ).apply { setMargins(4, 0, 0, 0) }
-        })
-        content.addView(exportRow)
+    // ─────────────────────────── Settings screen ───────────────────────────
 
-        content.addView(spacer(8))
-        content.addView(primaryButton("🔄 Neu laden") { loadData() })
-        content.addView(secondaryButton("Zurück zur Kopplung") {
-            prefs.edit().remove("launcher_ip").remove("session_key").apply()
-            val newContent = LinearLayout(this@CompanionActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(24, 24, 24, 24)
-            }
-            setContentView(ScrollView(this@CompanionActivity).apply { addView(newContent) })
-            showPairingScreen(newContent)
+    private fun openSettingsScreen() {
+        val content = newScreen()
+        content.addView(backHeader("Einstellungen") { showLoading(); loadData() })
+
+        content.addView(card().apply {
+            addView(sectionTitleRow("Sichern & übertragen", "Sichern & übertragen",
+                "Exportiere alle Apps & Limits als Text — z. B. um sie auf ein neues Gerät zu übertragen oder als Backup zu speichern."))
+            addView(LinearLayout(this@CompanionActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = lp(mp, wc, top = 4)
+                addView(primaryButton("📤 Exportieren") {
+                    scope.launch {
+                        val json = withContext(Dispatchers.IO) { try { fetchApi("/api/export") } catch (e: Exception) { null } }
+                        if (json != null) showExportDialog(json) else toast("Export fehlgeschlagen")
+                    }
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(0, 0, dp(4), 0) } })
+                addView(secondaryButton("📥 Importieren") { showImportDialog() }
+                    .apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(dp(4), 0, 0, 0) } })
+            })
         })
+
+        content.addView(card().apply {
+            addView(bodyText("Verbunden mit", color = INK_MUTE, size = 12f))
+            addView(bodyText(prefs.getString("launcher_ip", "—") ?: "—", bold = true, color = INK))
+            addView(secondaryButton("Anderes Gerät koppeln") {
+                confirm("Neu koppeln?", "Die aktuelle Verbindung wird getrennt und du scannst einen neuen QR-Code.") { resetToPairing() }
+            })
+        })
+
+        content.addView(ghostButton("❔  Hilfe & Erklärung") { showWelcome(0) })
     }
 
     private fun showExportDialog(json: String) {
         val formatted = try { JSONObject(json).toString(2) } catch (e: Exception) { json }
-        val scrollView = ScrollView(this)
         val textView = TextView(this).apply {
             text = formatted
-            textSize = 11f
-            setTextColor(Color.parseColor(HW_NAVY))
-            setPadding(24, 16, 24, 16)
+            textSize = 12f
+            setTextColor(Color.parseColor(INK))
+            setPadding(dp(20), dp(12), dp(20), dp(12))
             setTypeface(Typeface.MONOSPACE)
         }
-        scrollView.addView(textView)
         AlertDialog.Builder(this)
             .setTitle("Export-Daten")
-            .setView(scrollView)
-            .setPositiveButton("In Zwischenablage kopieren") { _, _ ->
-                val clipboard = getSystemService(ClipboardManager::class.java)
-                clipboard.setPrimaryClip(ClipData.newPlainText("LAUNCHPAD Export", formatted))
+            .setView(ScrollView(this).apply { addView(textView) })
+            .setPositiveButton("Kopieren") { _, _ ->
+                getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText("LAUNCHPAD Export", formatted))
                 toast("In Zwischenablage kopiert")
             }
             .setNegativeButton("Schließen", null)
@@ -704,64 +701,32 @@ class CompanionActivity : AppCompatActivity() {
     private fun showImportDialog() {
         val input = EditText(this).apply {
             hint = "JSON hier einfügen…"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
             minLines = 4
         }
         AlertDialog.Builder(this)
             .setTitle("Einstellungen importieren")
-            .setMessage("Füge den Export-JSON ein. Alle bestehenden Apps und Limits werden ersetzt.")
+            .setMessage("Füge den Export-Text ein. Alle bestehenden Apps und Limits werden ersetzt.")
             .setView(input)
             .setPositiveButton("Importieren") { _, _ ->
                 val body = input.text.toString().trim()
-                if (body.isBlank()) {
-                    toast("Kein JSON eingefügt")
-                    return@setPositiveButton
-                }
+                if (body.isBlank()) { toast("Kein JSON eingefügt"); return@setPositiveButton }
                 scope.launch {
-                    val result = withContext(Dispatchers.IO) {
-                        try { fetchApi("/api/import", "POST", body) } catch (e: Exception) { null }
-                    }
+                    val result = withContext(Dispatchers.IO) { try { fetchApi("/api/import", "POST", body) } catch (e: Exception) { null } }
                     if (result != null) {
-                        val msg = try { JSONObject(result).optString("message", "Import OK") }
-                        catch (e: Exception) { "Import OK" }
-                        toast(msg)
-                        loadData()
-                    } else {
-                        toast("Import fehlgeschlagen")
-                    }
+                        val msg = try { JSONObject(result).optString("message", "Import OK") } catch (e: Exception) { "Import OK" }
+                        toast(msg); showLoading(); loadData()
+                    } else toast("Import fehlgeschlagen")
                 }
             }
             .setNegativeButton("Abbrechen", null)
             .show()
     }
 
-    private fun renderGrantTimeSection(content: LinearLayout) {
-        content.addView(heading("Zeit geben", 18f))
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        listOf(15, 30, 60).forEachIndexed { i, m ->
-            row.addView(primaryButton("+$m Min") {
-                sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
-            }.apply {
-                layoutParams = LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                ).apply { setMargins(if (i == 0) 0 else 4, 0, if (i == 2) 0 else 4, 0) }
-            })
-        }
-        content.addView(row)
-        content.addView(secondaryButton("Eigene Minuten…") { showGrantTimeDialog() })
-    }
-
     private fun showGrantTimeDialog() {
         val input = EditText(this).apply {
             hint = "Minuten (z. B. 20, auch −10)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
         }
         AlertDialog.Builder(this)
             .setTitle("Zeit geben")
@@ -769,46 +734,31 @@ class CompanionActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton("Geben") { _, _ ->
                 val m = input.text.toString().toIntOrNull()
-                if (m == null || m == 0) {
-                    toast("Ungültige Minutenzahl")
-                    return@setPositiveButton
-                }
+                if (m == null || m == 0) { toast("Ungültige Minutenzahl"); return@setPositiveButton }
                 sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
             }
             .setNegativeButton("Abbrechen", null)
             .show()
     }
 
-    private fun renderDogeApprovalItem(title: String, subtitle: String, id: String): LinearLayout {
-        return card().apply {
-            addView(TextView(this@CompanionActivity).apply {
-                text = title
-                textSize = 16f
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(Color.parseColor(HW_NAVY))
-            })
-            addView(TextView(this@CompanionActivity).apply {
-                text = subtitle
-                textSize = 14f
-                setTextColor(Color.parseColor(HW_GREY))
-                setPadding(0, 4, 0, 8)
-            })
+    // ─────────────────────────── Approval items ───────────────────────────
 
+    private fun dogeApprovalItem(title: String, subtitle: String, id: String): LinearLayout {
+        return innerCard().apply {
+            addView(bodyText(title, bold = true, color = INK, size = 15f))
+            addView(bodyText(subtitle, color = INK_SOFT, size = 13f))
             val minutesField = EditText(this@CompanionActivity).apply {
                 inputType = android.text.InputType.TYPE_CLASS_NUMBER
                 setText("20")
-                textSize = 18f
-                gravity = android.view.Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(120,
-                    LinearLayout.LayoutParams.WRAP_CONTENT)
+                textSize = 16f
+                gravity = Gravity.CENTER
+                setTextColor(Color.parseColor(INK))
+                layoutParams = LinearLayout.LayoutParams(dp(64), wc)
             }
-            val minutesRow = LinearLayout(this@CompanionActivity).apply {
+            addView(LinearLayout(this@CompanionActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = 8 }
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = lp(wc, wc, top = 6, bottom = 6)
                 addView(compactButton("−") {
                     val v = minutesField.text.toString().toIntOrNull() ?: 20
                     if (v > 5) minutesField.setText((v - 5).toString())
@@ -819,68 +769,100 @@ class CompanionActivity : AppCompatActivity() {
                     minutesField.setText((v + 5).toString())
                 })
                 addView(TextView(this@CompanionActivity).apply {
-                    text = " Min."
-                    textSize = 14f
-                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    text = " Min."; textSize = 14f; setTextColor(Color.parseColor(INK_MUTE))
                 })
-            }
-            addView(minutesRow)
-            addView(primaryButton("✓ Genehmigen") {
-                val mins = minutesField.text.toString().toIntOrNull() ?: 20
-                sendCommand("""{"type":"approve_doge","id":"$id","minutes":$mins}""")
             })
-            addView(dangerButton("✗ Ablehnen") {
-                sendCommand("""{"type":"deny_doge","id":"$id"}""")
+            addView(LinearLayout(this@CompanionActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(primaryButton("✓ Genehmigen") {
+                    val mins = minutesField.text.toString().toIntOrNull() ?: 20
+                    sendCommand("""{"type":"approve_doge","id":"$id","minutes":$mins}""")
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(0, 0, dp(4), 0) } })
+                addView(dangerButton("✗ Ablehnen") {
+                    sendCommand("""{"type":"deny_doge","id":"$id"}""")
+                }.apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(dp(4), 0, 0, 0) } })
             })
         }
     }
 
-    private fun renderApprovalItem(
-        title: String,
-        subtitle: String,
-        approveJson: String,
-        denyJson: String
-    ): LinearLayout {
-        return card().apply {
-            addView(TextView(this@CompanionActivity).apply {
-                text = title
-                textSize = 16f
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(Color.parseColor(HW_NAVY))
+    private fun approvalItem(title: String, subtitle: String, approveJson: String, denyJson: String): LinearLayout {
+        return innerCard().apply {
+            addView(bodyText(title, bold = true, color = INK, size = 15f))
+            addView(bodyText(subtitle, color = INK_SOFT, size = 13f))
+            addView(LinearLayout(this@CompanionActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = lp(mp, wc, top = 8)
+                addView(primaryButton("✓ Genehmigen") { sendCommand(approveJson) }
+                    .apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(0, 0, dp(4), 0) } })
+                addView(dangerButton("✗ Ablehnen") { sendCommand(denyJson) }
+                    .apply { layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply { setMargins(dp(4), 0, 0, 0) } })
             })
-            addView(TextView(this@CompanionActivity).apply {
-                text = subtitle
-                textSize = 14f
-                setTextColor(Color.parseColor(HW_GREY))
-                setPadding(0, 4, 0, 8)
-            })
-            addView(primaryButton("✓ Genehmigen") { sendCommand(approveJson) })
-            addView(dangerButton("✗ Ablehnen") { sendCommand(denyJson) })
         }
+    }
+
+    // ─────────────────────────── Error / loading ───────────────────────────
+
+    private fun showLoading() {
+        val content = newScreen()
+        appHeader(content, "Verbinde…")
+        content.addView(spacer(40))
+        content.addView(TextView(this).apply {
+            text = "⏳"; textSize = 40f; gravity = Gravity.CENTER; layoutParams = lp(mp, wc)
+        })
+        content.addView(centerHint("Verbinde mit Jakes Gerät…"))
+    }
+
+    /** Never leave the parent on a blank screen: show why /api/status failed and a way out. */
+    private fun showConnectionError(reason: String?) {
+        val content = newScreen()
+        appHeader(content, "Verbindung")
+        val unauthorized = reason?.contains("401") == true || reason?.contains("403") == true
+        content.addView(card().apply {
+            addView(TextView(this@CompanionActivity).apply {
+                text = if (unauthorized) "🔑" else "📡"; textSize = 36f; gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = lp(mp, wc)
+            })
+            addView(bodyText(if (unauthorized) "Neu koppeln nötig" else "Keine Verbindung",
+                bold = true, color = INK, size = 18f).apply { gravity = Gravity.CENTER_HORIZONTAL })
+            addView(TextView(this@CompanionActivity).apply {
+                text = if (unauthorized) {
+                    "Die Kopplung ist abgelaufen oder Jakes Gerät wurde neu eingerichtet. " +
+                        "Bitte kopple einmal neu — danach läuft alles wieder."
+                } else {
+                    "Jakes Gerät antwortet nicht. Ist es eingeschaltet und im selben WLAN?\n\n($reason)"
+                }
+                textSize = 14f
+                setTextColor(Color.parseColor(INK_SOFT))
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(4), dp(8), dp(4), dp(12))
+            })
+            addView(primaryButton("🔄 Erneut versuchen") { showLoading(); loadData() })
+            addView(
+                if (unauthorized) primaryButton("📷 Neu koppeln") { resetToPairing() }
+                else secondaryButton("Neu koppeln") { resetToPairing() }
+            )
+        })
+    }
+
+    /** Clear the saved device + key and re-run onCreate, which lands on the pairing screen. */
+    private fun resetToPairing() {
+        prefs.edit().remove("launcher_ip").remove("session_key").apply()
+        recreate()
     }
 
     private fun sendCommand(commandJson: String) {
         scope.launch {
             val response = withContext(Dispatchers.IO) {
                 try { fetchApi("/api/command", method = "POST", body = commandJson) }
-                catch (e: Exception) {
-                    Log.e("API", "Command failed", e)
-                    null
-                }
+                catch (e: Exception) { Log.e("API", "Command failed", e); null }
             }
             val message = if (response != null) {
-                try { JSONObject(response).optString("message", "OK") } catch (e: Exception) { "OK" }
-            } else {
-                "Befehl fehlgeschlagen"
-            }
+                try { JSONObject(response).optString("message", "OK ✓") } catch (e: Exception) { "OK ✓" }
+            } else "Befehl fehlgeschlagen"
             toast(message)
-            loadData()
+            showLoading(); loadData()
         }
     }
-
-    /** Carries the HTTP status so the UI can react (e.g. 401 → re-pair) instead of failing silently. */
-    private class ApiHttpException(val code: Int, val bodyText: String) :
-        java.io.IOException("HTTP $code" + if (bodyText.isNotBlank()) ": ${bodyText.take(160)}" else "")
 
     private fun fetchApi(path: String, method: String = "GET", body: String = ""): String {
         val base = prefs.getString("launcher_ip", null)
@@ -890,11 +872,8 @@ class CompanionActivity : AppCompatActivity() {
         connection.connectTimeout = 5000
         connection.readTimeout = 5000
 
-        // Authenticate with the paired session key, if we have one.
         val token = prefs.getString("session_key", null)
-        if (!token.isNullOrBlank()) {
-            connection.setRequestProperty("Authorization", "Bearer $token")
-        }
+        if (!token.isNullOrBlank()) connection.setRequestProperty("Authorization", "Bearer $token")
 
         if (method == "POST" && body.isNotBlank()) {
             connection.doOutput = true
@@ -907,140 +886,309 @@ class CompanionActivity : AppCompatActivity() {
         if (code !in 200..299) {
             val errBody = try {
                 connection.errorStream?.bufferedReader()?.use { it.readText() }
-            } catch (e: Exception) {
-                null
-            }
+            } catch (e: Exception) { null }
             throw ApiHttpException(code, errBody.orEmpty())
         }
         return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
-    // ─── Layout helpers ───────────────────────────────────────────────────────
+    /** Carries the HTTP status so the UI can react (e.g. 401 → re-pair) instead of failing silently. */
+    private class ApiHttpException(val code: Int, val bodyText: String) :
+        java.io.IOException("HTTP $code" + if (bodyText.isNotBlank()) ": ${bodyText.take(160)}" else "")
 
-    private fun heading(text: String, size: Float = 20f) = TextView(this).apply {
-        this.text = text
-        textSize = size
-        setTypeface(null, Typeface.BOLD)
-        setTextColor(Color.parseColor(HW_NAVY))
-        setPadding(0, 12, 0, 8)
-    }
+    // ─────────────────────────── Welcome wizard ───────────────────────────
 
-    private fun statusText(text: String) = TextView(this).apply {
-        this.text = text
-        textSize = 14f
-        setTextColor(Color.parseColor(HW_GREY))
-        setPadding(0, 6, 0, 6)
-    }
+    private val welcomeSteps = listOf(
+        Triple("👋", "Willkommen!", "Hier steuerst du die Bildschirmzeit auf Jakes Gerät — bequem von deinem eigenen Handy aus."),
+        Triple("⏱️", "Guthaben & Zeit", "Ganz oben siehst du, wie viele Minuten Jake heute noch hat. Mit „Zeit geben“ schenkst du Bonus-Minuten."),
+        Triple("📨", "Anfragen", "Wenn Jake etwas möchte (z. B. ein Video), erscheint hier eine Anfrage. Ein Tipp genügt zum Erlauben oder Ablehnen."),
+        Triple("📱", "Apps", "Unter „Apps verwalten“ legst du fest, welche Apps erlaubt sind und wie lange sie pro Tag laufen dürfen.")
+    )
 
-    private fun divider() = android.view.View(this).apply {
-        setBackgroundColor(Color.parseColor(HW_LINE))
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 1
-        ).apply { setMargins(0, 16, 0, 16) }
-    }
-
-    private fun card() = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(16, 16, 16, 12)
-        background = GradientDrawable().apply {
-            setColor(Color.parseColor(HW_CARD_BG))
-            cornerRadius = 8f
+    private fun showWelcome(step: Int) {
+        if (step >= welcomeSteps.size) { prefs.edit().putBoolean("welcomed", true).apply(); return }
+        val (emoji, title, bodyTxt) = welcomeSteps[step]
+        val view = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(20), dp(24), dp(8))
+            addView(TextView(this@CompanionActivity).apply {
+                text = emoji; textSize = 44f; gravity = Gravity.CENTER_HORIZONTAL; layoutParams = lp(mp, wc)
+            })
+            addView(TextView(this@CompanionActivity).apply {
+                text = title; textSize = 20f; setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor(INK)); gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = lp(mp, wc, top = 10, bottom = 6)
+            })
+            addView(TextView(this@CompanionActivity).apply {
+                text = bodyTxt; textSize = 15f; setTextColor(Color.parseColor(INK_SOFT)); gravity = Gravity.CENTER_HORIZONTAL
+            })
+            addView(TextView(this@CompanionActivity).apply {
+                text = "Schritt ${step + 1} von ${welcomeSteps.size}"; textSize = 12f
+                setTextColor(Color.parseColor(INK_MUTE)); gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = lp(mp, wc, top = 14)
+            })
         }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 8, 0, 8) }
-        elevation = 2f
+        val last = step == welcomeSteps.size - 1
+        val builder = AlertDialog.Builder(this)
+            .setView(view)
+            .setPositiveButton(if (last) "Los geht's" else "Weiter ▸") { _, _ -> showWelcome(step + 1) }
+            .setCancelable(false)
+        if (!last) builder.setNegativeButton("Überspringen") { _, _ -> prefs.edit().putBoolean("welcomed", true).apply() }
+        builder.show()
+    }
+
+    private fun infoDialog(title: String, body: String) {
+        AlertDialog.Builder(this).setTitle(title).setMessage(body).setPositiveButton("Verstanden", null).show()
+    }
+
+    private fun confirm(title: String, message: String, onYes: () -> Unit) {
+        AlertDialog.Builder(this).setTitle(title).setMessage(message)
+            .setPositiveButton("Ja") { _, _ -> onYes() }
+            .setNegativeButton("Abbrechen", null).show()
+    }
+
+    // ─────────────────────────── Design system ───────────────────────────
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    private fun dpf(v: Float): Float = v * resources.displayMetrics.density
+    private fun lp(w: Int, h: Int, top: Int = 0, bottom: Int = 0) =
+        LinearLayout.LayoutParams(w, h).apply { topMargin = dp(top); bottomMargin = dp(bottom) }
+
+    private fun newScreen(): LinearLayout {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(28))
+        }
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(Color.parseColor(BG))
+            isFillViewport = true
+            addView(content)
+        })
+        return content
+    }
+
+    private fun appHeader(content: LinearLayout, subtitle: String, showHelp: Boolean = false) {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        row.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+            addView(TextView(this@CompanionActivity).apply {
+                text = "LAUNCHPAD ELTERN"; textSize = 12f; letterSpacing = 0.12f
+                setTypeface(null, Typeface.BOLD); setTextColor(Color.parseColor(ORANGE))
+            })
+            addView(TextView(this@CompanionActivity).apply {
+                text = subtitle; textSize = 24f; setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor(INK))
+            })
+        })
+        if (showHelp) row.addView(roundIconButton("?") { showWelcome(0) })
+        content.addView(row)
+        content.addView(spacer(8))
+    }
+
+    private fun backHeader(title: String, onBack: () -> Unit): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = lp(mp, wc, bottom = 4)
+            addView(roundIconButton("‹") { onBack() })
+            addView(TextView(this@CompanionActivity).apply {
+                text = title; textSize = 22f; setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor(INK)); setPadding(dp(10), 0, 0, 0)
+            })
+        }
+    }
+
+    private fun card(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(18), dp(16), dp(18), dp(16))
+        background = GradientDrawable().apply { setColor(Color.parseColor(CARD)); cornerRadius = dpf(18f) }
+        layoutParams = lp(mp, wc, top = 6, bottom = 6)
+        elevation = dpf(2f)
+    }
+
+    private fun innerCard(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = GradientDrawable().apply {
+            setColor(Color.parseColor(BG)); cornerRadius = dpf(12f)
+        }
+        layoutParams = lp(mp, wc, top = 8, bottom = 4)
+    }
+
+    private fun sectionTitleRow(title: String, infoTitle: String, infoBody: String): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(this@CompanionActivity).apply {
+                text = title; textSize = 17f; setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.parseColor(INK)); layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+            })
+            addView(infoBadge(INK_MUTE) { infoDialog(infoTitle, infoBody) })
+        }
+    }
+
+    private fun rowWithInfo(button: View, infoTitle: String, infoBody: String): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            button.layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+            addView(button)
+            addView(infoBadge(INK_MUTE) { infoDialog(infoTitle, infoBody) })
+        }
+    }
+
+    private fun sectionLabel(text: String) = TextView(this).apply {
+        this.text = text; textSize = 13f; setTypeface(null, Typeface.BOLD)
+        setTextColor(Color.parseColor(INK_SOFT)); setPadding(dp(4), dp(8), 0, dp(4))
+    }
+
+    private fun statusChip(label: String, colorHex: String) = TextView(this).apply {
+        text = label; textSize = 12f; setTypeface(null, Typeface.BOLD); setTextColor(Color.WHITE)
+        background = GradientDrawable().apply { setColor(Color.parseColor(colorHex)); cornerRadius = dpf(20f) }
+        setPadding(dp(11), dp(6), dp(11), dp(6))
+        layoutParams = LinearLayout.LayoutParams(wc, wc).apply { rightMargin = dp(8) }
     }
 
     private fun categoryBadge(category: String): TextView {
-        val color = when (category) {
-            "ACTIVE_LEISURE" -> "#F2994A"
-            "CREATIVE" -> "#9B51E0"
-            "LEARNING" -> "#27AE60"
-            "COOLDOWN" -> "#2F80ED"
-            "COMMUNICATION" -> "#56CCF2"
-            else -> "#828282"
-        }
-        val label = when (category) {
-            "ACTIVE_LEISURE" -> "Coins"
-            "CREATIVE" -> "Kreativ"
-            "LEARNING" -> "Lernen"
-            "COOLDOWN" -> "Pause"
-            "COMMUNICATION" -> "Komm."
-            else -> "Neutral"
+        val (color, label) = when (category) {
+            "ACTIVE_LEISURE" -> ORANGE to "Coins"
+            "CREATIVE" -> PURPLE to "Kreativ"
+            "LEARNING" -> GREEN to "Lernen"
+            "COOLDOWN" -> BLUE to "Pause"
+            "COMMUNICATION" -> "#56CCF2" to "Komm."
+            else -> INK_MUTE to "Neutral"
         }
         return TextView(this).apply {
-            text = label
-            textSize = 10f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor(color))
-                cornerRadius = 4f
-            }
-            setPadding(8, 4, 8, 4)
-            setTypeface(null, Typeface.BOLD)
+            text = label; textSize = 11f; setTextColor(Color.WHITE); setTypeface(null, Typeface.BOLD)
+            background = GradientDrawable().apply { setColor(Color.parseColor(color)); cornerRadius = dpf(8f) }
+            setPadding(dp(9), dp(4), dp(9), dp(4))
         }
     }
 
-    private fun primaryButton(label: String, onClick: () -> Unit) = Button(this).apply {
-        text = label
-        setTextColor(Color.WHITE)
+    private fun emptyState(emoji: String, title: String, sub: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+        setPadding(0, dp(10), 0, dp(8))
+        addView(TextView(this@CompanionActivity).apply { text = emoji; textSize = 32f; gravity = Gravity.CENTER })
+        addView(TextView(this@CompanionActivity).apply {
+            text = title; textSize = 15f; setTypeface(null, Typeface.BOLD); setTextColor(Color.parseColor(INK))
+            gravity = Gravity.CENTER; setPadding(0, dp(6), 0, 0)
+        })
+        addView(TextView(this@CompanionActivity).apply {
+            text = sub; textSize = 13f; setTextColor(Color.parseColor(INK_MUTE)); gravity = Gravity.CENTER
+        })
+    }
+
+    private fun stepLine(num: String, text: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        layoutParams = lp(mp, wc, top = 8)
+        addView(TextView(this@CompanionActivity).apply {
+            this.text = num; textSize = 14f; setTypeface(null, Typeface.BOLD); setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply { setColor(Color.parseColor(ORANGE)); shape = GradientDrawable.OVAL }
+            layoutParams = LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(12) }
+        })
+        addView(TextView(this@CompanionActivity).apply {
+            this.text = text; textSize = 15f; setTextColor(Color.parseColor(INK))
+            layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+        })
+    }
+
+    private fun navButton(title: String, subtitle: String, onClick: () -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(18), dp(16), dp(18), dp(16))
+        background = GradientDrawable().apply { setColor(Color.parseColor(CARD)); cornerRadius = dpf(16f) }
+        layoutParams = lp(mp, wc, top = 6, bottom = 0)
+        elevation = dpf(1f)
+        isClickable = true
+        setOnClickListener { onClick() }
+        addView(LinearLayout(this@CompanionActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, wc, 1f)
+            addView(TextView(this@CompanionActivity).apply {
+                text = title; textSize = 16f; setTypeface(null, Typeface.BOLD); setTextColor(Color.parseColor(INK))
+            })
+            addView(TextView(this@CompanionActivity).apply {
+                text = subtitle; textSize = 12f; setTextColor(Color.parseColor(INK_MUTE))
+            })
+        })
+        addView(TextView(this@CompanionActivity).apply {
+            text = "›"; textSize = 24f; setTextColor(Color.parseColor(INK_MUTE))
+        })
+    }
+
+    private fun infoBadge(colorHex: String, onClick: () -> Unit) = TextView(this).apply {
+        text = "ⓘ"; textSize = 17f; setTextColor(Color.parseColor(colorHex))
+        setPadding(dp(10), dp(4), dp(4), dp(4)); isClickable = true
+        setOnClickListener { onClick() }
+    }
+
+    private fun roundIconButton(glyph: String, onClick: () -> Unit) = TextView(this).apply {
+        text = glyph; textSize = 20f; setTypeface(null, Typeface.BOLD); gravity = Gravity.CENTER
+        setTextColor(Color.parseColor(NAVY))
         background = GradientDrawable().apply {
-            setColor(Color.parseColor(HW_ORANGE))
-            cornerRadius = 8f
+            setColor(Color.parseColor("#FFFFFF")); cornerRadius = dpf(22f); setStroke(dp(1), Color.parseColor(LINE))
         }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 8, 0, 4) }
+        layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+        isClickable = true
+        setOnClickListener { onClick() }
+    }
+
+    private fun bodyText(text: String, bold: Boolean = false, color: String = INK_SOFT, size: Float = 14f) =
+        TextView(this).apply {
+            this.text = text; textSize = size
+            if (bold) setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor(color)); setPadding(0, dp(3), 0, dp(3))
+        }
+
+    private fun centerHint(text: String) = TextView(this).apply {
+        this.text = text; textSize = 13f; setTextColor(Color.parseColor(INK_MUTE)); gravity = Gravity.CENTER
+        setPadding(dp(8), dp(8), dp(8), dp(8))
+    }
+
+    private fun primaryButton(label: String, onClick: () -> Unit) = styledButton(label, ORANGE, "#FFFFFF", onClick)
+    private fun dangerButton(label: String, onClick: () -> Unit) = styledButton(label, DANGER, "#FFFFFF", onClick)
+
+    private fun styledButton(label: String, bg: String, fg: String, onClick: () -> Unit) = Button(this).apply {
+        text = label; isAllCaps = false; textSize = 15f; setTypeface(null, Typeface.BOLD)
+        setTextColor(Color.parseColor(fg))
+        background = GradientDrawable().apply { setColor(Color.parseColor(bg)); cornerRadius = dpf(14f) }
+        layoutParams = lp(mp, dp(52), top = 6, bottom = 4)
+        stateListAnimator = null
         setOnClickListener { onClick() }
     }
 
     private fun secondaryButton(label: String, onClick: () -> Unit) = Button(this).apply {
-        text = label
-        setTextColor(Color.parseColor(HW_NAVY))
+        text = label; isAllCaps = false; textSize = 15f; setTypeface(null, Typeface.BOLD)
+        setTextColor(Color.parseColor(NAVY))
         background = GradientDrawable().apply {
-            setColor(Color.WHITE)
-            cornerRadius = 8f
-            setStroke(1, Color.parseColor(HW_LINE))
+            setColor(Color.parseColor("#FFFFFF")); cornerRadius = dpf(14f); setStroke(dp(2), Color.parseColor(LINE))
         }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 4, 0, 4) }
+        layoutParams = lp(mp, dp(52), top = 6, bottom = 4)
+        stateListAnimator = null
         setOnClickListener { onClick() }
     }
 
-    private fun dangerButton(label: String, onClick: () -> Unit) = Button(this).apply {
-        text = label
-        setTextColor(Color.WHITE)
-        background = GradientDrawable().apply {
-            setColor(Color.parseColor(HW_DANGER))
-            cornerRadius = 8f
-        }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, 4, 0, 4) }
+    private fun ghostButton(label: String, onClick: () -> Unit) = Button(this).apply {
+        text = label; isAllCaps = false; textSize = 14f; setTypeface(null, Typeface.BOLD)
+        setTextColor(Color.parseColor(NAVY))
+        background = GradientDrawable().apply { setColor(Color.parseColor("#00FFFFFF")); cornerRadius = dpf(14f) }
+        layoutParams = lp(mp, wc, top = 2, bottom = 2)
+        stateListAnimator = null
         setOnClickListener { onClick() }
     }
 
     private fun compactButton(label: String, onClick: () -> Unit) = Button(this).apply {
-        text = label
-        textSize = 16f
-        setTextColor(Color.parseColor(HW_NAVY))
-        background = GradientDrawable().apply {
-            setColor(Color.parseColor(HW_LINE))
-            cornerRadius = 4f
-        }
-        layoutParams = LinearLayout.LayoutParams(72, LinearLayout.LayoutParams.WRAP_CONTENT)
-            .apply { setMargins(4, 0, 4, 0) }
+        text = label; isAllCaps = false; textSize = 18f; setTypeface(null, Typeface.BOLD)
+        setTextColor(Color.parseColor(NAVY))
+        background = GradientDrawable().apply { setColor(Color.parseColor(LINE)); cornerRadius = dpf(10f) }
+        layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply { setMargins(dp(6), 0, dp(6), 0) }
+        stateListAnimator = null
+        minWidth = 0; minimumWidth = 0
+        setPadding(0, 0, 0, 0)
         setOnClickListener { onClick() }
     }
 
-    private fun spacer(height: Int) = android.view.View(this).apply {
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, height)
+    private fun spacer(height: Int) = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(mp, dp(height))
     }
 
     private fun relativeTime(epochMs: Long): String {
