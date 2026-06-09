@@ -29,6 +29,7 @@ import org.fossify.home.databases.AppTimeRequest
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.NotificationHelper
+import org.fossify.home.extensions.goHome
 import org.fossify.home.helpers.Playful
 
 class AppBlockedActivity : AppCompatActivity() {
@@ -84,6 +85,11 @@ class AppBlockedActivity : AppCompatActivity() {
         scope.cancel()
     }
 
+    @Suppress("MissingSuperCall", "GestureBackNavigation", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        goHome() // never fall back to the blocked app
+    }
+
     private fun buildHeader(pkg: String, reason: String): LinearLayout {
         val (emoji, label) = headerContent(reason)
         val appName = try {
@@ -107,7 +113,7 @@ class AppBlockedActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                setOnClickListener { finish() }
+                setOnClickListener { goHome() }
             })
             addView(Playful.mascot(this@AppBlockedActivity, R.drawable.mascot_rocket_rest, 88))
             addView(TextView(this@AppBlockedActivity).apply {
@@ -135,7 +141,7 @@ class AppBlockedActivity : AppCompatActivity() {
         LaunchpadConstants.REASON_NOT_ALLOWED -> "🌱" to "Diese App schläft noch"
         LaunchpadConstants.REASON_SCHEDULE_WINDOW -> "🌞" to "Gleich ist Spielzeit"
         LaunchpadConstants.REASON_APP_DAILY_LIMIT -> "🎒" to "Diese App macht Feierabend"
-        LaunchpadConstants.REASON_SCHOOL_MODE -> "📚" to "Schulmodus — Lernzeit"
+        LaunchpadConstants.REASON_SCHOOL_MODE -> "📚" to "Schulzeit läuft"
         else -> "🚀" to "Gleich geht's weiter"
     }
 
@@ -192,7 +198,7 @@ class AppBlockedActivity : AppCompatActivity() {
             LaunchpadConstants.REASON_APP_DAILY_LIMIT ->
                 "Morgen gibt's wieder frische Zeit für diese App. 🌅"
             LaunchpadConstants.REASON_SCHOOL_MODE ->
-                "Spiele & Co. machen während der Schulzeit Pause. Lern-Apps gehen. ✏️"
+                "Das wartet bis später. Lernen und Familie bleiben da."
             else -> ""
         }
     }
@@ -237,7 +243,7 @@ class AppBlockedActivity : AppCompatActivity() {
                 })
             }
 
-            addView(secondaryButton("Alles klar 👍") { finish() })
+            addView(secondaryButton("Alles klar 👍") { goHome() })
         }
     }
 
@@ -261,7 +267,7 @@ class AppBlockedActivity : AppCompatActivity() {
                 "Deine Frage ist schon unterwegs 😊"
             }
             Toast.makeText(this@AppBlockedActivity, toastText, Toast.LENGTH_SHORT).show()
-            finish()
+            goHome()
         }
     }
 

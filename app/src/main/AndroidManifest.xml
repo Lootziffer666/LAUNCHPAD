@@ -142,6 +142,7 @@
             android:name=".activities.ElternModusActivity"
             android:exported="false"
             android:label="Eltern-Modus"
+            android:theme="@style/ElternModusTheme"
             android:parentActivityName=".activities.MainActivity" />
 
         <!-- LAUNCHPAD M1: Cool-down restorative phase -->

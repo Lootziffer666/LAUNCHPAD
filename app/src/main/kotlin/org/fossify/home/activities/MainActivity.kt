@@ -317,6 +317,10 @@ class MainActivity : SimpleActivity(), FlingListener {
         super.onResume()
         wasJustPaused = false
 
+        // LAUNCHPAD: back at the child's home → end any active parent session, so the Eltern-Modus
+        // re-asks for the PIN next time (parent mode is consumed only there).
+        org.fossify.home.helpers.PinGateHelper(this).deactivateParentMode()
+
         // LAUNCHPAD M3: enter kiosk lock-task if enabled and provisioned as device owner.
         KioskManager.onLauncherResumed(this, AppsDatabase.getInstance(this))
 
@@ -1384,23 +1388,35 @@ class MainActivity : SimpleActivity(), FlingListener {
         // set up. Fail-open on any error so the launcher can never brick itself into an empty
         // home screen.
         return try {
-            val prefs = applicationContext.getSharedPreferences(
-                LaunchpadPrefs.PREFS_FILE, MODE_PRIVATE
-            )
-            if (!prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)) {
-                allApps
-            } else {
-                val allowed = runBlocking {
-                    AppsDatabase.getInstance(applicationContext).allowedAppDao()
-                        .getAllEnabledApps().map { it.packageName }.toSet()
-                }
-                if (allowed.isEmpty()) allApps
-                else ArrayList(allApps.filter { it.packageName in allowed })
-            }
+            applyLaunchpadAppFilters(allApps)
         } catch (e: Exception) {
             android.util.Log.e("LAUNCHPAD", "whitelist filter failed; showing all apps", e)
             allApps
         }
+    }
+
+    // LAUNCHPAD: hide non-whitelisted apps (Kindermodus) and leisure apps (Schulmodus) from the
+    // drawer — default-deny plus "don't even tempt". Caller wraps this in try/catch (fail-open).
+    private fun applyLaunchpadAppFilters(allApps: ArrayList<AppLauncher>): ArrayList<AppLauncher> {
+        val prefs = applicationContext.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, MODE_PRIVATE)
+        val enforce = prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
+        val schoolActive = org.fossify.home.helpers.SchoolMode.isActive(applicationContext)
+        if (!enforce && !schoolActive) return allApps
+
+        val enabledApps = runBlocking {
+            AppsDatabase.getInstance(applicationContext).allowedAppDao().getAllEnabledApps()
+        }
+        var result = allApps
+        if (enforce) {
+            val allowed = enabledApps.map { it.packageName }.toSet()
+            if (allowed.isNotEmpty()) result = ArrayList(result.filter { it.packageName in allowed })
+        }
+        if (schoolActive) {
+            val leisureCat = org.fossify.home.helpers.LaunchpadConstants.CATEGORY_ACTIVE_LEISURE
+            val leisure = enabledApps.filter { it.category == leisureCat }.map { it.packageName }.toSet()
+            result = ArrayList(result.filter { it.packageName !in leisure })
+        }
+        return result
     }
 
     private fun getDefaultAppPackages(appLaunchers: ArrayList<AppLauncher>) {

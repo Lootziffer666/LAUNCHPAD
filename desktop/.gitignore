@@ -1,0 +1,28 @@
+# LAUNCHPAD Desktop — build artifacts & local-only files (never commit these)
+
+# Dependencies
+node_modules/
+
+# Vite / build output
+dist/
+dist-electron/
+.vite/
+out/
+
+# electron-builder packaging output
+release/
+*.exe
+*.msi
+*.AppImage
+*.dmg
+*.blockmap
+
+# electron-store data, logs, local secrets
+*.log
+.env
+.env.local
+local.config.json
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db

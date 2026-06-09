@@ -35,6 +35,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
+import org.fossify.home.helpers.Playful
 import org.fossify.home.helpers.SchoolMode
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
@@ -48,6 +49,8 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var db: AppsDatabase
     private lateinit var pinGate: PinGateHelper
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var uiInitialized = false
+    private var navigatingInternally = false
 
     // Dashboard views
     private lateinit var balanceBig: android.widget.TextView
@@ -70,33 +73,65 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var auditStatus: android.widget.TextView
     private lateinit var strictStatus: android.widget.TextView
     private lateinit var childNameStatus: android.widget.TextView
-    private lateinit var schoolTimesStatus: android.widget.TextView
+    private lateinit var schoolStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
     private lateinit var kioskSwitch: org.fossify.commons.views.MyMaterialSwitch
-    private lateinit var schoolSwitch: org.fossify.commons.views.MyMaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         db = AppsDatabase.getInstance(this)
         pinGate = PinGateHelper(this)
+    }
 
-        // Require PIN (or first-time setup)
+    // Re-gate on every entry (incl. reopen from recents/back) AND drop the parent session when the
+    // parent leaves — so the child can't reopen the Eltern-Modus during the old 30-min window.
+    // Navigating into a parent sub-screen keeps the session alive (see the startActivity override).
+    override fun onStart() {
+        super.onStart()
         if (pinGate.isPinConfigured() && !pinGate.isParentModeActive()) {
+            showLockedPlaceholder()
             requestPin()
             return
         }
-
-        initUi()
+        showUiAndRefresh()
     }
 
     override fun onResume() {
         super.onResume()
-        if (pinGate.isParentModeActive() || !pinGate.isPinConfigured()) {
-            refresh()
+        navigatingInternally = false
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Left the parent area (not just opening a sub-screen / rotating) → re-lock immediately.
+        if (!navigatingInternally && !isChangingConfigurations) {
+            pinGate.deactivateParentMode()
+            uiInitialized = false
         }
+    }
+
+    override fun startActivity(intent: Intent?) {
+        // Any explicit navigation FROM the parent area counts as staying in the session.
+        navigatingInternally = true
+        super.startActivity(intent)
+    }
+
+    private fun showUiAndRefresh() {
+        if (!uiInitialized) {
+            initUi()
+            uiInitialized = true
+        }
+        refresh()
+    }
+
+    private fun showLockedPlaceholder() {
+        uiInitialized = false
+        setContentView(android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
+        })
     }
 
     override fun onDestroy() {
@@ -124,8 +159,7 @@ class ElternModusActivity : AppCompatActivity() {
                 when (val result = pinGate.verifyPin(input.text.toString())) {
                     is PinGateHelper.VerifyResult.Success -> {
                         pinGate.activateParentMode(30)
-                        initUi()
-                        refresh()
+                        showUiAndRefresh()
                     }
                     is PinGateHelper.VerifyResult.Wrong -> {
                         if (result.newLockoutSeconds > 0) {
@@ -154,6 +188,17 @@ class ElternModusActivity : AppCompatActivity() {
         supportActionBar?.apply { title = "Eltern-Modus"; setDisplayHomeAsUpEnabled(true) }
         toolbar.setNavigationOnClickListener { finish() }
 
+        // Warm, wallpaper-adaptive accents (toolbar, section headers, status bar) — coherent with
+        // the launch screen; the tints follow the wallpaper via Playful.palette.
+        val pal = Playful.palette(this)
+        toolbar.setBackgroundColor(pal.accent)
+        toolbar.setTitleTextColor(android.graphics.Color.WHITE)
+        window.statusBarColor = pal.accentDark
+        listOf(
+            R.id.em_sec_zeit, R.id.em_sec_apps, R.id.em_sec_inhalte,
+            R.id.em_sec_modus, R.id.em_sec_schutz, R.id.em_sec_mehr
+        ).forEach { findViewById<android.widget.TextView>(it).setTextColor(pal.accent) }
+
         // Dashboard
         balanceBig = findViewById(R.id.em_balance_big)
         modeBadge = findViewById(R.id.em_mode_badge)
@@ -175,12 +220,11 @@ class ElternModusActivity : AppCompatActivity() {
         auditStatus = findViewById(R.id.em_audit_status)
         strictStatus = findViewById(R.id.em_strict_status)
         childNameStatus = findViewById(R.id.em_child_name)
-        schoolTimesStatus = findViewById(R.id.em_school_times_status)
+        schoolStatus = findViewById(R.id.em_school_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
         kioskSwitch = findViewById(R.id.em_kiosk_switch)
-        schoolSwitch = findViewById(R.id.em_school_switch)
 
         // Wire rows. NOTE: fossify-commons' SettingsSwitchStyle sets the MyMaterialSwitch to
         // android:clickable="false" — the switch never reacts to taps itself. The surrounding
@@ -219,8 +263,7 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_usage to { openUsageSettings() },
             R.id.em_row_kindermodus to { kindermodusSwitch.toggle() },
             R.id.em_row_kiosk to { kioskSwitch.toggle() },
-            R.id.em_row_school to { schoolSwitch.toggle() },
-            R.id.em_row_school_times to { showSchoolScheduleDialog() },
+            R.id.em_row_school to { showSchoolModeChooser() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
             R.id.em_row_familylink to { showFamilyLinkInfo() },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
@@ -244,12 +287,6 @@ class ElternModusActivity : AppCompatActivity() {
                 KioskManager.setKioskEnabled(this, checked)
                 if (checked) KioskManager.applyRestrictions(this) else KioskManager.stopKiosk(this)
             }
-        }
-
-        schoolSwitch.isChecked = SchoolMode.isManualOn(this)
-        schoolSwitch.setOnCheckedChangeListener { _, checked ->
-            SchoolMode.setEnabled(applicationContext, checked)
-            toast(if (checked) "Schulmodus an — Spiele pausiert 📚" else "Schulmodus aus")
         }
     }
 
@@ -352,10 +389,12 @@ class ElternModusActivity : AppCompatActivity() {
             childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
 
             val ctx = this@ElternModusActivity
-            schoolTimesStatus.text = if (SchoolMode.autoEnabled(ctx)) {
-                val summary = "${schoolDaysLabel(SchoolMode.days(ctx))} " +
-                    "${fmtMinutes(SchoolMode.startMinutes(ctx))}–${fmtMinutes(SchoolMode.endMinutes(ctx))}"
-                if (SchoolMode.isAutoActiveNow(ctx)) "● Jetzt aktiv · $summary" else summary
+            schoolStatus.text = if (SchoolMode.isActive(ctx)) {
+                if (SchoolMode.activeUntil(ctx) == SchoolMode.INDEFINITE) {
+                    "● Läuft — bis du es beendest"
+                } else {
+                    "● Läuft noch ${SchoolMode.remainingMillis(ctx) / 60_000L} Min"
+                }
             } else {
                 "Aus"
             }
@@ -382,91 +421,53 @@ class ElternModusActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun fmtMinutes(m: Int): String = "%02d:%02d".format(m / 60, m % 60)
-
-    private fun schoolDaysLabel(days: Set<Int>): String {
-        if (days == setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY,
-                Calendar.THURSDAY, Calendar.FRIDAY)) {
-            return "Mo–Fr"
+    private fun showSchoolModeChooser() {
+        if (SchoolMode.isActive(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("Schulmodus läuft")
+                .setMessage("Nur Lernen, Kommunikation und neutrale Apps sind sichtbar. " +
+                    "Spielen wartet bis später.")
+                .setPositiveButton("Beenden") { _, _ ->
+                    SchoolMode.stop(this)
+                    toast("Schulmodus beendet")
+                    scope.launch { refresh() }
+                }
+                .setNegativeButton("Weiter laufen lassen", null)
+                .show()
+            return
         }
-        val order = listOf(
-            Calendar.MONDAY to "Mo", Calendar.TUESDAY to "Di", Calendar.WEDNESDAY to "Mi",
-            Calendar.THURSDAY to "Do", Calendar.FRIDAY to "Fr", Calendar.SATURDAY to "Sa",
-            Calendar.SUNDAY to "So"
-        )
-        return order.filter { it.first in days }.joinToString(" ") { it.second }.ifEmpty { "keine Tage" }
+        val options = arrayOf("30 Minuten", "60 Minuten", "Bis Uhrzeit…", "Bis ich es beende")
+        AlertDialog.Builder(this)
+            .setTitle("Schulmodus starten")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> startSchool { SchoolMode.startForMinutes(this, 30) }
+                    1 -> startSchool { SchoolMode.startForMinutes(this, 60) }
+                    2 -> pickSchoolEndTime()
+                    else -> startSchool { SchoolMode.startIndefinite(this) }
+                }
+            }
+            .show()
     }
 
-    private fun showSchoolScheduleDialog() {
-        var startMin = SchoolMode.startMinutes(this)
-        var endMin = SchoolMode.endMinutes(this)
-        val selectedDays = SchoolMode.days(this).toMutableSet()
+    private fun startSchool(start: () -> Unit) {
+        start()
+        toast("Schulzeit läuft 📚")
+        scope.launch { refresh() }
+    }
 
-        val enableCb = android.widget.CheckBox(this).apply {
-            text = "Automatisch zu Schulzeiten"
-            isChecked = SchoolMode.autoEnabled(this@ElternModusActivity)
-        }
-        val fromBtn = Button(this).apply { isAllCaps = false }
-        val toBtn = Button(this).apply { isAllCaps = false }
-        fun syncBtns() {
-            fromBtn.text = "Von:  ${fmtMinutes(startMin)}"
-            toBtn.text = "Bis:  ${fmtMinutes(endMin)}"
-        }
-        syncBtns()
-        fromBtn.setOnClickListener {
-            android.app.TimePickerDialog(this, { _, h, m -> startMin = h * 60 + m; syncBtns() },
-                startMin / 60, startMin % 60, true).show()
-        }
-        toBtn.setOnClickListener {
-            android.app.TimePickerDialog(this, { _, h, m -> endMin = h * 60 + m; syncBtns() },
-                endMin / 60, endMin % 60, true).show()
-        }
-
-        val dayDefs = listOf(
-            Calendar.MONDAY to "Mo", Calendar.TUESDAY to "Di", Calendar.WEDNESDAY to "Mi",
-            Calendar.THURSDAY to "Do", Calendar.FRIDAY to "Fr", Calendar.SATURDAY to "Sa",
-            Calendar.SUNDAY to "So"
-        )
-        val dayRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        dayDefs.forEach { (dayInt, label) ->
-            dayRow.addView(android.widget.CheckBox(this).apply {
-                text = label
-                isChecked = dayInt in selectedDays
-                setOnCheckedChangeListener { _, c ->
-                    if (c) selectedDays.add(dayInt) else selectedDays.remove(dayInt)
-                }
-            })
-        }
-
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 16, 48, 0)
-            addView(enableCb)
-            addView(fromBtn)
-            addView(toBtn)
-            addView(android.widget.TextView(this@ElternModusActivity).apply {
-                text = "Tage"
-                setPadding(0, 16, 0, 4)
-            })
-            addView(android.widget.HorizontalScrollView(this@ElternModusActivity).apply {
-                addView(dayRow)
-            })
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Schulzeiten")
-            .setView(android.widget.ScrollView(this).apply { addView(box) })
-            .setPositiveButton("Speichern") { _, _ ->
-                if (startMin >= endMin) {
-                    toast("Bis-Zeit muss nach Von-Zeit liegen")
-                    return@setPositiveButton
-                }
-                SchoolMode.saveSchedule(this, enableCb.isChecked, startMin, endMin, selectedDays)
-                toast("Schulzeiten gespeichert")
-                scope.launch { refresh() }
+    private fun pickSchoolEndTime() {
+        val now = Calendar.getInstance()
+        android.app.TimePickerDialog(this, { _, h, m ->
+            val end = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             }
-            .setNegativeButton("Abbrechen", null)
-            .show()
+            if (end.timeInMillis <= System.currentTimeMillis()) {
+                end.add(Calendar.DAY_OF_MONTH, 1)
+            }
+            startSchool { SchoolMode.startUntil(this, end.timeInMillis) }
+        }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), true).show()
     }
 
     private fun showStrictBlockDialog() {

@@ -1,0 +1,97 @@
+/* ============================================================
+   COMET — Game import manager (SteamGridDB covers)
+   ============================================================ */
+.imp-layer { position: absolute; inset: 0; z-index: 95; display: flex; align-items: stretch; justify-content: center; }
+.imp-scrim { position: absolute; inset: 0; background: rgba(3,6,18,.66); backdrop-filter: blur(4px); animation: scrimIn .25s ease; }
+
+.imp-window {
+  position: absolute; inset: 28px 64px; border-radius: 20px; overflow: hidden;
+  display: flex; flex-direction: column; background: #0b1430;
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 40px 90px rgba(0,0,0,.6);
+  transform-origin: center; animation: appZoom .3s var(--ease-metro) forwards;
+}
+.imp-window.closing { animation: appZoomOut .24s var(--ease-metro) forwards; }
+
+.imp-head { flex: none; display: flex; align-items: center; gap: 16px; padding: 22px 30px;
+  background: linear-gradient(120deg, #6d28d9, #1e1b4b); }
+.imp-head .i-ic { width: 38px; height: 38px; color: #fff; }
+.imp-head h2 { margin: 0; font-size: 23px; font-weight: 800; }
+.imp-head .i-sub { font-size: 12.5px; opacity: .85; max-width: 560px; }
+.imp-head .i-sub a { color: var(--comet-cyan); font-weight: 700; }
+.imp-close { margin-left: auto; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255,255,255,.16); border: none; color: #fff; cursor: pointer; transition: transform .15s, background .15s; }
+.imp-close:hover { background: rgba(255,255,255,.3); transform: rotate(90deg); }
+.imp-close svg { width: 20px; height: 20px; }
+
+.imp-body { flex: 1; overflow-y: auto; padding: 22px 30px 30px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; align-content: start; }
+
+.imp-card {
+  display: flex; gap: 16px; padding: 16px; border-radius: 16px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+}
+.imp-cover {
+  width: 96px; height: 132px; flex: none; border-radius: 10px; overflow: hidden; position: relative;
+  cursor: pointer; border: 2px dashed transparent; transition: border-color .15s, transform .15s;
+  display: grid; place-items: center; color: rgba(255,255,255,.85);
+}
+.imp-cover.drag { border-color: var(--comet-cyan); transform: scale(1.03); }
+.imp-cover .emb { width: 40px; height: 40px; opacity: .8; }
+.imp-cover .drop-hint {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; text-align: center; font-size: 10.5px; font-weight: 700; color: #fff; padding: 8px;
+  background: rgba(0,0,0,.45); opacity: 0; transition: opacity .15s;
+}
+.imp-cover:hover .drop-hint, .imp-cover.drag .drop-hint { opacity: 1; }
+.imp-cover .drop-hint svg { width: 22px; height: 22px; }
+
+.imp-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.imp-fields input.tit { font-size: 16px; font-weight: 800; }
+.imp-input {
+  width: 100%; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.14); color: #fff;
+  font-family: inherit; font-size: 13px; padding: 9px 12px; border-radius: 9px; outline: none;
+}
+.imp-input:focus { border-color: var(--comet-cyan); }
+.imp-input::placeholder { color: var(--ink-mute); }
+.imp-url-row { display: flex; gap: 7px; }
+.imp-url-row .imp-input { flex: 1; }
+.imp-set, .imp-clear {
+  border: none; border-radius: 9px; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 12.5px; padding: 0 14px;
+}
+.imp-set { background: var(--comet-cyan); color: #062033; }
+.imp-set:hover { filter: brightness(1.08); }
+.imp-clear { background: rgba(255,255,255,.1); color: var(--ink-soft); padding: 0 11px; }
+.imp-clear:hover { background: rgba(255,255,255,.2); }
+.imp-meta-row { display: flex; gap: 7px; }
+.imp-meta-row .cat { flex: 1; }
+.imp-meta-row .stars { width: 86px; }
+.imp-remove { margin-top: auto; align-self: flex-start; background: none; border: none; color: var(--ink-mute);
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; padding: 2px 0; }
+.imp-remove:hover { color: var(--t-rose); }
+
+.imp-foot { flex: none; display: flex; align-items: center; gap: 12px; padding: 16px 30px; border-top: 1px solid rgba(255,255,255,.08); }
+.imp-foot .count { font-size: 13px; color: var(--ink-mute); font-weight: 600; margin-right: auto; }
+.imp-btn { padding: 12px 22px; border-radius: 999px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 13.5px; display: inline-flex; align-items: center; gap: 8px; }
+.imp-btn svg { width: 16px; height: 16px; }
+.imp-btn.add { background: var(--comet-cyan); color: #062033; }
+.imp-btn.add:hover { filter: brightness(1.08); }
+.imp-btn.ghost { background: rgba(255,255,255,.08); color: var(--ink-soft); }
+.imp-btn.ghost:hover { background: rgba(255,255,255,.16); }
+
+/* M5 — SteamGridDB key bar + cover search results */
+.imp-key { flex: none; display: flex; align-items: center; gap: 9px; padding: 12px 30px;
+  background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08); }
+.imp-key .imp-input { flex: 1; max-width: 420px; }
+.imp-key-badge { font-size: 12px; font-weight: 800; padding: 6px 11px; border-radius: 999px;
+  background: rgba(255,255,255,.08); color: var(--ink-mute); white-space: nowrap; }
+.imp-key-badge.on { background: rgba(34,197,94,.18); color: #6ee7a8; }
+
+.imp-set.search { background: rgba(255,255,255,.12); color: #fff; white-space: nowrap; }
+.imp-set.search:hover { background: rgba(255,255,255,.2); filter: none; }
+.imp-set.search:disabled { opacity: .6; cursor: default; }
+.imp-hint { font-size: 11.5px; color: var(--ink-mute); font-weight: 600; }
+.imp-hits { display: flex; flex-wrap: wrap; gap: 7px; }
+.imp-hit { width: 52px; height: 76px; border-radius: 7px; border: 1px solid rgba(255,255,255,.14);
+  background-size: cover; background-position: center; cursor: pointer; padding: 0;
+  transition: transform .12s, border-color .12s; }
+.imp-hit:hover { transform: scale(1.07); border-color: var(--comet-cyan); }

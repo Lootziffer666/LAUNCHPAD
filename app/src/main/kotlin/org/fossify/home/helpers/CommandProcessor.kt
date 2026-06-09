@@ -167,9 +167,13 @@ class CommandProcessor(
     }
 
     private fun applySchoolMode(obj: JSONObject): String {
-        val on = obj.optBoolean("on", true)
-        SchoolMode.setEnabled(context, on)
-        return if (on) "Schulmodus an" else "Schulmodus aus"
+        if (!obj.optBoolean("on", true)) {
+            SchoolMode.stop(context)
+            return "Schulmodus beendet"
+        }
+        val minutes = obj.optInt("minutes", 0)
+        if (minutes > 0) SchoolMode.startForMinutes(context, minutes) else SchoolMode.startIndefinite(context)
+        return if (minutes > 0) "Schulmodus an ($minutes Min)" else "Schulmodus an"
     }
 
     private suspend fun record(type: String, payloadJson: String, applied: Boolean, note: String) {

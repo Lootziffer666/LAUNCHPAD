@@ -6,6 +6,14 @@
         <item name="fontFamily">@font/dm_sans</item>
     </style>
 
+    <!-- Eltern-Modus: warm brand accent (no green). The dominant surfaces (toolbar, section
+         headers, status bar) are re-tinted from the wallpaper at runtime; this just sets a warm
+         default so nothing flashes green before that. -->
+    <style name="ElternModusTheme" parent="AppTheme">
+        <item name="colorPrimary">@color/lp_coral</item>
+        <item name="colorAccent">@color/lp_coral</item>
+    </style>
+
     <style name="LauncherTheme" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:fontFamily">@font/dm_sans</item>
         <item name="fontFamily">@font/dm_sans</item>

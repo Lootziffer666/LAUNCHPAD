@@ -1,0 +1,148 @@
+/* ============================================================
+   LAUNCHPAD — Desktop Home
+   ============================================================ */
+
+.desktop {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: 34px 56px 40px;
+  z-index: 1;
+}
+
+/* ---------- top bar ---------- */
+.hd {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; flex: none;
+}
+.hd-brand { display: flex; align-items: center; gap: 14px; }
+.lp-mark {
+  width: 40px; height: 40px; border-radius: 11px;
+  background: linear-gradient(140deg, var(--comet-cyan), var(--comet-violet));
+  display: grid; place-items: center;
+  box-shadow: 0 6px 20px rgba(56,189,248,.4);
+}
+.lp-mark span {
+  width: 14px; height: 14px; border-radius: 4px; background: #fff;
+  transform: rotate(45deg);
+}
+.hd-word { font-size: 22px; font-weight: 800; letter-spacing: 3px; }
+.hd-word b { color: var(--comet-cyan); font-weight: 800; }
+
+.hd-right { display: flex; align-items: center; gap: 26px; }
+.hd-time { font-size: 17px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.hd-user { display: flex; align-items: center; gap: 12px; }
+.hd-name { font-size: 16px; font-weight: 700; }
+.hd-user image-slot { width: 42px; height: 42px; border: 2px solid rgba(255,255,255,.4); box-shadow: 0 0 0 3px rgba(56,189,248,.22); flex: none; }
+
+/* ---------- grid ---------- */
+.grid-area { flex: 1; display: grid; place-items: center; min-height: 0; }
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 286px);
+  grid-template-rows: repeat(3, 200px);
+  gap: 18px;
+}
+
+.htile {
+  position: relative; border-radius: 18px; overflow: hidden; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.12);
+  padding: 24px; color: #fff; text-align: left;
+  display: flex; flex-direction: column;
+  background: var(--t-blue);
+  font-family: inherit;
+  transition: transform .18s var(--ease-metro), box-shadow .22s, filter .2s;
+  will-change: transform;
+}
+.htile:hover { transform: translateY(-4px) scale(1.012); box-shadow: 0 20px 44px rgba(0,0,0,.5); z-index: 4; }
+.htile:active { transform: scale(.99); }
+.htile:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.htile::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 14% 10%, rgba(255,255,255,.22), transparent 60%);
+  opacity: 0; transition: opacity .3s;
+}
+.htile:hover::after { opacity: 1; }
+
+.htile-ic { width: 50px; height: 50px; }
+.htile-ic svg { width: 100%; height: 100%; stroke-width: 1.6; }
+.htile-ic.soft { width: 38px; height: 38px; opacity: .8; }
+.htile-label { margin-top: auto; font-size: 23px; font-weight: 700; }
+.htile-label.sm { font-size: 18px; }
+.htile-label.soft { opacity: .85; font-weight: 600; }
+
+/* tile colors */
+.c-teal  { background: linear-gradient(150deg, #0d9488, #0c4a4a); }
+.c-pink  { background: linear-gradient(150deg, #db2777, #831843); }
+.c-blue  { background: linear-gradient(150deg, #2563eb, #1e3a8a); }
+.glass {
+  background: var(--bg-tile-glass); border-color: var(--bg-tile-glass-border);
+  backdrop-filter: blur(8px);
+}
+.glass:hover { background: rgba(255,255,255,.1); }
+.win-lock { position: absolute; top: 18px; right: 18px; width: 22px; height: 22px; opacity: .55; }
+.win-lock svg { width: 100%; height: 100%; }
+
+/* ---------- SPIELEN hero ---------- */
+.htile.play {
+  grid-column: span 2; grid-row: span 2;
+  background: linear-gradient(145deg, #6d28d9, #3b1d8a 55%, #1e1b4b);
+  padding: 32px;
+}
+.play-glow {
+  position: absolute; right: -80px; top: -80px; width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,.4), transparent 65%);
+  pointer-events: none;
+}
+.play-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.play-top .htile-ic { width: 60px; height: 60px; }
+.play-count {
+  font-size: 13px; font-weight: 700; letter-spacing: .5px; color: var(--comet-cyan);
+  background: rgba(0,0,0,.28); padding: 8px 14px; border-radius: 999px;
+}
+.play-foot { margin-top: auto; }
+.htile.play h2 { margin: 0 0 16px; font-size: 60px; font-weight: 800; line-height: .95; }
+.play-favs { display: flex; gap: 10px; align-items: center; }
+.pf {
+  width: 58px; height: 78px; border-radius: 10px; flex: none; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.2); display: grid; place-items: center;
+  box-shadow: 0 8px 18px rgba(0,0,0,.35);
+}
+.pf i { width: 26px; height: 26px; color: rgba(255,255,255,.85); }
+.pf.more {
+  background: rgba(255,255,255,.1); font-size: 16px; font-weight: 800; color: var(--ink-soft);
+  width: 48px;
+}
+.play-cta {
+  position: absolute; right: 32px; bottom: 32px;
+  display: inline-flex; align-items: center; gap: 9px;
+  background: var(--comet-cyan); color: #062033;
+  padding: 13px 22px; border-radius: 999px; font-size: 15px; font-weight: 800;
+}
+.play-cta svg { width: 18px; height: 18px; }
+
+/* ---------- direct launch tiles ---------- */
+.htile.direct { justify-content: flex-end; padding: 20px; }
+.direct-scrim { position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,.72)); }
+.direct-emb {
+  position: absolute; top: 20px; left: 20px; width: 46px; height: 46px;
+  color: rgba(255,255,255,.92); z-index: 1;
+}
+.direct-emb.sm { position: static; width: 40px; height: 40px; margin-bottom: auto; }
+.direct-foot { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.src-badge {
+  font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  padding: 4px 9px; border-radius: 6px; color: #fff;
+}
+
+/* ---------- desktop peek ---------- */
+.stage.peeking .desktop,
+.stage.peeking .tweaks-host { opacity: 0; pointer-events: none; transition: opacity .4s; }
+.peek-hint {
+  position: absolute; inset: 0; z-index: 30; display: grid; place-items: end center;
+  padding-bottom: 60px; pointer-events: auto; cursor: pointer;
+  animation: scrimIn .5s ease;
+}
+.peek-hint span {
+  background: rgba(0,0,0,.5); color: #fff; padding: 12px 24px; border-radius: 999px;
+  font-size: 14px; font-weight: 700; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.16);
+}

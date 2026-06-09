@@ -158,7 +158,7 @@ object LaunchpadServer {
             put("enforcement", enforcement)
             put("cooldown", cooldown)
             put("schoolMode", SchoolMode.isActive(context))
-            put("schoolAuto", SchoolMode.isAutoActiveNow(context))
+            put("schoolUntil", SchoolMode.activeUntil(context))
         }.toString()
     }
 

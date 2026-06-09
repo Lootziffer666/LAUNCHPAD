@@ -353,23 +353,22 @@ class CompanionActivity : AppCompatActivity() {
             val enforcement = json.optBoolean("enforcement", false)
             val cooldown = json.optBoolean("cooldown", false)
             val schoolMode = json.optBoolean("schoolMode", false)
-            val schoolAuto = json.optBoolean("schoolAuto", false)
+            val schoolUntil = json.optLong("schoolUntil", 0L)
             content.addView(statusText("Guthaben: $balance Min"))
             content.addView(statusText("Kontrolle aktiv: ${if (enforcement) "ja" else "nein"}"))
             content.addView(statusText("Ruhezeit aktiv: ${if (cooldown) "ja" else "nein"}"))
-            content.addView(statusText("Schulmodus: " + when {
-                schoolMode && schoolAuto -> "an 📚 (Schulzeit)"
-                schoolMode -> "an 📚"
-                else -> "aus"
-            }))
+            content.addView(statusText("Schulmodus: " + if (schoolMode) {
+                val mins = ((schoolUntil - System.currentTimeMillis()) / 60000L).coerceAtLeast(0)
+                if (schoolUntil == Long.MAX_VALUE) "an 📚" else "an 📚 (noch $mins Min)"
+            } else "aus"))
             content.addView(
                 if (schoolMode) {
-                    secondaryButton("Schulmodus AUS") {
+                    secondaryButton("Schulmodus beenden") {
                         sendCommand("""{"type":"set_school_mode","on":false}""")
                     }
                 } else {
-                    primaryButton("📚 Schulmodus AN") {
-                        sendCommand("""{"type":"set_school_mode","on":true}""")
+                    primaryButton("📚 Schulmodus 60 Min") {
+                        sendCommand("""{"type":"set_school_mode","on":true,"minutes":60}""")
                     }
                 }
             )

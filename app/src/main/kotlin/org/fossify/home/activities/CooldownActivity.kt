@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fossify.home.R
+import org.fossify.home.extensions.goHome
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.Playful
@@ -220,8 +221,8 @@ class CooldownActivity : AppCompatActivity() {
                 messageText.text = "Pause vorbei — willkommen zurück! 🌈"
                 showMessage("Pause vorbei! 🎉")
 
-                // Return to launcher
-                finish()
+                // Return to launcher (never the blocked app underneath)
+                goHome()
             }
         }
 

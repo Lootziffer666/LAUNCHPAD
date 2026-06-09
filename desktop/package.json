@@ -1,0 +1,46 @@
+{
+  "name": "launchpad-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LAUNCHPAD Desktop — a kid-safe desktop shell (Electron + React + Vite).",
+  "main": "electron/main.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron .\"",
+    "dev:renderer": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test \"electron/**/*.test.js\"",
+    "pack:win": "vite build && electron-builder --win dir",
+    "dist:win": "vite build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.inkandironglow.launchpad",
+    "productName": "LAUNCHPAD",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "!electron/**/*.test.js"],
+    "win": { "target": ["nsis"], "artifactName": "LAUNCHPAD-Setup-${version}.${ext}" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "LAUNCHPAD"
+    }
+  },
+  "dependencies": {
+    "@fontsource/outfit": "^5.2.8",
+    "electron-store": "^8.2.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.0.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^26.15.2",
+    "vite": "^5.3.0",
+    "wait-on": "^7.2.0"
+  },
+  "//": "M0 scaffold. React pinned to 18.3.1 to match the prototype. Deferred to the milestone that needs them: electron-store (M2 data layer), argon2/scrypt (M4 PIN hashing), electron-builder + dist script (M6 packaging)."
+}
