@@ -9,13 +9,14 @@
 
 const { getStore } = require('./store');
 
-// Seed catalogue — mirrors the prototype's js/data.jsx GAMES. M3 adds `launch`.
+// Seed catalogue — mirrors the prototype's js/data.jsx GAMES. M3: launch kind is
+// inferred from `source` (Steam/Minecraft/LAUNCHPAD); Steam demos carry an `appid`.
 const SEED = [
   { id: 'minecraft', name: 'Minecraft', cat: 'Sandbox', source: 'Minecraft', installed: true, favorite: true,
     featured: true, progress: 0.0, playtime: '48 Std', stars: 5, c1: '#3b8526', c2: '#0f3d1a', emblem: 'grid',
     desc: 'Bau, erkunde und überlebe in einer Welt aus Blöcken. Allein oder im Kreativmodus.' },
   { id: 'galaxy-racer', name: 'Galaxy Racer', cat: 'Rennen', source: 'Steam', installed: true, favorite: true,
-    progress: 0.3, playtime: '9 Std', stars: 4, c1: '#a855f7', c2: '#1e1b4b', emblem: 'rocket',
+    appid: '400', progress: 0.3, playtime: '9 Std', stars: 4, c1: '#a855f7', c2: '#1e1b4b', emblem: 'rocket',
     desc: 'Heize durch Neon-Nebel und überhole alle auf der Sternenbahn.' },
   { id: 'pixel-pirates', name: 'Pixel Pirates', cat: 'Abenteuer', source: 'Steam', installed: true,
     progress: 0.62, playtime: '21 Std', stars: 5, c1: '#0ea5e9', c2: '#0c2f6b', emblem: 'compass',
@@ -27,7 +28,7 @@ const SEED = [
     progress: 0, playtime: '—', stars: 4, c1: '#22c55e', c2: '#064e3b', emblem: 'grid',
     desc: 'Türme bauen, verteidigen, erweitern. Strategie mit Stil.' },
   { id: 'animal-island', name: 'Animal Island', cat: 'Simulation', source: 'Steam', installed: true,
-    progress: 0.72, playtime: '33 Std', stars: 5, c1: '#34d399', c2: '#0c4a4a', emblem: 'leaf',
+    appid: '413150', progress: 0.72, playtime: '33 Std', stars: 5, c1: '#34d399', c2: '#0c4a4a', emblem: 'leaf',
     desc: 'Kümmere dich um deine Insel voller Tiere und Freunde.' },
   { id: 'math-quest', name: 'Math Quest', cat: 'Lernspiel', source: 'LAUNCHPAD', installed: true,
     progress: 0.4, playtime: '6 Std', stars: 4, c1: '#f59e0b', c2: '#7c2d12', emblem: 'calc',

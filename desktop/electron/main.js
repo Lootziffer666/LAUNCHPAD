@@ -23,6 +23,7 @@ const USAGE_TICK_MIN = parseInt(process.env.LP_USAGE_TICK_MIN, 10) || 1;
 let win;
 let registry;
 let parental;
+let launcher;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -129,6 +130,7 @@ function startUsageTicker() {
 function registerIpc() {
   registry = require('./services/gameRegistry');
   parental = require('./services/parental');
+  launcher = require('./services/launcher');
 
   const handlers = {
     // games — child list is age-filtered server-side; the parent manager gets all.
@@ -141,11 +143,15 @@ function registerIpc() {
     'lp:games:upsert': (_e, patch) => registry.upsert(patch),
     'lp:games:remove': (_e, id) => registry.remove(id),
     'lp:games:reset': () => registry.reset(),
-    // Launch gate is enforced now; the real OS spawn lands in M3 (needs Windows).
+    // Resolve id in main, enforce the parental gate, then launch. Dry-run
+    // (LP_LAUNCH_DRYRUN=1) returns the resolved plan without touching the OS,
+    // so the gate + resolution can be verified headlessly.
     'lp:games:launch': (_e, id) => {
-      const gate = parental.canLaunch(registry.getGame(id));
+      const game = registry.getGame(id);
+      const gate = parental.canLaunch(game);
       if (!gate.ok) return gate;
-      return { ok: false, reason: 'error', message: 'Spielstart kommt in M3.' };
+      if (process.env.LP_LAUNCH_DRYRUN === '1') return { ok: true, dryRun: true, plan: launcher.resolveLaunch(game) };
+      return launcher.launchGame(game);
     },
 
     // shell / parental

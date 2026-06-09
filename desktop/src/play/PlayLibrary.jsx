@@ -16,6 +16,17 @@ const TABS = [
   { id: 'installiert', label: 'installiert' },
 ];
 
+// Friendly German copy for a blocked/failed launch (gentle, no scary language).
+function launchMessage(res) {
+  switch (res && res.reason) {
+    case 'time_limit': return 'Die Spielzeit für heute ist aufgebraucht 🌙';
+    case 'blocked': return (res && res.message) || 'Dieses Spiel ist für dich noch gesperrt.';
+    case 'not_installed': return 'Dieses Spiel ist noch nicht installiert.';
+    case 'not_found': return 'Spiel nicht gefunden.';
+    default: return (res && res.message) || 'Start fehlgeschlagen.';
+  }
+}
+
 export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame }) {
   const games = useGames();
   const [tab, setTabRaw] = useState(0);
@@ -26,7 +37,21 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
   const setTab = (i) => { if (i !== tab) SFX.swipe(); setTabRaw(i); };
   const doExit = () => { setClosing(true); SFX.close(); setTimeout(onExit, 300); };
   const openDetail = (g) => { SFX.select(); setDetail(g); };
-  const launchGame = (g) => { SFX.launch(); setLaunch(g); };
+
+  // Real launch: ask main to start the game (after the parental gate). On a
+  // block (age / time limit / not installed) the splash shows the reason
+  // instead of the "starting…" loader.
+  const launchGame = async (g) => {
+    SFX.launch();
+    setLaunch({ g, pending: true });
+    let res = { ok: true };
+    if (window.launchpad && window.launchpad.launchGame) {
+      try { res = await window.launchpad.launchGame(g.id); }
+      catch (e) { res = { ok: false, reason: 'error', message: String((e && e.message) || e) }; }
+    }
+    if (res && res.ok) setLaunch({ g, pending: false });
+    else setLaunch({ g, pending: false, blocked: true, message: launchMessage(res) });
+  };
 
   useEffect(() => {
     const onKey = (e) => {
@@ -127,15 +152,24 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
       {/* launch splash */}
       {launch && (
         <div className="launch-splash">
-          <div className="launch-art" style={launch.cover
-            ? { backgroundImage: `url("${launch.cover}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-            : { background: CometData.cover(launch.c1, launch.c2) }}>
-            {!launch.cover && <div style={{ width: 96, height: 96, color: 'rgba(255,255,255,.9)' }}>{Icon[launch.emblem] && Icon[launch.emblem]()}</div>}
+          <div className="launch-art" style={launch.g.cover
+            ? { backgroundImage: `url("${launch.g.cover}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : { background: CometData.cover(launch.g.c1, launch.g.c2) }}>
+            {!launch.g.cover && <div style={{ width: 96, height: 96, color: 'rgba(255,255,255,.9)' }}>{Icon[launch.g.emblem] && Icon[launch.g.emblem]()}</div>}
           </div>
-          <div className="launch-name">{launch.name}</div>
-          <div className="launch-status">Wird gestartet …</div>
-          <div className="launch-loader"><i></i></div>
-          <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Abbrechen</button>
+          <div className="launch-name">{launch.g.name}</div>
+          {launch.blocked ? (
+            <>
+              <div className="launch-status blocked">{launch.message}</div>
+              <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Zurück</button>
+            </>
+          ) : (
+            <>
+              <div className="launch-status">Wird gestartet …</div>
+              <div className="launch-loader"><i></i></div>
+              <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Abbrechen</button>
+            </>
+          )}
         </div>
       )}
     </div>
