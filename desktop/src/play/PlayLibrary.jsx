@@ -65,6 +65,16 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
     return () => window.removeEventListener('keydown', onKey);
   }, [tab, detail, launch]);
 
+  // After a successful launch the external game takes over — auto-dismiss the
+  // "starting…" splash so it doesn't hang. Blocked launches stay until tapped.
+  useEffect(() => {
+    if (launch && !launch.pending && !launch.blocked) {
+      const t = setTimeout(() => setLaunch(null), 2600);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [launch]);
+
   // keep detail object fresh after store edits (fav/install)
   const liveDetail = detail ? (games.find((x) => x.id === detail.id) || detail) : null;
 
