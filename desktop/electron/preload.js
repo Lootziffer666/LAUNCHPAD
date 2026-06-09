@@ -29,8 +29,10 @@ contextBridge.exposeInMainWorld('launchpad', {
   removeGame: (id) => invoke('lp:games:remove', id),
   resetGames: () => invoke('lp:games:reset'),
 
-  // covers
+  // covers (SteamGridDB)
   searchCovers: (q) => invoke('lp:covers:search', q),
+  coversKeyStatus: () => invoke('lp:covers:key-status'),
+  setCoversKey: (key) => invoke('lp:covers:set-key', key),
 
   // shell / session
   verifyPin: (pin) => invoke('lp:pin:verify', pin),

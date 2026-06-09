@@ -24,6 +24,7 @@ let win;
 let registry;
 let parental;
 let launcher;
+let covers;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -131,6 +132,7 @@ function registerIpc() {
   registry = require('./services/gameRegistry');
   parental = require('./services/parental');
   launcher = require('./services/launcher');
+  covers = require('./services/covers');
 
   const handlers = {
     // games — child list is age-filtered server-side; the parent manager gets all.
@@ -139,7 +141,7 @@ function registerIpc() {
     'lp:games:get': (_e, id) => registry.getGame(id),
     'lp:games:install': (_e, id) => registry.install(id),
     'lp:games:favorite': (_e, id, v) => registry.setFavorite(id, v),
-    'lp:games:cover': (_e, id, source) => registry.setCover(id, source),
+    'lp:games:cover': async (_e, id, source) => registry.setCover(id, await covers.localize(source)),
     'lp:games:upsert': (_e, patch) => registry.upsert(patch),
     'lp:games:remove': (_e, id) => registry.remove(id),
     'lp:games:reset': () => registry.reset(),
@@ -153,6 +155,11 @@ function registerIpc() {
       if (process.env.LP_LAUNCH_DRYRUN === '1') return { ok: true, dryRun: true, plan: launcher.resolveLaunch(game) };
       return launcher.launchGame(game);
     },
+
+    // covers (SteamGridDB) — key resolved in main, never passed from renderer
+    'lp:covers:search': (_e, q) => covers.searchCovers(q),
+    'lp:covers:key-status': () => covers.keyStatus(),
+    'lp:covers:set-key': (_e, key) => covers.setApiKey(key),
 
     // shell / parental
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),

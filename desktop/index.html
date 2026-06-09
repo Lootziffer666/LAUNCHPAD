@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Locked-down renderer: only our own bundle, no remote code, no inline eval. -->
+    <!-- Locked-down renderer: only our own bundle, no remote code, no inline eval.
+         img-src allows https: so cover art (SteamGridDB / any pasted URL) can
+         display; images can't execute, and script/connect stay self-only. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:5173 http://localhost:5173"
+      content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:5173 http://localhost:5173"
     />
     <title>LAUNCHPAD</title>
   </head>

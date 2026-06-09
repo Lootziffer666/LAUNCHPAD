@@ -77,3 +77,21 @@
 .imp-btn.add:hover { filter: brightness(1.08); }
 .imp-btn.ghost { background: rgba(255,255,255,.08); color: var(--ink-soft); }
 .imp-btn.ghost:hover { background: rgba(255,255,255,.16); }
+
+/* M5 — SteamGridDB key bar + cover search results */
+.imp-key { flex: none; display: flex; align-items: center; gap: 9px; padding: 12px 30px;
+  background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08); }
+.imp-key .imp-input { flex: 1; max-width: 420px; }
+.imp-key-badge { font-size: 12px; font-weight: 800; padding: 6px 11px; border-radius: 999px;
+  background: rgba(255,255,255,.08); color: var(--ink-mute); white-space: nowrap; }
+.imp-key-badge.on { background: rgba(34,197,94,.18); color: #6ee7a8; }
+
+.imp-set.search { background: rgba(255,255,255,.12); color: #fff; white-space: nowrap; }
+.imp-set.search:hover { background: rgba(255,255,255,.2); filter: none; }
+.imp-set.search:disabled { opacity: .6; cursor: default; }
+.imp-hint { font-size: 11.5px; color: var(--ink-mute); font-weight: 600; }
+.imp-hits { display: flex; flex-wrap: wrap; gap: 7px; }
+.imp-hit { width: 52px; height: 76px; border-radius: 7px; border: 1px solid rgba(255,255,255,.14);
+  background-size: cover; background-position: center; cursor: pointer; padding: 0;
+  transition: transform .12s, border-color .12s; }
+.imp-hit:hover { transform: scale(1.07); border-color: var(--comet-cyan); }

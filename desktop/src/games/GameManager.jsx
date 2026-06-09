@@ -4,7 +4,7 @@
    launcher.js#resolveLaunch. Nice-to-have later: a native file picker for
    .exe (dialog.showOpenDialog via IPC) and SteamGridDB cover search.
    ============================================================ */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
 import { GameStore, useAllGames, gameCover } from './useGames.js';
@@ -91,7 +91,20 @@ function LaunchEditor({ g }) {
 
 function ImpCard({ g }) {
   const [url, setUrl] = useState('');
+  const [hits, setHits] = useState(null); // null | 'no_key' | Result[]
+  const [busy, setBusy] = useState(false);
   const setCover = () => { if (url.trim()) { GameStore.setCover(g.id, url.trim()); setUrl(''); SFX.select(); } };
+  const search = async () => {
+    if (!window.launchpad || !window.launchpad.searchCovers) return;
+    setBusy(true); SFX.select();
+    try {
+      const r = await window.launchpad.searchCovers(g.name);
+      if (r && r.ok) setHits(r.results || []);
+      else setHits(r && r.reason === 'no_key' ? 'no_key' : []);
+    } catch (e) { setHits([]); }
+    setBusy(false);
+  };
+  const pick = (u) => { GameStore.setCover(g.id, u); setHits(null); SFX.select(); };
   return (
     <div className="imp-card">
       <ImpCover g={g} />
@@ -103,9 +116,20 @@ function ImpCard({ g }) {
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && setCover()} />
           <button className="imp-set" onClick={setCover}>Setzen</button>
+          <button className="imp-set search" onClick={search} disabled={busy}>{busy ? '…' : '🔍'} Suchen</button>
           {g.cover && <button className="imp-clear" title="Cover entfernen"
             onClick={() => { GameStore.setCover(g.id, null); SFX.back(); }}>✕</button>}
         </div>
+        {hits === 'no_key' && <div className="imp-hint">Kein SteamGridDB-Key hinterlegt — oben im Kopf eintragen.</div>}
+        {Array.isArray(hits) && hits.length === 0 && <div className="imp-hint">Keine Cover gefunden für „{g.name}“.</div>}
+        {Array.isArray(hits) && hits.length > 0 && (
+          <div className="imp-hits">
+            {hits.map((h, i) => (
+              <button key={i} className="imp-hit" style={{ backgroundImage: `url("${h.thumb}")` }}
+                title={h.author ? `von ${h.author}` : 'Cover übernehmen'} onClick={() => pick(h.url)} />
+            ))}
+          </div>
+        )}
         <div className="imp-meta-row">
           <input className="imp-input cat" value={g.cat} placeholder="Kategorie"
             onChange={(e) => GameStore.setField(g.id, 'cat', e.target.value)} />
@@ -117,6 +141,33 @@ function ImpCard({ g }) {
         <LaunchEditor g={g} />
         <button className="imp-remove" onClick={() => { GameStore.remove(g.id); SFX.back(); }}>Aus Bibliothek entfernen</button>
       </div>
+    </div>
+  );
+}
+
+// Lets the parent store their own SteamGridDB key (used by the search button).
+// The key lives in main (electron-store) — only its status crosses the bridge.
+function CoverKeyField() {
+  const [key, setKey] = useState('');
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    if (window.launchpad && window.launchpad.coversKeyStatus) {
+      window.launchpad.coversKeyStatus().then(setStatus).catch(() => {});
+    }
+  }, []);
+  const save = async () => {
+    if (!window.launchpad || !window.launchpad.setCoversKey || !key.trim()) return;
+    const s = await window.launchpad.setCoversKey(key.trim());
+    setStatus(s); setKey(''); SFX.select();
+  };
+  return (
+    <div className="imp-key">
+      <span className={`imp-key-badge ${status && status.hasKey ? 'on' : ''}`}>
+        {status && status.hasKey ? '🔑 Key aktiv' : '🔑 Kein Key'}{status && status.fromEnv ? ' · env' : ''}
+      </span>
+      <input className="imp-input" type="password" placeholder="SteamGridDB API-Key eingeben…" value={key}
+        onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+      <button className="imp-set" onClick={save}>Speichern</button>
     </div>
   );
 }
@@ -135,12 +186,15 @@ export function ImportManager({ onClose }) {
           <div>
             <h2>Spiele verwalten &amp; importieren</h2>
             <div className="i-sub">
-              Cover von <a href="https://www.steamgriddb.com" target="_blank" rel="noopener">SteamGridDB</a> holen:
-              Grid öffnen → Bild-Adresse kopieren → unten einfügen. Oder ein Bild direkt auf die Kachel ziehen.
+              Bei einem Spiel auf <b>🔍 Suchen</b> tippen, um Cover automatisch von{' '}
+              <a href="https://www.steamgriddb.com" target="_blank" rel="noopener">SteamGridDB</a> zu holen — oder eine
+              Cover-URL einfügen bzw. ein Bild direkt auf die Kachel ziehen.
             </div>
           </div>
           <button className="imp-close" onClick={close} aria-label="Schließen">{Icon.close()}</button>
         </div>
+
+        <CoverKeyField />
 
         <div className="imp-body">
           {games.map((g) => <ImpCard key={g.id} g={g} />)}
