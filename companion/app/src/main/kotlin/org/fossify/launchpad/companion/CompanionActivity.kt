@@ -35,8 +35,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyFactory
@@ -299,9 +297,11 @@ class CompanionActivity : AppCompatActivity() {
 
     private fun loadData() {
         scope.launch {
+            var failure: String? = null
             val statusJson = withContext(Dispatchers.IO) {
                 try { fetchApi("/api/status") } catch (e: Exception) {
                     Log.e("API", "Status fetch failed", e)
+                    failure = e.message ?: e.javaClass.simpleName
                     null
                 }
             }
@@ -342,8 +342,51 @@ class CompanionActivity : AppCompatActivity() {
                 content.addView(divider())
                 content.addView(heading("Einstellungen", 18f))
                 renderSettingsSection(content)
+            } else {
+                showConnectionError(failure)
             }
         }
+    }
+
+    /** Never leave the parent on a blank screen: show why /api/status failed and a way out. */
+    private fun showConnectionError(reason: String?) {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+        }
+        setContentView(ScrollView(this).apply { addView(content) })
+
+        content.addView(heading("LAUNCHPAD Companion"))
+        content.addView(statusText("Verbunden mit: ${prefs.getString("launcher_ip", "—")}"))
+        content.addView(divider())
+        content.addView(heading("Verbindung fehlgeschlagen", 18f))
+
+        val unauthorized = reason?.contains("401") == true || reason?.contains("403") == true
+        content.addView(statusText(
+            if (unauthorized) {
+                "Nicht autorisiert (401). Die Kopplung ist abgelaufen oder das Gerät wurde neu " +
+                    "eingerichtet — bitte erneut koppeln."
+            } else {
+                "Status konnte nicht geladen werden:\n${reason ?: "Keine Antwort vom Gerät"}\n\n" +
+                    "Ist das LAUNCHPAD-Gerät eingeschaltet und im selben WLAN?"
+            }
+        ))
+
+        content.addView(primaryButton("🔄 Erneut versuchen") { loadData() })
+        content.addView(
+            if (unauthorized) {
+                primaryButton("📷 Neu koppeln") { resetToPairing() }
+            } else {
+                secondaryButton("Neu koppeln") { resetToPairing() }
+            }
+        )
+    }
+
+    /** Clear the saved device + key and re-run onCreate, which lands on the pairing screen.
+     *  recreate() keeps QR registration in onCreate (before STARTED), avoiding a late-register crash. */
+    private fun resetToPairing() {
+        prefs.edit().remove("launcher_ip").remove("session_key").apply()
+        recreate()
     }
 
     private fun renderStatus(content: LinearLayout, statusJson: String) {
@@ -835,6 +878,10 @@ class CompanionActivity : AppCompatActivity() {
         }
     }
 
+    /** Carries the HTTP status so the UI can react (e.g. 401 → re-pair) instead of failing silently. */
+    private class ApiHttpException(val code: Int, val bodyText: String) :
+        java.io.IOException("HTTP $code" + if (bodyText.isNotBlank()) ": ${bodyText.take(160)}" else "")
+
     private fun fetchApi(path: String, method: String = "GET", body: String = ""): String {
         val base = prefs.getString("launcher_ip", null)
             ?: throw java.io.IOException("Keine Geräte-IP gespeichert")
@@ -854,10 +901,18 @@ class CompanionActivity : AppCompatActivity() {
             connection.outputStream.use { it.write(body.toByteArray()) }
         }
 
-        val reader = BufferedReader(InputStreamReader(connection.inputStream))
-        val response = reader.readText()
-        reader.close()
-        return response
+        // A non-2xx (e.g. 401 unauthorized) makes getInputStream() throw — read the error
+        // body instead and surface the code, so loadData() can show a real message + re-pair.
+        val code = connection.responseCode
+        if (code !in 200..299) {
+            val errBody = try {
+                connection.errorStream?.bufferedReader()?.use { it.readText() }
+            } catch (e: Exception) {
+                null
+            }
+            throw ApiHttpException(code, errBody.orEmpty())
+        }
+        return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
     // ─── Layout helpers ───────────────────────────────────────────────────────
