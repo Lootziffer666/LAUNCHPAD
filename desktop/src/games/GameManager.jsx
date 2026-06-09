@@ -1,7 +1,8 @@
 /* ============================================================
-   LAUNCHPAD — Game manager: import covers, edit, add/remove.
-   M3: add a file/exe path picker (dialog.showOpenDialog via IPC).
-   M5: add SteamGridDB cover search (window.launchpad.searchCovers).
+   LAUNCHPAD — Game manager: covers, launch target, edit, add/remove.
+   Launch target (Steam appid / .exe path / link) is set per game and feeds
+   launcher.js#resolveLaunch. Nice-to-have later: a native file picker for
+   .exe (dialog.showOpenDialog via IPC) and SteamGridDB cover search.
    ============================================================ */
 import React, { useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
@@ -26,6 +27,64 @@ function ImpCover({ g }) {
       <div className="drop-hint">{Icon.image()} Bild ablegen<br />oder klicken</div>
       <input id={`imp-file-${g.id}`} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={(e) => onFile(e.target.files[0])} />
+    </div>
+  );
+}
+
+// How each game starts. The select maps to a canonical `launch` object that
+// electron/services/launcher.js#resolveLaunch understands, and keeps `source`
+// in sync so the badge matches. Steam needs an appid; exe a Windows path; the
+// link option is scheme-checked in main.
+const LAUNCH_KINDS = [
+  { v: 'steam', label: 'Steam', src: 'Steam' },
+  { v: 'minecraft', label: 'Minecraft', src: 'Minecraft' },
+  { v: 'exe', label: 'Windows-Programm', src: 'Windows' },
+  { v: 'uri', label: 'Web-/App-Link', src: 'Web' },
+  { v: 'internal', label: 'In LAUNCHPAD', src: 'LAUNCHPAD' },
+];
+
+function launchKindOf(g) {
+  const L = g.launch;
+  if (L && L.kind === 'steam') return 'steam';
+  if (L && L.kind === 'exe') return 'exe';
+  if (L && L.kind === 'internal') return 'internal';
+  if (L && L.kind === 'uri') return L.uri === 'minecraft://' ? 'minecraft' : 'uri';
+  const s = (g.source || '').toLowerCase();
+  if (s === 'steam') return 'steam';
+  if (s === 'minecraft') return 'minecraft';
+  return 'internal';
+}
+
+function LaunchEditor({ g }) {
+  const kind = launchKindOf(g);
+  const L = g.launch || {};
+  const write = (launch, src) => { GameStore.setField(g.id, 'launch', launch); GameStore.setField(g.id, 'source', src); SFX.select(); };
+  const changeKind = (v) => {
+    const src = (LAUNCH_KINDS.find((k) => k.v === v) || {}).src;
+    if (v === 'steam') write({ kind: 'steam', appid: L.appid || g.appid || '' }, src);
+    else if (v === 'minecraft') write({ kind: 'uri', uri: 'minecraft://' }, src);
+    else if (v === 'exe') write({ kind: 'exe', path: L.path || '' }, src);
+    else if (v === 'uri') write({ kind: 'uri', uri: (L.uri && L.uri !== 'minecraft://') ? L.uri : '' }, src);
+    else write({ kind: 'internal' }, src);
+  };
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+      <span style={{ fontSize: 12, opacity: 0.7, minWidth: 36 }}>Start</span>
+      <select className="imp-input" style={{ flex: '0 0 auto' }} value={kind} onChange={(e) => changeKind(e.target.value)}>
+        {LAUNCH_KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
+      </select>
+      {kind === 'steam' && (
+        <input className="imp-input" placeholder="Steam AppID (z. B. 1145360)" value={L.appid || g.appid || ''}
+          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'steam', appid: e.target.value.replace(/\D/g, '') })} />
+      )}
+      {kind === 'exe' && (
+        <input className="imp-input" placeholder="Pfad zur .exe (Windows)" value={L.path || ''}
+          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'exe', path: e.target.value })} />
+      )}
+      {kind === 'uri' && (
+        <input className="imp-input" placeholder="Link, z. B. roblox://…" value={L.uri || ''}
+          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'uri', uri: e.target.value.trim() })} />
+      )}
     </div>
   );
 }
@@ -55,6 +114,7 @@ function ImpCard({ g }) {
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{'★'.repeat(n)}</option>)}
           </select>
         </div>
+        <LaunchEditor g={g} />
         <button className="imp-remove" onClick={() => { GameStore.remove(g.id); SFX.back(); }}>Aus Bibliothek entfernen</button>
       </div>
     </div>
