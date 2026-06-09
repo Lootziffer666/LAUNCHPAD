@@ -9,25 +9,45 @@ import { CometData as DW } from '../lib/data.js';
 import { useGames, gameCover } from '../games/useGames.js';
 import { SFX } from '../lib/sfx.js';
 
-// M4: replace this with window.launchpad.verifyPin (hashed PIN in main).
-const PARENT_PIN = '1234'; // demo PIN — documented for the handoff
-
-/* ---------------- PIN gate ---------------- */
+/* ---------------- PIN gate ----------------
+   Verifies against the hashed PIN in main via window.launchpad.verifyPin.
+   Falls back to the demo "1234" only when no bridge is present (plain browser). */
 export function PinGate({ onUnlock, onCancel }) {
   const [pin, setPin] = useState('');
   const [err, setErr] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const checking = React.useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (window.launchpad && window.launchpad.getParentalSettings) {
+      window.launchpad.getParentalSettings()
+        .then((s) => { if (alive) setShowHint(!!(s && s.pinIsDefault)); })
+        .catch(() => {});
+    }
+    return () => { alive = false; };
+  }, []);
+
+  const submit = async (code) => {
+    if (checking.current) return;
+    checking.current = true;
+    let ok = false;
+    try {
+      ok = window.launchpad ? await window.launchpad.verifyPin(code) : code === '1234';
+    } catch (e) {
+      ok = false;
+    }
+    checking.current = false;
+    if (ok) { SFX.launch(); onUnlock(); }
+    else { setErr(true); SFX.back(); setTimeout(() => { setErr(false); setPin(''); }, 500); }
+  };
 
   const press = (d) => {
     if (pin.length >= 4) return;
     SFX.select();
     const next = pin + d;
     setPin(next);
-    if (next.length === 4) {
-      setTimeout(() => {
-        if (next === PARENT_PIN) { SFX.launch(); onUnlock(); }
-        else { setErr(true); SFX.back(); setTimeout(() => { setErr(false); setPin(''); }, 500); }
-      }, 140);
-    }
+    if (next.length === 4) setTimeout(() => submit(next), 140);
   };
   const del = () => { SFX.back(); setPin((p) => p.slice(0, -1)); };
 
@@ -58,7 +78,7 @@ export function PinGate({ onUnlock, onCancel }) {
           <button className="pin-key" onClick={() => press('0')}>0</button>
           <button className="pin-key fn" onClick={del}>⌫</button>
         </div>
-        <div className="pin-hint">Demo-PIN: <b>1234</b></div>
+        {showHint && <div className="pin-hint">Demo-PIN: <b>1234</b> · in den Eltern-Einstellungen änderbar</div>}
       </div>
     </div>
   );

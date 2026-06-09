@@ -71,6 +71,22 @@ export function useGames() {
   return cache;
 }
 
+// Parent manager view: the full, unfiltered catalogue (age filter does not
+// apply here). Refetches whenever the store changes.
+export function useAllGames() {
+  const [all, setAll] = React.useState([]);
+  React.useEffect(() => {
+    let alive = true;
+    const load = () => {
+      if (api && api.listAllGames) api.listAllGames().then((g) => alive && setAll(g)).catch(() => {});
+    };
+    load();
+    const off = GameStore.subscribe(load);
+    return () => { alive = false; off(); };
+  }, []);
+  return all;
+}
+
 // background style for a cover (image overrides duotone key-art)
 export function gameCover(g, ang) {
   if (g && g.cover) return { backgroundImage: `url("${g.cover}")`, backgroundSize: 'cover', backgroundPosition: 'center' };

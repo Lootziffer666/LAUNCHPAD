@@ -18,7 +18,8 @@ function on(channel, cb) {
 
 contextBridge.exposeInMainWorld('launchpad', {
   // games
-  listGames: () => invoke('lp:games:list'),
+  listGames: () => invoke('lp:games:list'), // child view (age-filtered in main)
+  listAllGames: () => invoke('lp:games:list-all'), // parent manager: unfiltered
   getGame: (id) => invoke('lp:games:get', id),
   launchGame: (id) => invoke('lp:games:launch', id),
   installGame: (id) => invoke('lp:games:install', id),

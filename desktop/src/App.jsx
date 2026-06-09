@@ -61,6 +61,17 @@ export default function App() {
     return GameStore.subscribe(() => { if (GameStore.isLoaded()) setReady(true); });
   }, []);
 
+  // Daily time limit reached → drop everything back to a calm LAUNCHPAD screen.
+  const [timeUp, setTimeUp] = useState(false);
+  useEffect(() => {
+    if (!window.launchpad || !window.launchpad.onTimeLimitReached) return undefined;
+    return window.launchpad.onTimeLimitReached(() => {
+      setMode('launchpad');
+      setApp(null); setPlay(null); setParental(false); setImp(false); setGate(false);
+      setTimeUp(true);
+    });
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', t.theme);
     document.documentElement.style.setProperty('--comet-cyan', t.accent);
@@ -109,6 +120,24 @@ export default function App() {
         {imp && <ImportManager onClose={() => setImp(false)} />}
         {gate && <PinGate onUnlock={unlockWindows} onCancel={() => setGate(false)} />}
       </div>
+
+      {timeUp && (
+        <div
+          className="timeup-overlay"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999, display: 'flex',
+            flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 14, textAlign: 'center', padding: 32, color: '#eaf0ff',
+            background: 'rgba(8,16,40,.92)', backdropFilter: 'blur(10px)',
+          }}
+        >
+          <div style={{ fontSize: 64 }}>🌙</div>
+          <div style={{ fontSize: 32, fontWeight: 800 }}>Für heute ist Schluss</div>
+          <div style={{ fontSize: 18, color: '#9fb2e6', maxWidth: 440 }}>
+            Die Spielzeit für heute ist aufgebraucht. Morgen geht’s weiter — bis dann! 👋
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,20 @@
 /* ============================================================
-   LAUNCHPAD — Eltern & Sicherheit panel
-   M4: bind controls to window.launchpad.getParentalSettings /
-   setParentalSettings / getUsageToday (IPC). Local state for M1.
+   LAUNCHPAD — Eltern & Sicherheit panel.
+   Bound to the persisted parental settings + usage via IPC
+   (window.launchpad.getParentalSettings / setParentalSettings /
+   getUsageToday / setPin). Falls back to local defaults with no bridge.
    ============================================================ */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
+
+const api = (typeof window !== 'undefined' && window.launchpad) || null;
 
 const PAR_APPS = [
   { id: 'browser', name: 'Browser', sub: 'Sicheres Surfen', ic: 'globe', c: '#2563eb' },
   { id: 'videos', name: 'Videos', sub: 'Comet Video', ic: 'film', c: '#7c3aed' },
   { id: 'music', name: 'Musik', sub: 'Comet Music', ic: 'music', c: '#db2777' },
-  { id: 'arcade', name: 'Game Launcher', sub: 'Comet Arcade', ic: 'gamepad', c: '#6d28d9' },
+  { id: 'play', name: 'Game Launcher', sub: 'Comet Arcade', ic: 'gamepad', c: '#6d28d9' },
   { id: 'friends', name: 'Freunde-Chat', sub: 'Nachrichten & Status', ic: 'chat', c: '#0d9488' },
 ];
 
@@ -23,21 +26,60 @@ const WEEK = [
 export function ParentalPanel({ kidName = 'Jake', onClose }) {
   const [closing, setClosing] = useState(false);
   const [limit, setLimit] = useState(90);
-  const [used] = useState(54);
+  const [used, setUsed] = useState(0);
   const [age, setAge] = useState('9');
-  const [bedtime, setBedtime] = useState('20:30');
-  const [approvals, setApprovals] = useState({ browser: true, videos: true, music: true, arcade: true, friends: false });
+  const [bedFrom, setBedFrom] = useState('20:30');
+  const [bedTo, setBedTo] = useState('07:00');
+  const [approvals, setApprovals] = useState({ browser: true, videos: true, music: true, play: true, friends: false });
   const [saved, setSaved] = useState(false);
+
+  // PIN change
+  const [pinOld, setPinOld] = useState('');
+  const [pinNew, setPinNew] = useState('');
+  const [pinMsg, setPinMsg] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!api) return undefined;
+    Promise.all([api.getParentalSettings(), api.getUsageToday()])
+      .then(([s, u]) => {
+        if (!alive) return;
+        if (s) {
+          setLimit(s.dailyLimitMin ?? 90);
+          setAge(String(s.ageRating ?? '9'));
+          if (s.bedtime) { setBedFrom(s.bedtime.from || '20:30'); setBedTo(s.bedtime.to || '07:00'); }
+          if (s.approvals) setApprovals((a) => ({ ...a, ...s.approvals }));
+        }
+        if (u) setUsed(u.usedMin || 0);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const close = () => { setClosing(true); SFX.close(); setTimeout(onClose, 240); };
   const toggle = (id) => { SFX.select(); setApprovals((a) => ({ ...a, [id]: !a[id] })); };
   const usedPct = Math.min(100, (used / limit) * 100);
   const over = used > limit;
 
-  const save = () => {
+  const save = async () => {
     SFX.select();
+    if (api) {
+      try {
+        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals });
+      } catch (e) { /* ignore */ }
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
+  };
+
+  const changePin = async () => {
+    if (!api) { setPinMsg('Nicht verfügbar'); return; }
+    if (String(pinNew).length < 4) { setPinMsg('Neue PIN braucht mind. 4 Ziffern'); SFX.back(); return; }
+    let ok = false;
+    try { ok = await api.setPin(pinOld, pinNew); } catch (e) { ok = false; }
+    if (ok) { setPinOld(''); setPinNew(''); SFX.select(); setPinMsg('PIN geändert ✓'); }
+    else { SFX.back(); setPinMsg('Alte PIN stimmt nicht'); }
+    setTimeout(() => setPinMsg(null), 2600);
   };
 
   return (
@@ -88,9 +130,9 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
             <h3>{Icon.power()} Ruhezeit</h3>
             <p className="desc">Ab dieser Uhrzeit wird das Gerät gesperrt.</p>
             <div className="par-bed">
-              <input type="time" value={bedtime} onChange={(e) => setBedtime(e.target.value)} />
+              <input type="time" value={bedFrom} onChange={(e) => setBedFrom(e.target.value)} />
               <span className="arrow">bis</span>
-              <input type="time" defaultValue="07:00" />
+              <input type="time" value={bedTo} onChange={(e) => setBedTo(e.target.value)} />
             </div>
           </div>
 
@@ -105,6 +147,20 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
                 <div className={`p-toggle ${approvals[a.id] ? 'on' : ''}`} onClick={() => toggle(a.id)}><i></i></div>
               </div>
             ))}
+          </div>
+
+          {/* parent PIN */}
+          <div className="par-card span2">
+            <h3>{Icon.lock()} Eltern-PIN</h3>
+            <p className="desc">PIN zum Wechsel in den Windows-Desktop ändern (mind. 4 Ziffern).</p>
+            <div className="par-bed">
+              <input type="password" inputMode="numeric" placeholder="Aktuelle PIN" value={pinOld}
+                onChange={(e) => setPinOld(e.target.value)} />
+              <input type="password" inputMode="numeric" placeholder="Neue PIN" value={pinNew}
+                onChange={(e) => setPinNew(e.target.value)} />
+              <button className="par-btn" onClick={changePin}>PIN ändern</button>
+            </div>
+            {pinMsg && <div className="desc" style={{ marginTop: 6 }}>{pinMsg}</div>}
           </div>
 
           {/* weekly activity */}

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
-import { GameStore, useGames, gameCover } from './useGames.js';
+import { GameStore, useAllGames, gameCover } from './useGames.js';
 
 function ImpCover({ g }) {
   const [drag, setDrag] = useState(false);
@@ -63,7 +63,7 @@ function ImpCard({ g }) {
 
 export function ImportManager({ onClose }) {
   const [closing, setClosing] = useState(false);
-  const games = useGames();
+  const games = useAllGames();
   const close = () => { setClosing(true); SFX.close(); setTimeout(onClose, 240); };
 
   return (

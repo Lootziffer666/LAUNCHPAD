@@ -43,13 +43,18 @@ const SEED = [
 const seedIds = new Set(SEED.map((g) => g.id));
 const isSeed = (id) => seedIds.has(id);
 
+// Default age rating per game (others default to 6). A per-id override in the
+// store wins over this. Drives the age filter applied in main's lp:games:list.
+const MIN_AGE = { 'galaxy-racer': 9, 'pixel-pirates': 9, 'tower-forge': 9 };
+const DEFAULT_MIN_AGE = 6;
+
 function overrides() { return getStore().get('gamesOverrides') || {}; }
 function customs() { return getStore().get('gamesCustom') || []; }
 
 function merged() {
   const ov = overrides();
-  const base = SEED.map((g) => ({ ...g, ...(ov[g.id] || {}) }));
-  return base.concat(customs().map((c) => ({ ...c })));
+  const base = SEED.map((g) => ({ minAge: MIN_AGE[g.id] ?? DEFAULT_MIN_AGE, ...g, ...(ov[g.id] || {}) }));
+  return base.concat(customs().map((c) => ({ minAge: DEFAULT_MIN_AGE, ...c })));
 }
 
 function listGames() {
