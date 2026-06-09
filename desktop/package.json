@@ -9,7 +9,8 @@
     "dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron .\"",
     "dev:renderer": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test \"electron/**/*.test.js\""
   },
   "dependencies": {
     "@fontsource/outfit": "^5.2.8",
