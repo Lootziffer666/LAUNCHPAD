@@ -33,6 +33,27 @@ let parental;
 let launcher;
 let covers;
 
+// Kiosk = env override (LP_KIOSK=1) OR the parent's persisted setting; in prod
+// the child shell is fullscreen even without kiosk. registerIpc() loads the
+// parental service before any window exists, so prefs are always readable here.
+function shellPrefs() {
+  const s = parental ? parental.getSettings() : {};
+  return { kiosk: HARD_KIOSK || !!s.kiosk, autostart: s.autostart !== false };
+}
+
+// Re-apply shell prefs at startup and after curator settings changes: kiosk
+// cage live on the child window, autostart at OS-profile login. Login items
+// are only registered for packaged builds — dev would register the bare
+// electron binary.
+function applyShellPrefs() {
+  const prefs = shellPrefs();
+  if (win && !win.isDestroyed()) {
+    if (win.isKiosk() !== prefs.kiosk) win.setKiosk(prefs.kiosk);
+    if (!prefs.kiosk && !isDev && !win.isFullScreen()) win.setFullScreen(true);
+  }
+  if (!isDev) app.setLoginItemSettings({ openAtLogin: prefs.autostart });
+}
+
 function lockNavigation(w) {
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   w.webContents.on('will-navigate', (e, url) => {
@@ -49,7 +70,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0a1538',
     show: false,
-    kiosk: HARD_KIOSK, // hard cage for deployment (LP_KIOSK=1)
+    kiosk: shellPrefs().kiosk, // hard cage: LP_KIOSK=1 or the parent's setting
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -61,7 +82,12 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     win.show();
-    if (!HARD_KIOSK) win.maximize(); // soft cage: full-screen-ish single window
+    if (!shellPrefs().kiosk) {
+      // prod: real fullscreen even without the kiosk cage; dev: maximized so
+      // hot-reload/devtools stay usable
+      if (isDev) win.maximize();
+      else win.setFullScreen(true);
+    }
     console.log('[launchpad] window ready-to-show');
   });
 
@@ -271,7 +297,11 @@ function registerIpc() {
     // parental settings / diagnostics
     'lp:pin:set': (_e, oldP, newP) => parental.setPin(oldP, newP),
     'lp:parental:get': () => parental.getSettings(),
-    'lp:parental:set': mutating((_e, patch) => parental.setSettings(patch)), // age rating affects the child list
+    'lp:parental:set': mutating((_e, patch) => {
+      const out = parental.setSettings(patch); // age rating affects the child list
+      applyShellPrefs(); // kiosk/autostart take effect immediately
+      return out;
+    }),
     'lp:usage:today': () => parental.getUsageToday(),
   };
 
@@ -287,6 +317,7 @@ function registerIpc() {
 app.whenReady().then(() => {
   if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
   registerIpc();
+  applyShellPrefs(); // register/refresh autostart before any window exists
   startUsageTicker();
   createWindow();
   app.on('activate', () => {

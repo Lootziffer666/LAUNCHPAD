@@ -34,6 +34,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const [bedFrom, setBedFrom] = useState('20:30');
   const [bedTo, setBedTo] = useState('07:00');
   const [approvals, setApprovals] = useState({ browser: true, videos: true, music: true, play: true, friends: false });
+  const [kiosk, setKiosk] = useState(false);
+  const [autostart, setAutostart] = useState(true);
   const [saved, setSaved] = useState(false);
 
   // PIN change
@@ -52,6 +54,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           setAge(String(s.ageRating ?? '9'));
           if (s.bedtime) { setBedFrom(s.bedtime.from || '20:30'); setBedTo(s.bedtime.to || '07:00'); }
           if (s.approvals) setApprovals((a) => ({ ...a, ...s.approvals }));
+          setKiosk(!!s.kiosk);
+          setAutostart(s.autostart !== false);
         }
         if (u) setUsed(u.usedMin || 0);
       })
@@ -68,7 +72,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
     SFX.select();
     if (api) {
       try {
-        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals });
+        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals, kiosk, autostart });
       } catch (e) { /* ignore */ }
     }
     setSaved(true);
@@ -148,6 +152,22 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
                 <div className={`p-toggle ${approvals[a.id] ? 'on' : ''}`} onClick={() => toggle(a.id)}><i></i></div>
               </div>
             ))}
+          </div>
+
+          {/* device & start behaviour */}
+          <div className="par-card span2">
+            <h3>{Icon.power()} Gerät &amp; Start</h3>
+            <p className="desc">Wie sich LAUNCHPAD auf diesem PC verhält. Änderungen wirken sofort.</p>
+            <div className="par-row">
+              <div className="r-ic" style={{ background: '#0891b2' }}>{Icon.lock()}</div>
+              <div className="r-meta"><b>Kioskmodus</b><span>Vollbild-Käfig — kein Fenster-Ausbruch, kein Minimieren</span></div>
+              <div className={`p-toggle ${kiosk ? 'on' : ''}`} onClick={() => { SFX.select(); setKiosk(!kiosk); }}><i></i></div>
+            </div>
+            <div className="par-row">
+              <div className="r-ic" style={{ background: '#16a34a' }}>{Icon.power()}</div>
+              <div className="r-meta"><b>Automatisch starten</b><span>LAUNCHPAD startet, sobald sich das Profil am PC anmeldet</span></div>
+              <div className={`p-toggle ${autostart ? 'on' : ''}`} onClick={() => { SFX.select(); setAutostart(!autostart); }}><i></i></div>
+            </div>
           </div>
 
           {/* parent PIN */}

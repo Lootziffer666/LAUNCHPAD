@@ -17,6 +17,8 @@ const DEFAULTS = {
   dailyLimitMin: 90,
   bedtime: { from: '20:30', to: '07:00' },
   approvals: { browser: true, videos: true, music: true, play: true, friends: false },
+  kiosk: false, // hard cage: child shell runs as an unescapable kiosk window
+  autostart: true, // launch the shell when the OS profile logs in (packaged builds)
   usage: {}, // { 'YYYY-MM-DD': minutesUsed }
 };
 
@@ -67,7 +69,7 @@ function getSettings() {
 }
 
 function setSettings(patch) {
-  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals'];
+  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart'];
   const clean = {};
   for (const k of allowed) if (patch && k in patch) clean[k] = patch[k];
   const { pinHash, ...rest } = save(clean);

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Imported the VENT project (Steam family management & wishlist tools) as the `vent/` subproject:
   Expo/React-Native prototype, complete spec docs (clean UTF-8, normalized filenames), branding
   assets and the gates/tasks boards
+- vent: PIN-gated parent area in Settings — parents can disable the Wishlist, Sales, Library and
+  Family pages individually; parental settings survive "Cache leeren"
+- desktop: kiosk mode and autostart-at-login as parental settings (Familienzentrale → Gerät &
+  Start), applied live; child shell now runs fullscreen in production even without kiosk
+
+### Changed
+- vent: re-themed to the shared LAUNCHPAD palette ("Verspielt & Bunt") so launcher, desktop shell
+  and VENT read as one product
 
 ## [1.10.0] - 2026-02-14
 ### Added

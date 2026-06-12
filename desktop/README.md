@@ -30,7 +30,7 @@ cd desktop
 npm install
 npm run dev      # Vite renderer + Electron, hot reload (child shell window)
 npm run build    # production bundles (child + curator) → dist/
-npm test         # unit tests — launch resolver, curation model, SteamGridDB client (35 cases)
+npm test         # unit tests — launch resolver, curation model, SteamGridDB client (36 cases)
 ```
 
 `npm run dev` serves both entries on `http://localhost:5173` (child at `/`, curator at
@@ -127,7 +127,7 @@ and kiosk behaviour.
 ## Note on verification
 
 Everything above is built and **runtime-verified on Linux** (headless via `xvfb`) and covered by
-`npm test` (35 unit tests). Verified end-to-end here: both windows boot and render; a curator
+`npm test` (36 unit tests). Verified end-to-end here: both windows boot and render; a curator
 edit (e.g. park a game as "Für später") removes it from the child list immediately and the child
 launch gate refuses it with `not_approved` / `parent_required`; re-approving + featuring sorts it
 first; `lp:curator:open` rejects a wrong PIN and opens the window on the right one; PIN
