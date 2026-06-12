@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- desktop: Steam-family tools from the VENT product line integrated natively into the
+  Familienzentrale — Wunschliste tab (entries with target prices, live price check via
+  CheapShark) and Angebote tab (top Steam deals, wishlist hits highlighted); parents can
+  disable each page individually under Eltern & Sicherheit (the VENT app itself stays a
+  standalone Android product in its own repo)
+- desktop: kiosk mode and autostart-at-login as parental settings (Familienzentrale → Gerät &
+  Start), applied live; child shell now runs fullscreen in production even without kiosk
+- desktop: bedtime (Ruhezeit) is now enforced — child shell locks to a calm overlay during the
+  window, unlocks on its own in the morning, refuses launches (`bedtime`/`blocked`), checks the
+  lock state on boot (autostart can land mid-bedtime) and stops burning the daily budget while
+  locked
+- desktop: parent PIN override on the lock overlays (Ruhezeit / Zeitlimit) — verified in the
+  main process; bedtime override lasts until the window ends, time-limit override until
+  midnight
 
 ## [1.10.0] - 2026-02-14
 ### Added

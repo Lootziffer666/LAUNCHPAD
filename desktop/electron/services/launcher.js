@@ -31,6 +31,7 @@ const FAILURE_CLASS = {
   blocked: 'parent_required', // age gate — a parent decision, not a child problem
   not_installed: 'blocked',
   time_limit: 'blocked',
+  bedtime: 'blocked',
   error: 'recoverable',
 };
 const classifyFailure = (reason) => FAILURE_CLASS[reason] || 'fatal';

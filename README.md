@@ -19,6 +19,14 @@
 
 ## What's Inside
 
+### Subprojects
+
+| Directory | What it is |
+|-----------|------------|
+| **app/** | The Android family launcher (Fossify fork) |
+| **companion/** | Parent companion Android app (M4) |
+| **desktop/** | Kid-safe Windows desktop shell (Electron + React) — includes the Steam-family tools (wishlist, deals) in the Familienzentrale |
+
 ### Implementation (`impl/`)
 
 | Directory | Contents | Purpose |

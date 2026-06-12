@@ -32,6 +32,61 @@ let registry;
 let parental;
 let launcher;
 let covers;
+let wishlist;
+
+// ── lock model (bedtime / daily time limit) with parent override ──
+// Overrides are in-memory on purpose: a reboot re-locks. The bedtime override
+// lasts until the current window ends (next night locks again); the
+// time-limit override lasts until midnight (usage keeps accruing, it just
+// stops locking for today). Both are set ONLY via lp:shell:unlock, which
+// verifies the parent PIN in main.
+let bedtimeOverride = false;
+let timeOverrideDay = null;
+let lastLock; // ticker edge detection (undefined until the first evaluation)
+
+const dayKey = () => new Date().toISOString().slice(0, 10);
+
+function currentLock() {
+  if (parental.inBedtime()) {
+    if (!bedtimeOverride) return 'bedtime';
+  } else {
+    bedtimeOverride = false; // window over → the override resets itself
+  }
+  if (parental.timeLeft() <= 0 && timeOverrideDay !== dayKey()) return 'timeup';
+  return null;
+}
+
+function emitLock(lock) {
+  if (win && !win.isDestroyed()) win.webContents.send('lp:event:lock', lock);
+}
+
+// Kiosk = env override (LP_KIOSK=1) OR the parent's persisted setting; in prod
+// the child shell is fullscreen even without kiosk. registerIpc() loads the
+// parental service before any window exists, so prefs are always readable here.
+function shellPrefs() {
+  const s = parental ? parental.getSettings() : {};
+  return { kiosk: HARD_KIOSK || !!s.kiosk, autostart: s.autostart !== false };
+}
+
+// Re-apply shell prefs at startup and after curator settings changes: kiosk
+// cage live on the child window, autostart at OS-profile login. Login items
+// are only registered for packaged builds — dev would register the bare
+// electron binary.
+function applyShellPrefs() {
+  const prefs = shellPrefs();
+  if (win && !win.isDestroyed()) {
+    if (win.isKiosk() !== prefs.kiosk) win.setKiosk(prefs.kiosk);
+    if (!prefs.kiosk && !isDev && !win.isFullScreen()) win.setFullScreen(true);
+  }
+  if (!isDev) {
+    // supported on Windows/macOS only; never let a platform quirk kill main
+    try {
+      app.setLoginItemSettings({ openAtLogin: prefs.autostart });
+    } catch (e) {
+      console.error('[launchpad] setLoginItemSettings failed:', e);
+    }
+  }
+}
 
 function lockNavigation(w) {
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -49,7 +104,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0a1538',
     show: false,
-    kiosk: HARD_KIOSK, // hard cage for deployment (LP_KIOSK=1)
+    kiosk: shellPrefs().kiosk, // hard cage: LP_KIOSK=1 or the parent's setting
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -61,7 +116,12 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     win.show();
-    if (!HARD_KIOSK) win.maximize(); // soft cage: full-screen-ish single window
+    if (!shellPrefs().kiosk) {
+      // prod: real fullscreen even without the kiosk cage; dev: maximized so
+      // hot-reload/devtools stay usable
+      if (isDev) win.maximize();
+      else win.setFullScreen(true);
+    }
     console.log('[launchpad] window ready-to-show');
   });
 
@@ -180,10 +240,6 @@ function maybeCaptureForVerification() {
   });
 }
 
-function emitTimeLimit() {
-  if (win && !win.isDestroyed()) win.webContents.send('lp:event:time-limit');
-}
-
 // Any data mutation → both windows refetch, so a curator edit shows up in the
 // child shell immediately (and vice versa for install/favorite).
 function emitGamesChanged() {
@@ -192,13 +248,25 @@ function emitGamesChanged() {
   }
 }
 
-// Accrue foreground time; when the daily limit is reached, tell the renderer to
-// lock back to a safe LAUNCHPAD screen. (A future pass can scope this to the
-// child shell / active use only.)
+// Accrue foreground time and drive the lock state. (A future pass can scope
+// usage to the child shell / active use only.)
+//
+// One ticker, one lock signal: every tick re-evaluates currentLock() —
+// bedtime window, daily budget, parent overrides — and emits lp:event:lock
+// on EVERY transition, both ways. So the shell locks when bedtime starts,
+// unlocks on its own in the morning, and re-locks the night after an
+// override. While the bedtime lock is active the tick does not burn the
+// daily budget (a PC left on overnight would otherwise wake up with no
+// time left).
 function startUsageTicker() {
+  lastLock = currentLock();
   setInterval(() => {
-    parental.addUsage(USAGE_TICK_MIN);
-    if (parental.timeLeft() <= 0) emitTimeLimit();
+    if (currentLock() !== 'bedtime') parental.addUsage(USAGE_TICK_MIN);
+    const lock = currentLock();
+    if (lock !== lastLock) {
+      lastLock = lock;
+      emitLock(lock);
+    }
   }, USAGE_TICK_MS);
 }
 
@@ -212,6 +280,7 @@ function registerIpc() {
   parental = require('./services/parental');
   launcher = require('./services/launcher');
   covers = require('./services/covers');
+  wishlist = require('./services/wishlist');
 
   // after a successful mutation, let every window refetch
   const mutating = (fn) => async (...args) => {
@@ -237,13 +306,29 @@ function registerIpc() {
     // transition UI.
     'lp:games:launch': (_e, id) => {
       const game = registry.getGame(id);
-      const gate = parental.canLaunch(game);
+      const gate = parental.canLaunch(game, {
+        ignoreBedtime: bedtimeOverride,
+        ignoreTimeLimit: timeOverrideDay === dayKey(),
+      });
       if (!gate.ok) return { ...gate, errorClass: launcher.classifyFailure(gate.reason) };
       if (process.env.LP_LAUNCH_DRYRUN === '1') return { ok: true, dryRun: true, plan: launcher.resolveLaunch(game) };
       return launcher.launchGame(game);
     },
 
     // shell / gate
+    // Lock state for the renderer on mount — with autostart the shell can come
+    // up mid-bedtime or with the budget already spent, before any tick fires.
+    'lp:shell:status': () => ({ lock: currentLock(), timeLeftMin: parental.timeLeft() }),
+    // Parent override for the lock overlays. PIN verified HERE in main; the
+    // renderer's PinGate check is just UX. Sets the matching override and
+    // reports the new lock state.
+    'lp:shell:unlock': (_e, pin) => {
+      if (!parental.verifyPin(pin)) return { ok: false, reason: 'bad_pin' };
+      if (parental.inBedtime()) bedtimeOverride = true;
+      if (parental.timeLeft() <= 0) timeOverrideDay = dayKey();
+      lastLock = currentLock(); // keep the ticker's edge detection in sync
+      return { ok: true, lock: lastLock };
+    },
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
     'lp:pin:status': () => ({ pinIsDefault: !!parental.getSettings().pinIsDefault }),
     // The ONLY door from the child shell to the curator: PIN is verified in
@@ -269,9 +354,21 @@ function registerIpc() {
     'lp:covers:set-key': (_e, key) => covers.setApiKey(key),
 
     // parental settings / diagnostics
+    // Steam-family tools (wishlist + deals) — parent surface only. The deals
+    // min-savings preference is resolved from parental settings in main.
+    'lp:wishlist:list': () => wishlist.listItems(),
+    'lp:wishlist:upsert': (_e, patch) => wishlist.upsertItem(patch),
+    'lp:wishlist:remove': (_e, id) => wishlist.removeItem(id),
+    'lp:wishlist:prices': () => wishlist.refreshPrices(),
+    'lp:deals:top': () => wishlist.topDeals({ minSavings: parental.getSettings().dealsMinSavings }),
+
     'lp:pin:set': (_e, oldP, newP) => parental.setPin(oldP, newP),
     'lp:parental:get': () => parental.getSettings(),
-    'lp:parental:set': mutating((_e, patch) => parental.setSettings(patch)), // age rating affects the child list
+    'lp:parental:set': mutating((_e, patch) => {
+      const out = parental.setSettings(patch); // age rating affects the child list
+      applyShellPrefs(); // kiosk/autostart take effect immediately
+      return out;
+    }),
     'lp:usage:today': () => parental.getUsageToday(),
   };
 
@@ -287,6 +384,7 @@ function registerIpc() {
 app.whenReady().then(() => {
   if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
   registerIpc();
+  applyShellPrefs(); // register/refresh autostart before any window exists
   startUsageTicker();
   createWindow();
   app.on('activate', () => {

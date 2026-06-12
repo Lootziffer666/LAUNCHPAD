@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld('launchpad', {
   coversKeyStatus: () => invoke('lp:covers:key-status'),
   setCoversKey: (key) => invoke('lp:covers:set-key', key),
 
+  // Steam-family tools: wishlist with target prices + deal browser (CheapShark)
+  listWishlist: () => invoke('lp:wishlist:list'),
+  upsertWishlist: (patch) => invoke('lp:wishlist:upsert', patch),
+  removeWishlist: (id) => invoke('lp:wishlist:remove', id),
+  refreshWishlistPrices: () => invoke('lp:wishlist:prices'),
+  topDeals: () => invoke('lp:deals:top'),
+
   // parental settings / PIN / usage
   setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
   getParentalSettings: () => invoke('lp:parental:get'),
