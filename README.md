@@ -25,8 +25,7 @@
 |-----------|------------|
 | **app/** | The Android family launcher (Fossify fork) |
 | **companion/** | Parent companion Android app (M4) |
-| **desktop/** | Kid-safe Windows desktop shell (Electron + React) |
-| **vent/** | VENT — Steam family management & wishlist tools (Expo prototype + full spec, imported from the former `VENT` repo) |
+| **desktop/** | Kid-safe Windows desktop shell (Electron + React) — includes the Steam-family tools (wishlist, deals) in the Familienzentrale |
 
 ### Implementation (`impl/`)
 
