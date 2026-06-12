@@ -5,13 +5,14 @@
    tag) and manage safety settings. No kid-shell chrome, no stage
    scaling — a normal scrolling workspace in its own window.
    ============================================================ */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
 import { GameStore, useAllGames } from '../games/useGames.js';
 import { ImpCard, CoverKeyField } from '../games/GameManager.jsx';
 import { ParentalPanel } from '../apps/Parental.jsx';
 import { CurationBar } from './CurationBar.jsx';
+import { WishlistTab, DealsTab } from './SteamTools.jsx';
 
 // Review filters — the inbox view from the plan ("Candidate Review").
 const FILTERS = [
@@ -79,15 +80,36 @@ function LibraryTab() {
   );
 }
 
+// wishlist/deals are the Steam-family pages — parents can switch each one off
+// under Eltern & Sicherheit (settings.modules); library and safety are fixed.
 const TABS = [
-  { id: 'library', label: 'Bibliothek & Kuration', ic: 'gamepad' },
-  { id: 'safety', label: 'Eltern & Sicherheit', ic: 'shield' },
+  { id: 'library', label: 'Bibliothek & Kuration', ic: 'gamepad', fixed: true },
+  { id: 'wishlist', label: 'Wunschliste', ic: 'star' },
+  { id: 'deals', label: 'Angebote', ic: 'bell' },
+  { id: 'safety', label: 'Eltern & Sicherheit', ic: 'shield', fixed: true },
 ];
 
 export default function CuratorApp() {
   const [tab, setTab] = useState('library');
   const games = useAllGames();
   const approved = games.filter((g) => g.curation === 'approved').length;
+
+  const [modules, setModules] = useState({ wishlist: true, deals: true });
+  useEffect(() => {
+    const lp = typeof window !== 'undefined' && window.launchpad;
+    if (!lp || !lp.getParentalSettings) return undefined;
+    const load = () => lp.getParentalSettings()
+      .then((s) => { if (s && s.modules) setModules((m) => ({ ...m, ...s.modules })); })
+      .catch(() => {});
+    load();
+    // settings saves broadcast games-changed → tab set follows immediately
+    return lp.onGamesChanged ? lp.onGamesChanged(load) : undefined;
+  }, []);
+
+  const tabs = TABS.filter((t) => t.fixed || modules[t.id] !== false);
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === tab)) setTab('library');
+  }, [modules]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="cur-app">
@@ -103,7 +125,7 @@ export default function CuratorApp() {
           </div>
         </div>
         <nav className="cur-tabs">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button key={t.id} className={`cur-tab ${tab === t.id ? 'on' : ''}`}
               onClick={() => { setTab(t.id); SFX.swipe(); }}>
               {Icon[t.ic]()} {t.label}
@@ -114,6 +136,8 @@ export default function CuratorApp() {
 
       <main className="cur-main">
         {tab === 'library' && <LibraryTab />}
+        {tab === 'wishlist' && <WishlistTab />}
+        {tab === 'deals' && <DealsTab />}
         {tab === 'safety' && <ParentalPanel inline />}
       </main>
     </div>

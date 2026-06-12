@@ -60,35 +60,41 @@ export default function App() {
     return GameStore.subscribe(() => { if (GameStore.isLoaded()) setReady(true); });
   }, []);
 
-  // Daily time limit reached → drop everything back to a calm LAUNCHPAD screen.
-  // Bedtime works the same way but unlocks again in the morning (main emits
-  // transitions both ways). On mount we ask main for the current lock state:
-  // with autostart the shell can boot mid-bedtime or with the budget spent,
-  // before the first ticker event ever fires.
-  const [timeUp, setTimeUp] = useState(false);
-  const [bedtime, setBedtime] = useState(false);
+  // Lock model: main owns the state ('bedtime' | 'timeup' | null) and emits
+  // every transition; the morning unlock arrives the same way. On mount we ask
+  // for the current state — with autostart the shell can boot mid-bedtime or
+  // with the budget spent, before the first ticker event fires. Parents can
+  // override from the overlay via PIN; main re-verifies and decides how long
+  // the override holds (bedtime: until the window ends, time: until midnight).
+  const [lock, setLock] = useState(null);
+  const [lockGate, setLockGate] = useState(false);
   useEffect(() => {
     if (!window.launchpad) return undefined;
-    const lock = (setter) => {
-      setMode('launchpad');
-      setApp(null); setPlay(null); setGate(null);
-      setter(true);
+    const apply = (l) => {
+      if (l) {
+        setMode('launchpad');
+        setApp(null); setPlay(null); setGate(null);
+      } else {
+        setLockGate(false);
+      }
+      setLock(l || null);
     };
     if (window.launchpad.shellStatus) {
-      window.launchpad.shellStatus().then((s) => {
-        if (!s) return;
-        if (s.inBedtime) lock(setBedtime);
-        else if (s.timeLeftMin <= 0) lock(setTimeUp);
-      }).catch(() => {});
+      window.launchpad.shellStatus().then((s) => s && apply(s.lock)).catch(() => {});
     }
-    const offTime = window.launchpad.onTimeLimitReached
-      ? window.launchpad.onTimeLimitReached(() => lock(setTimeUp))
-      : undefined;
-    const offBed = window.launchpad.onBedtime
-      ? window.launchpad.onBedtime((active) => (active ? lock(setBedtime) : setBedtime(false)))
-      : undefined;
-    return () => { if (offTime) offTime(); if (offBed) offBed(); };
+    return window.launchpad.onLockChanged ? window.launchpad.onLockChanged(apply) : undefined;
   }, []);
+
+  // PinGate has already verified the PIN for UX; main verifies it again and
+  // arms the actual override — the renderer alone can never lift the lock.
+  const unlockWithPin = async (pin) => {
+    setLockGate(false);
+    if (!window.launchpad || !window.launchpad.shellUnlock) return;
+    try {
+      const r = await window.launchpad.shellUnlock(pin);
+      if (r && r.ok) { SFX.launch(); setLock(r.lock || null); }
+    } catch (e) { /* keep the lock */ }
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', t.theme);
@@ -150,7 +156,7 @@ export default function App() {
         )}
       </div>
 
-      {(bedtime || timeUp) && (
+      {lock && (
         <div
           className="timeup-overlay"
           style={{
@@ -162,13 +168,34 @@ export default function App() {
         >
           <div style={{ fontSize: 64 }}>🌙</div>
           <div style={{ fontSize: 32, fontWeight: 800 }}>
-            {bedtime ? 'Ruhezeit' : 'Für heute ist Schluss'}
+            {lock === 'bedtime' ? 'Ruhezeit' : 'Für heute ist Schluss'}
           </div>
           <div style={{ fontSize: 18, color: '#9fb2e6', maxWidth: 440 }}>
-            {bedtime
+            {lock === 'bedtime'
               ? 'Zeit zum Schlafen. LAUNCHPAD macht Pause und ist morgen früh wieder für dich da. 😴'
               : 'Die Spielzeit für heute ist aufgebraucht. Morgen geht’s weiter — bis dann! 👋'}
           </div>
+          <button
+            onClick={() => { SFX.open(); setLockGate(true); }}
+            style={{
+              marginTop: 18, padding: '8px 18px', borderRadius: 999, cursor: 'pointer',
+              background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)',
+              color: '#9fb2e6', font: 'inherit', fontSize: 13,
+            }}
+          >
+            Eltern-Freigabe (PIN)
+          </button>
+          {lockGate && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
+              <PinGate
+                sub={lock === 'bedtime'
+                  ? 'PIN eingeben, um die Ruhezeit für heute aufzuheben'
+                  : 'PIN eingeben, um das Tageslimit für heute aufzuheben'}
+                onUnlock={unlockWithPin}
+                onCancel={() => setLockGate(false)}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

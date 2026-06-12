@@ -36,6 +36,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const [approvals, setApprovals] = useState({ browser: true, videos: true, music: true, play: true, friends: false });
   const [kiosk, setKiosk] = useState(false);
   const [autostart, setAutostart] = useState(true);
+  const [modules, setModules] = useState({ wishlist: true, deals: true });
   const [saved, setSaved] = useState(false);
 
   // PIN change
@@ -56,6 +57,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           if (s.approvals) setApprovals((a) => ({ ...a, ...s.approvals }));
           setKiosk(!!s.kiosk);
           setAutostart(s.autostart !== false);
+          if (s.modules) setModules((m) => ({ ...m, ...s.modules }));
         }
         if (u) setUsed(u.usedMin || 0);
       })
@@ -72,7 +74,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
     SFX.select();
     if (api) {
       try {
-        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals, kiosk, autostart });
+        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals, kiosk, autostart, modules });
       } catch (e) { /* ignore */ }
     }
     setSaved(true);
@@ -152,6 +154,24 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
                 <div className={`p-toggle ${approvals[a.id] ? 'on' : ''}`} onClick={() => toggle(a.id)}><i></i></div>
               </div>
             ))}
+          </div>
+
+          {/* Familienzentrale pages — each one individually disableable */}
+          <div className="par-card span2">
+            <h3>{Icon.grid()} Seiten der Familienzentrale</h3>
+            <p className="desc">Nicht benötigte Seiten lassen sich einzeln ausblenden. Bibliothek und dieser Bereich bleiben immer da.</p>
+            <div className="par-row">
+              <div className="r-ic" style={{ background: '#f59e0b' }}>{Icon.star()}</div>
+              <div className="r-meta"><b>Wunschliste</b><span>Spiele vormerken, Zielpreise setzen, Preise prüfen</span></div>
+              <div className={`p-toggle ${modules.wishlist !== false ? 'on' : ''}`}
+                onClick={() => { SFX.select(); setModules((m) => ({ ...m, wishlist: m.wishlist === false })); }}><i></i></div>
+            </div>
+            <div className="par-row">
+              <div className="r-ic" style={{ background: '#db2777' }}>{Icon.bell()}</div>
+              <div className="r-meta"><b>Angebote</b><span>Aktuelle Steam-Deals, Treffer aus der Wunschliste hervorgehoben</span></div>
+              <div className={`p-toggle ${modules.deals !== false ? 'on' : ''}`}
+                onClick={() => { SFX.select(); setModules((m) => ({ ...m, deals: m.deals === false })); }}><i></i></div>
+            </div>
           </div>
 
           {/* device & start behaviour */}

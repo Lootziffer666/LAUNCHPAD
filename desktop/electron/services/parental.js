@@ -19,6 +19,8 @@ const DEFAULTS = {
   approvals: { browser: true, videos: true, music: true, play: true, friends: false },
   kiosk: false, // hard cage: child shell runs as an unescapable kiosk window
   autostart: true, // launch the shell when the OS profile logs in (packaged builds)
+  modules: { wishlist: true, deals: true }, // Familienzentrale pages, individually disableable
+  dealsMinSavings: 30, // Angebote page: only show deals with at least this discount (%)
   usage: {}, // { 'YYYY-MM-DD': minutesUsed }
 };
 
@@ -69,7 +71,7 @@ function getSettings() {
 }
 
 function setSettings(patch) {
-  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart'];
+  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart', 'modules', 'dealsMinSavings'];
   const clean = {};
   for (const k of allowed) if (patch && k in patch) clean[k] = patch[k];
   const { pinHash, ...rest } = save(clean);
@@ -120,7 +122,10 @@ function timeLeft() {
   return Math.max(0, u.limitMin - u.usedMin);
 }
 
-function canLaunch(game) {
+// `overrides` carries the parent's PIN-verified lock overrides from main
+// (ignoreBedtime / ignoreTimeLimit) — approval and age gates are never
+// overridable.
+function canLaunch(game, overrides = {}) {
   if (!game) return { ok: false, reason: 'not_found' };
   // Approval is the first gate: un-approved games are never child-launchable,
   // even if an id leaks through. Mirrors the approved-only child list in main.
@@ -129,8 +134,8 @@ function canLaunch(game) {
   }
   if (!game.installed) return { ok: false, reason: 'not_installed' };
   if (!ageAllows(game)) return { ok: false, reason: 'blocked', message: 'Altersfreigabe' };
-  if (inBedtime()) return { ok: false, reason: 'bedtime', message: 'Ruhezeit — Zeit zum Schlafen.' };
-  if (timeLeft() <= 0) return { ok: false, reason: 'time_limit' };
+  if (!overrides.ignoreBedtime && inBedtime()) return { ok: false, reason: 'bedtime', message: 'Ruhezeit — Zeit zum Schlafen.' };
+  if (!overrides.ignoreTimeLimit && timeLeft() <= 0) return { ok: false, reason: 'time_limit' };
   return { ok: true };
 }
 
