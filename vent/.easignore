@@ -1,0 +1,9 @@
+node_modules/
+steam/
+link/
+Chat/
+.git/
+.idea/
+.vscode/
+*.md
+*.txt
