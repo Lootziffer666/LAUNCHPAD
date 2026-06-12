@@ -34,7 +34,17 @@ The renderer only ever sees these shapes through IPC.
   "c1": "#3b8526", "c2": "#0f3d1a", // duotone fallback colors
   "emblem": "grid",                 // fallback icon id (see icons.jsx)
 
-  "desc": "Bau, erkunde und überlebe …"  // 1–2 sentence blurb for Game Detail
+  "desc": "Bau, erkunde und überlebe …",  // 1–2 sentence blurb for Game Detail
+
+  // ── curation (windows-plan adoption; defaults in electron/services/curation.js) ──
+  "curation": "approved",           // "new"|"viewed"|"undecided"|"approved"|"forLater"|"hidden"
+                                    // only "approved" is child-visible; new entries start "new"
+  "surfacing": "featured",          // "featured"|"normal"|"low" — prominence, separate from approval;
+                                    // `featured` (above) is DERIVED from this for the child UI
+  "minAge": 6,                      // 6|9|12 — gates against parental ageRating, filtered in main
+  "tags": ["Winter", "mit Papa"],   // occasion/intent tags (suggestions + free text)
+  "containment": "unknown",         // "strong"|"soft"|"weak"|"open"|"unknown" — parent info only
+  "parentWarning": null             // shown in the curator when containment is weak/open
 }
 ```
 
