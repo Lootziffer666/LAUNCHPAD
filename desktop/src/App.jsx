@@ -70,7 +70,9 @@ export default function App() {
   const [lockGate, setLockGate] = useState(false);
   useEffect(() => {
     if (!window.launchpad) return undefined;
+    let alive = true;
     const apply = (l) => {
+      if (!alive) return;
       if (l) {
         setMode('launchpad');
         setApp(null); setPlay(null); setGate(null);
@@ -82,7 +84,8 @@ export default function App() {
     if (window.launchpad.shellStatus) {
       window.launchpad.shellStatus().then((s) => s && apply(s.lock)).catch(() => {});
     }
-    return window.launchpad.onLockChanged ? window.launchpad.onLockChanged(apply) : undefined;
+    const off = window.launchpad.onLockChanged ? window.launchpad.onLockChanged(apply) : undefined;
+    return () => { alive = false; if (off) off(); };
   }, []);
 
   // PinGate has already verified the PIN for UX; main verifies it again and

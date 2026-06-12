@@ -78,7 +78,14 @@ function applyShellPrefs() {
     if (win.isKiosk() !== prefs.kiosk) win.setKiosk(prefs.kiosk);
     if (!prefs.kiosk && !isDev && !win.isFullScreen()) win.setFullScreen(true);
   }
-  if (!isDev) app.setLoginItemSettings({ openAtLogin: prefs.autostart });
+  if (!isDev) {
+    // supported on Windows/macOS only; never let a platform quirk kill main
+    try {
+      app.setLoginItemSettings({ openAtLogin: prefs.autostart });
+    } catch (e) {
+      console.error('[launchpad] setLoginItemSettings failed:', e);
+    }
+  }
 }
 
 function lockNavigation(w) {
