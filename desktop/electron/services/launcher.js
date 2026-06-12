@@ -102,7 +102,13 @@ async function launchGame(game) {
         return { ok: false, reason: 'error', errorClass: 'fatal', message: 'Dieser Spieltyp lässt sich nur unter Windows starten' };
       }
       const { spawn } = require('node:child_process');
-      spawn(plan.cmd, plan.args, { detached: true, stdio: 'ignore' }).unref();
+      const child = spawn(plan.cmd, plan.args, { detached: true, stdio: 'ignore' });
+      // An async spawn failure (e.g. ENOENT) emits 'error' — without a
+      // listener that would be an uncaught exception in the MAIN process.
+      child.on('error', (err) => {
+        console.error(`[launchpad] spawn failed for ${plan.cmd}:`, err);
+      });
+      child.unref();
       return { ok: true };
     }
   } catch (e) {

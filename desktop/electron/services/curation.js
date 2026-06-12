@@ -28,6 +28,7 @@ const SUGGESTED_TAGS = [
 // Games created through the curator start as 'new' (set in gameRegistry.upsert)
 // so nothing reaches the child without a conscious decision.
 function withCurationDefaults(g) {
+  if (!g) return g; // defensive: callers map over registry arrays, but never throw on a hole
   const curation = CURATION_STATES.includes(g.curation) ? g.curation : 'approved';
   const surfacing = SURFACING_LEVELS.includes(g.surfacing)
     ? g.surfacing

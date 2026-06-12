@@ -6,7 +6,7 @@
    with its parent warning. Writes go through GameStore.setField →
    lp:games:upsert (curator-only channel).
    ============================================================ */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GameStore } from '../games/useGames.js';
 import { SFX } from '../lib/sfx.js';
 
@@ -78,6 +78,17 @@ function TagEditor({ g }) {
 
 export function CurationBar({ g }) {
   const containmentRisky = g.containment === 'weak' || g.containment === 'open';
+  // Draft the warning locally and commit on blur/Enter — writing through on
+  // every keystroke would mean an IPC round-trip + store write per character.
+  const [warnDraft, setWarnDraft] = useState(g.parentWarning || '');
+  // g.id is a dependency so the draft resets when this instance ever shows a
+  // different game (today ImpCard keys by id, but don't rely on the parent).
+  useEffect(() => { setWarnDraft(g.parentWarning || ''); }, [g.id, g.parentWarning]);
+  const commitWarning = () => {
+    if (warnDraft.trim() !== (g.parentWarning || '')) {
+      GameStore.setField(g.id, 'parentWarning', warnDraft.trim());
+    }
+  };
   return (
     <div className="curb">
       {/* approval — the only state the child shell acts on */}
@@ -127,8 +138,10 @@ export function CurationBar({ g }) {
         </select>
         {containmentRisky && (
           <input className="imp-input curb-warning" placeholder="Elternhinweis, z. B. „Moduswechsel bleibt möglich“"
-            value={g.parentWarning || ''}
-            onChange={(e) => GameStore.setField(g.id, 'parentWarning', e.target.value)} />
+            value={warnDraft}
+            onChange={(e) => setWarnDraft(e.target.value)}
+            onBlur={commitWarning}
+            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()} />
         )}
       </div>
       {containmentRisky && g.parentWarning && (

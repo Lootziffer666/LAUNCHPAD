@@ -24,8 +24,9 @@ const WEEK = [
 ];
 
 // `inline` renders the panel as a static pane (curator app) instead of the
-// overlay window — no scrim, no close button, no zoom animation.
-export function ParentalPanel({ kidName = 'Jake', onClose, inline = false }) {
+// overlay window — no scrim, no close button, no zoom animation. onClose
+// defaults to a no-op so inline use can't hit an undefined callback.
+export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = false }) {
   const [closing, setClosing] = useState(false);
   const [limit, setLimit] = useState(90);
   const [used, setUsed] = useState(0);
