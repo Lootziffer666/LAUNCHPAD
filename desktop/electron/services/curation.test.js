@@ -37,6 +37,11 @@ test('invalid values are normalized, valid ones pass through', () => {
   for (const c of CONTAINMENT_LEVELS) assert.equal(withCurationDefaults({ containment: c }).containment, c);
 });
 
+test('withCurationDefaults tolerates null/undefined input', () => {
+  assert.equal(withCurationDefaults(null), null);
+  assert.equal(withCurationDefaults(undefined), undefined);
+});
+
 test('only approved games are child-visible', () => {
   for (const c of CURATION_STATES) {
     const g = withCurationDefaults({ curation: c });
