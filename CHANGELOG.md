@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Family pages individually; parental settings survive "Cache leeren"
 - desktop: kiosk mode and autostart-at-login as parental settings (Familienzentrale → Gerät &
   Start), applied live; child shell now runs fullscreen in production even without kiosk
+- desktop: bedtime (Ruhezeit) is now enforced — child shell locks to a calm overlay during the
+  window, unlocks on its own in the morning, refuses launches (`bedtime`/`blocked`), checks the
+  lock state on boot (autostart can land mid-bedtime) and stops burning the daily budget while
+  locked
 
 ### Changed
 - vent: re-themed to the shared LAUNCHPAD palette ("Verspielt & Bunt") so launcher, desktop shell

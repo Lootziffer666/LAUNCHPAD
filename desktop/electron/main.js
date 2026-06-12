@@ -221,8 +221,21 @@ function emitGamesChanged() {
 // Accrue foreground time; when the daily limit is reached, tell the renderer to
 // lock back to a safe LAUNCHPAD screen. (A future pass can scope this to the
 // child shell / active use only.)
+//
+// Bedtime rides the same ticker: on every tick we check the window and emit
+// transitions BOTH ways — the shell locks when bedtime starts and unlocks on
+// its own in the morning. While bedtime is active the shell is locked anyway,
+// so the tick does not burn the daily budget (a PC left on overnight would
+// otherwise wake up with no time left).
 function startUsageTicker() {
+  let wasBedtime = parental.inBedtime();
   setInterval(() => {
+    const bed = parental.inBedtime();
+    if (bed !== wasBedtime) {
+      wasBedtime = bed;
+      if (win && !win.isDestroyed()) win.webContents.send('lp:event:bedtime', bed);
+    }
+    if (bed) return;
     parental.addUsage(USAGE_TICK_MIN);
     if (parental.timeLeft() <= 0) emitTimeLimit();
   }, USAGE_TICK_MS);
@@ -270,6 +283,9 @@ function registerIpc() {
     },
 
     // shell / gate
+    // Lock state for the renderer on mount — with autostart the shell can come
+    // up mid-bedtime or with the budget already spent, before any tick fires.
+    'lp:shell:status': () => ({ inBedtime: parental.inBedtime(), timeLeftMin: parental.timeLeft() }),
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
     'lp:pin:status': () => ({ pinIsDefault: !!parental.getSettings().pinIsDefault }),
     // The ONLY door from the child shell to the curator: PIN is verified in

@@ -61,14 +61,33 @@ export default function App() {
   }, []);
 
   // Daily time limit reached → drop everything back to a calm LAUNCHPAD screen.
+  // Bedtime works the same way but unlocks again in the morning (main emits
+  // transitions both ways). On mount we ask main for the current lock state:
+  // with autostart the shell can boot mid-bedtime or with the budget spent,
+  // before the first ticker event ever fires.
   const [timeUp, setTimeUp] = useState(false);
+  const [bedtime, setBedtime] = useState(false);
   useEffect(() => {
-    if (!window.launchpad || !window.launchpad.onTimeLimitReached) return undefined;
-    return window.launchpad.onTimeLimitReached(() => {
+    if (!window.launchpad) return undefined;
+    const lock = (setter) => {
       setMode('launchpad');
       setApp(null); setPlay(null); setGate(null);
-      setTimeUp(true);
-    });
+      setter(true);
+    };
+    if (window.launchpad.shellStatus) {
+      window.launchpad.shellStatus().then((s) => {
+        if (!s) return;
+        if (s.inBedtime) lock(setBedtime);
+        else if (s.timeLeftMin <= 0) lock(setTimeUp);
+      }).catch(() => {});
+    }
+    const offTime = window.launchpad.onTimeLimitReached
+      ? window.launchpad.onTimeLimitReached(() => lock(setTimeUp))
+      : undefined;
+    const offBed = window.launchpad.onBedtime
+      ? window.launchpad.onBedtime((active) => (active ? lock(setBedtime) : setBedtime(false)))
+      : undefined;
+    return () => { if (offTime) offTime(); if (offBed) offBed(); };
   }, []);
 
   useEffect(() => {
@@ -131,7 +150,7 @@ export default function App() {
         )}
       </div>
 
-      {timeUp && (
+      {(bedtime || timeUp) && (
         <div
           className="timeup-overlay"
           style={{
@@ -142,9 +161,13 @@ export default function App() {
           }}
         >
           <div style={{ fontSize: 64 }}>🌙</div>
-          <div style={{ fontSize: 32, fontWeight: 800 }}>Für heute ist Schluss</div>
+          <div style={{ fontSize: 32, fontWeight: 800 }}>
+            {bedtime ? 'Ruhezeit' : 'Für heute ist Schluss'}
+          </div>
           <div style={{ fontSize: 18, color: '#9fb2e6', maxWidth: 440 }}>
-            Die Spielzeit für heute ist aufgebraucht. Morgen geht’s weiter — bis dann! 👋
+            {bedtime
+              ? 'Zeit zum Schlafen. LAUNCHPAD macht Pause und ist morgen früh wieder für dich da. 😴'
+              : 'Die Spielzeit für heute ist aufgebraucht. Morgen geht’s weiter — bis dann! 👋'}
           </div>
         </div>
       )}

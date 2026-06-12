@@ -91,6 +91,23 @@ function addUsage(minutes) {
   return getUsageToday();
 }
 
+// ── bedtime ──
+// Pure window check (exported for tests). "20:30"→"07:00" wraps midnight;
+// from === to means the window is disabled.
+function isInBedtime(bedtime, now = new Date()) {
+  if (!bedtime || !bedtime.from || !bedtime.to || bedtime.from === bedtime.to) return false;
+  const minutes = (hhmm) => {
+    const [h, m] = String(hhmm).split(':').map((n) => parseInt(n, 10));
+    return (h || 0) * 60 + (m || 0);
+  };
+  const t = now.getHours() * 60 + now.getMinutes();
+  const from = minutes(bedtime.from);
+  const to = minutes(bedtime.to);
+  return from < to ? t >= from && t < to : t >= from || t < to;
+}
+
+function inBedtime() { return isInBedtime(raw().bedtime); }
+
 // ── launch gates (used by M3's launchGame) ──
 function ageAllows(game) {
   const rating = parseInt(raw().ageRating, 10) || 99;
@@ -112,6 +129,7 @@ function canLaunch(game) {
   }
   if (!game.installed) return { ok: false, reason: 'not_installed' };
   if (!ageAllows(game)) return { ok: false, reason: 'blocked', message: 'Altersfreigabe' };
+  if (inBedtime()) return { ok: false, reason: 'bedtime', message: 'Ruhezeit — Zeit zum Schlafen.' };
   if (timeLeft() <= 0) return { ok: false, reason: 'time_limit' };
   return { ok: true };
 }
@@ -119,4 +137,5 @@ function canLaunch(game) {
 module.exports = {
   hashPin, verifyPin, setPin, getSettings, setSettings,
   getUsageToday, addUsage, ageAllows, timeLeft, canLaunch,
+  isInBedtime, inBedtime,
 };

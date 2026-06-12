@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('launchpad', {
   setFavorite: (id, v) => invoke('lp:games:favorite', id, v),
 
   // shell / gate
+  shellStatus: () => invoke('lp:shell:status'), // { inBedtime, timeLeftMin }
   verifyPin: (pin) => invoke('lp:pin:verify', pin),
   pinStatus: () => invoke('lp:pin:status'),
   openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
@@ -35,5 +36,6 @@ contextBridge.exposeInMainWorld('launchpad', {
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onTimeLimitReached: (cb) => on('lp:event:time-limit', cb),
+  onBedtime: (cb) => on('lp:event:bedtime', cb), // payload: active (boolean)
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
 });

@@ -30,7 +30,7 @@ cd desktop
 npm install
 npm run dev      # Vite renderer + Electron, hot reload (child shell window)
 npm run build    # production bundles (child + curator) → dist/
-npm test         # unit tests — launch resolver, curation model, SteamGridDB client (36 cases)
+npm test         # unit tests — launch resolver, curation model, SteamGridDB client (40 cases)
 ```
 
 `npm run dev` serves both entries on `http://localhost:5173` (child at `/`, curator at
@@ -91,12 +91,17 @@ Open the **Familienzentrale** (PIN-gated; default PIN **`1234`**, seeded hashed 
 under **Eltern-PIN** before deploying). Library tab: review/approve/hide/feature/tag games, set
 per-game age (6/9/12) and containment, fetch covers via SteamGridDB (own API key, stored in
 main, or `STEAMGRIDDB_API_KEY`). Safety tab: age rating, daily screen-time limit, bedtime,
-app approvals. When the daily limit is reached the child shell drops to a calm screen.
+app approvals. When the daily limit is reached the child shell drops to a calm screen; during
+bedtime the shell locks the same way (launches are refused too) and unlocks again on its own
+in the morning. The **Gerät & Start** card toggles kiosk mode and autostart-at-login, applied
+immediately.
 
 ## Kiosk / lockdown
 
-Soft cage (maximized single window) is the default for the child window. For a hard cage set
-`LP_KIOSK=1`. In a packaged (prod) build the child window also drops the application menu and
+In dev the child window is a maximized single window; packaged builds run it in real
+fullscreen. For a hard cage enable **Kioskmodus** in the Familienzentrale (or set `LP_KIOSK=1`).
+**Automatisch starten** registers the shell as a login item, so it comes up when the OS profile
+signs in (packaged builds only). In a packaged (prod) build the child window also drops the application menu and
 swallows reload / devtools / close / fullscreen accelerators. The curator window is a normal
 window. For a true locked-down child PC, pair this with Windows **Assigned Access**.
 
@@ -127,7 +132,7 @@ and kiosk behaviour.
 ## Note on verification
 
 Everything above is built and **runtime-verified on Linux** (headless via `xvfb`) and covered by
-`npm test` (36 unit tests). Verified end-to-end here: both windows boot and render; a curator
+`npm test` (40 unit tests). Verified end-to-end here: both windows boot and render; a curator
 edit (e.g. park a game as "Für später") removes it from the child list immediately and the child
 launch gate refuses it with `not_approved` / `parent_required`; re-approving + featuring sorts it
 first; `lp:curator:open` rejects a wrong PIN and opens the window on the right one; PIN
