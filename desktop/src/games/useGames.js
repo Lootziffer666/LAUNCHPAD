@@ -19,7 +19,8 @@ const notify = () => subs.forEach((f) => f());
 async function refresh() {
   if (!api) { loaded = true; notify(); return; }
   try {
-    cache = await api.listGames();
+    // child bridge → child-filtered list; curator bridge → full catalogue
+    cache = await (api.listGames ? api.listGames() : api.listAllGames());
   } catch (e) {
     cache = [];
   }
@@ -27,8 +28,11 @@ async function refresh() {
   notify();
 }
 
-// Prime the cache as soon as this module loads.
+// Prime the cache as soon as this module loads, and refetch whenever main
+// broadcasts a change — edits in the curator window show up in the child
+// shell immediately (and vice versa).
 refresh();
+if (api && api.onGamesChanged) api.onGamesChanged(() => refresh());
 
 // The prototype passed setCover a raw string (URL or data-URL) or null. Map it
 // to the IPC CoverSource shape; keep null as "clear".

@@ -14,12 +14,12 @@ import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
 
 // Global styles — base tokens/themes first, then per-surface sheets.
+// (parental.css + import.css moved to the curator app — no parent surfaces
+// in the child shell since the two-app split.)
 import './styles/base.css';
 import './styles/desktop.css';
 import './styles/apps.css';
 import './styles/launcher.css';
-import './styles/parental.css';
-import './styles/import.css';
 import './styles/windows.css';
 
 // Registers the <image-slot> custom element (side-effect import).

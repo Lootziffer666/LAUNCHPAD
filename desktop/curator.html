@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Same locked-down CSP as the child shell: only our own bundle, no remote
+         code; img-src https: so cover art can display. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:5173 http://localhost:5173"
+    />
+    <title>LAUNCHPAD — Familienzentrale</title>
+  </head>
+  <body class="curator">
+    <div id="root"></div>
+    <script type="module" src="/src/curator/main.jsx"></script>
+  </body>
+</html>

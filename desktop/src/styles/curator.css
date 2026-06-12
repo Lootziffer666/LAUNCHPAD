@@ -1,0 +1,122 @@
+/* ============================================================
+   LAUNCHPAD — Familienzentrale (parent curator app).
+   A classic desktop GUI: normal document scrolling, dense workspace,
+   no stage scaling. Reuses base tokens + the imp-* card styles.
+   ============================================================ */
+
+body.curator {
+  margin: 0; min-height: 100vh; overflow-y: auto;
+  background:
+    radial-gradient(1200px 500px at 80% -10%, var(--bg-glow-b), transparent 70%),
+    var(--bg-base);
+  color: var(--ink); font-family: var(--font);
+}
+
+.cur-app { max-width: 1180px; margin: 0 auto; padding: 0 28px 60px; }
+
+/* ── header ── */
+.cur-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+  flex-wrap: wrap; padding: 26px 0 18px;
+  border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 22px;
+}
+.cur-brand { display: flex; align-items: center; gap: 16px; }
+.cur-brand .lp-mark {
+  width: 44px; height: 44px; border-radius: 12px; flex: none;
+  background: linear-gradient(140deg, var(--comet-cyan), var(--comet-violet));
+  display: grid; place-items: center; box-shadow: 0 6px 20px rgba(56,189,248,.4);
+}
+.cur-brand .lp-mark span { width: 15px; height: 15px; border-radius: 4px; background: #fff; transform: rotate(45deg); }
+.cur-title { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
+.cur-title em { font-style: normal; letter-spacing: 0; font-weight: 600; color: var(--comet-cyan); margin-left: 8px; }
+.cur-sub { font-size: 13px; color: var(--ink-mute); margin-top: 3px; max-width: 560px; }
+
+.cur-tabs { display: flex; gap: 8px; }
+.cur-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: var(--bg-tile-glass); border: 1px solid var(--bg-tile-glass-border);
+  color: var(--ink-soft); font-size: 14px; font-weight: 700; transition: all .15s;
+}
+.cur-tab svg { width: 17px; height: 17px; }
+.cur-tab:hover { background: rgba(255,255,255,.1); }
+.cur-tab.on { background: var(--comet-cyan); border-color: transparent; color: #062033; }
+
+/* ── library toolbar (review filters) ── */
+.cur-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.cur-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.cur-chip {
+  padding: 8px 14px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: var(--bg-tile-glass); border: 1px solid var(--bg-tile-glass-border);
+  color: var(--ink-soft); font-size: 13px; font-weight: 700; transition: all .15s;
+}
+.cur-chip em { font-style: normal; opacity: .65; margin-left: 4px; }
+.cur-chip:hover { background: rgba(255,255,255,.1); }
+.cur-chip.on { background: var(--comet-violet); border-color: transparent; color: #fff; }
+.cur-actions { display: flex; gap: 10px; }
+
+.cur-inbox-hint {
+  margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; font-size: 13.5px;
+  background: rgba(255,200,61,.1); border: 1px solid rgba(255,200,61,.3); color: #ffe2a1;
+}
+
+/* card list (reuses .imp-card from import.css, laid out as a column) */
+.cur-cards { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.cur-empty { padding: 40px; text-align: center; color: var(--ink-mute); font-size: 14px; }
+
+/* the key field + imp cards were designed for the dark overlay — same palette here */
+.cur-app .imp-key { margin-top: 4px; }
+
+/* ── curation bar (inside each card) ── */
+.curb {
+  margin-top: 12px; padding: 14px; border-radius: 12px;
+  background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.curb-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.curb-lbl { font-size: 12px; font-weight: 700; color: var(--ink-mute); min-width: 64px; }
+.curb-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.curb-opt {
+  padding: 7px 12px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  color: var(--ink-soft); font-size: 12.5px; font-weight: 700; transition: all .15s;
+}
+.curb-opt:hover { background: rgba(255,255,255,.12); }
+.curb-opt.on { background: var(--comet-cyan); border-color: transparent; color: #062033; }
+.curb-opt.ok.on { background: var(--t-green); color: #fff; }
+.curb-opt.off.on { background: var(--t-rose); color: #fff; }
+
+.curb-age { flex: 0 0 auto; width: 76px; }
+.curb-cont { flex: 0 0 auto; min-width: 180px; }
+.curb-cont.warn { border-color: rgba(255,200,61,.55); }
+.curb-warning { flex: 1; min-width: 220px; }
+.curb-warnline { font-size: 12.5px; color: #ffe2a1; }
+
+.curb-tags { display: flex; align-items: flex-start; gap: 10px; }
+.curb-tags .curb-lbl { padding-top: 8px; }
+.curb-tag-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: 1; }
+.curb-tag {
+  padding: 6px 11px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: transparent; border: 1px dashed rgba(255,255,255,.22);
+  color: var(--ink-mute); font-size: 12px; font-weight: 600; transition: all .15s;
+}
+.curb-tag:hover { color: var(--ink-soft); border-color: rgba(255,255,255,.4); }
+.curb-tag.on {
+  background: rgba(139,92,246,.2); border: 1px solid rgba(139,92,246,.5);
+  color: #d6c6ff;
+}
+.curb-tag-input {
+  background: transparent; border: none; outline: none; color: var(--ink);
+  font-family: inherit; font-size: 12.5px; padding: 6px 4px; min-width: 110px;
+}
+.curb-tag-input::placeholder { color: var(--ink-mute); }
+
+.curb-visible { font-size: 12.5px; font-weight: 700; }
+.curb-visible.yes { color: #7ee2a8; }
+.curb-visible.no { color: var(--ink-mute); }
+
+/* ── inline parental panel (safety tab) ── */
+.cur-app .par-window.inline {
+  position: static; inset: auto; animation: none; transform: none;
+  border-radius: 16px; max-width: 1020px;
+}
