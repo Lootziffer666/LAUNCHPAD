@@ -23,7 +23,9 @@ const WEEK = [
   { d: 'Do', v: 0.85 }, { d: 'Fr', v: 0.95 }, { d: 'Sa', v: 0.6, today: true }, { d: 'So', v: 0 },
 ];
 
-export function ParentalPanel({ kidName = 'Jake', onClose }) {
+// `inline` renders the panel as a static pane (curator app) instead of the
+// overlay window — no scrim, no close button, no zoom animation.
+export function ParentalPanel({ kidName = 'Jake', onClose, inline = false }) {
   const [closing, setClosing] = useState(false);
   const [limit, setLimit] = useState(90);
   const [used, setUsed] = useState(0);
@@ -82,10 +84,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
     setTimeout(() => setPinMsg(null), 2600);
   };
 
-  return (
-    <div className="par-layer">
-      <div className="par-scrim" onClick={close}></div>
-      <div className={`par-window ${closing ? 'closing' : ''}`}>
+  const panel = (
+      <div className={`par-window ${closing ? 'closing' : ''} ${inline ? 'inline' : ''}`}>
         <div className="par-head">
           <div className="p-ic">{Icon.shield()}</div>
           <div>
@@ -93,7 +93,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
             <div className="p-sub">Verwalte {kidName}s Konto — geschützt durch Eltern-PIN</div>
           </div>
           <div className="par-pin">{Icon.lock()} PIN aktiv</div>
-          <button className="par-close" onClick={close} aria-label="Schließen">{Icon.close()}</button>
+          {!inline && <button className="par-close" onClick={close} aria-label="Schließen">{Icon.close()}</button>}
         </div>
 
         <div className="par-body">
@@ -152,7 +152,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
           {/* parent PIN */}
           <div className="par-card span2">
             <h3>{Icon.lock()} Eltern-PIN</h3>
-            <p className="desc">PIN zum Wechsel in den Windows-Desktop ändern (mind. 4 Ziffern).</p>
+            <p className="desc">PIN für den Elternzugang (Familienzentrale &amp; Windows-Desktop) ändern (mind. 4 Ziffern).</p>
             <div className="par-bed">
               <input type="password" inputMode="numeric" placeholder="Aktuelle PIN" value={pinOld}
                 onChange={(e) => setPinOld(e.target.value)} />
@@ -183,6 +183,13 @@ export function ParentalPanel({ kidName = 'Jake', onClose }) {
           <button className="par-btn primary" onClick={save}>Speichern</button>
         </div>
       </div>
+  );
+
+  if (inline) return panel;
+  return (
+    <div className="par-layer">
+      <div className="par-scrim" onClick={close}></div>
+      {panel}
     </div>
   );
 }

@@ -1,9 +1,12 @@
-// electron/preload.js — the ONLY bridge between renderer and Node.
+// electron/preload.js — the CHILD bridge between renderer and Node.
 // Exposes a frozen, allow-listed window.launchpad. No nodeIntegration anywhere.
 //
-// The functions are the agreed contract (handoff/IPC-CONTRACT.md). The matching
-// lp:* handlers are registered in main.js starting M2; until then these resolve
-// only once their handler exists — the renderer uses seed data through M1.
+// Two-app split (handoff/WINDOWS-PLAN-ADOPTION.md): the child shell gets the
+// child surface ONLY — list/launch/install/favorite plus the PIN gate and the
+// one door to the parent curator window. Everything parental (upsert, remove,
+// covers, settings) lives in preload-curator.js, and main additionally
+// enforces those channels per-sender, so this bridge is defense-in-depth,
+// not the only line.
 
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -17,37 +20,20 @@ function on(channel, cb) {
 }
 
 contextBridge.exposeInMainWorld('launchpad', {
-  // games
-  listGames: () => invoke('lp:games:list'), // child view (age-filtered in main)
-  listAllGames: () => invoke('lp:games:list-all'), // parent manager: unfiltered
+  // games — child view (approved-only + age-filtered + surfacing-sorted in main)
+  listGames: () => invoke('lp:games:list'),
   getGame: (id) => invoke('lp:games:get', id),
   launchGame: (id) => invoke('lp:games:launch', id),
   installGame: (id) => invoke('lp:games:install', id),
   setFavorite: (id, v) => invoke('lp:games:favorite', id, v),
-  setCover: (id, source) => invoke('lp:games:cover', id, source),
-  upsertGame: (patch) => invoke('lp:games:upsert', patch),
-  removeGame: (id) => invoke('lp:games:remove', id),
-  resetGames: () => invoke('lp:games:reset'),
 
-  // covers (SteamGridDB)
-  searchCovers: (q) => invoke('lp:covers:search', q),
-  coversKeyStatus: () => invoke('lp:covers:key-status'),
-  setCoversKey: (key) => invoke('lp:covers:set-key', key),
-
-  // shell / session
+  // shell / gate
   verifyPin: (pin) => invoke('lp:pin:verify', pin),
-  setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
-  getProfile: () => invoke('lp:profile:get'),
-
-  // parental
-  getParentalSettings: () => invoke('lp:parental:get'),
-  setParentalSettings: (patch) => invoke('lp:parental:set', patch),
-  getUsageToday: () => invoke('lp:usage:today'),
-
-  // system (read-only chrome)
-  getSystemInfo: () => invoke('lp:system:info'),
+  pinStatus: () => invoke('lp:pin:status'),
+  openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
 
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onTimeLimitReached: (cb) => on('lp:event:time-limit', cb),
+  onGamesChanged: (cb) => on('lp:event:games-changed', cb),
 });

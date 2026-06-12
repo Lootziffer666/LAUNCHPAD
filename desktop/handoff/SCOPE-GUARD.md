@@ -4,6 +4,12 @@
 > Read **after** `README.md`. If a change would violate anything here, stop and confirm first.
 >
 > Status: draft for confirmation · 2026-06-08 · lives in the LAUNCHPAD repo under `desktop/`.
+>
+> **Addendum 2026-06-12 (user-directed):** the original Windows launcher plan was adopted —
+> see `WINDOWS-PLAN-ADOPTION.md`. It supersedes two lines below: the app is now **two surfaces**
+> (child shell + parent curator window, separate preload bridges, sender-enforced parent IPC),
+> and parental scope additionally includes the **curation model** (approval states, surfacing,
+> tags, containment) — still local-first, still no cloud/telemetry. Everything else here stands.
 
 ---
 

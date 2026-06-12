@@ -8,6 +8,7 @@
 
 const crypto = require('node:crypto');
 const { getStore } = require('./store');
+const { childVisible } = require('./curation');
 
 const DEFAULTS = {
   pinHash: null, // "salt:hash" (hex); null until seeded
@@ -102,6 +103,11 @@ function timeLeft() {
 
 function canLaunch(game) {
   if (!game) return { ok: false, reason: 'not_found' };
+  // Approval is the first gate: un-approved games are never child-launchable,
+  // even if an id leaks through. Mirrors the approved-only child list in main.
+  if (!childVisible(game)) {
+    return { ok: false, reason: 'not_approved', message: 'Dieses Spiel ist noch nicht freigegeben.' };
+  }
   if (!game.installed) return { ok: false, reason: 'not_installed' };
   if (!ageAllows(game)) return { ok: false, reason: 'blocked', message: 'Altersfreigabe' };
   if (timeLeft() <= 0) return { ok: false, reason: 'time_limit' };

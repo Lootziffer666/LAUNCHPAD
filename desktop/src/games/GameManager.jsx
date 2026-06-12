@@ -1,13 +1,13 @@
 /* ============================================================
-   LAUNCHPAD — Game manager: covers, launch target, edit, add/remove.
-   Launch target (Steam appid / .exe path / link) is set per game and feeds
-   launcher.js#resolveLaunch. Nice-to-have later: a native file picker for
-   .exe (dialog.showOpenDialog via IPC) and SteamGridDB cover search.
+   LAUNCHPAD — game-card editor building blocks: covers, launch target,
+   edit, add/remove. Used by the PARENT CURATOR app (src/curator/) — the
+   child shell has no management surface (two-app split). The launch
+   target (Steam appid / .exe path / link) feeds launcher.js#resolveLaunch.
    ============================================================ */
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
-import { GameStore, useAllGames, gameCover } from './useGames.js';
+import { GameStore, gameCover } from './useGames.js';
 
 function ImpCover({ g }) {
   const [drag, setDrag] = useState(false);
@@ -89,7 +89,7 @@ function LaunchEditor({ g }) {
   );
 }
 
-function ImpCard({ g }) {
+export function ImpCard({ g, children }) {
   const [url, setUrl] = useState('');
   const [hits, setHits] = useState(null); // null | 'no_key' | Result[]
   const [busy, setBusy] = useState(false);
@@ -139,6 +139,7 @@ function ImpCard({ g }) {
           </select>
         </div>
         <LaunchEditor g={g} />
+        {children}
         <button className="imp-remove" onClick={() => { GameStore.remove(g.id); SFX.back(); }}>Aus Bibliothek entfernen</button>
       </div>
     </div>
@@ -147,7 +148,7 @@ function ImpCard({ g }) {
 
 // Lets the parent store their own SteamGridDB key (used by the search button).
 // The key lives in main (electron-store) — only its status crosses the bridge.
-function CoverKeyField() {
+export function CoverKeyField() {
   const [key, setKey] = useState('');
   const [status, setStatus] = useState(null);
   useEffect(() => {
@@ -172,42 +173,6 @@ function CoverKeyField() {
   );
 }
 
-export function ImportManager({ onClose }) {
-  const [closing, setClosing] = useState(false);
-  const games = useAllGames();
-  const close = () => { setClosing(true); SFX.close(); setTimeout(onClose, 240); };
-
-  return (
-    <div className="imp-layer">
-      <div className="imp-scrim" onClick={close}></div>
-      <div className={`imp-window ${closing ? 'closing' : ''}`}>
-        <div className="imp-head">
-          <div className="i-ic">{Icon.gamepad()}</div>
-          <div>
-            <h2>Spiele verwalten &amp; importieren</h2>
-            <div className="i-sub">
-              Bei einem Spiel auf <b>🔍 Suchen</b> tippen, um Cover automatisch von{' '}
-              <a href="https://www.steamgriddb.com" target="_blank" rel="noopener">SteamGridDB</a> zu holen — oder eine
-              Cover-URL einfügen bzw. ein Bild direkt auf die Kachel ziehen.
-            </div>
-          </div>
-          <button className="imp-close" onClick={close} aria-label="Schließen">{Icon.close()}</button>
-        </div>
-
-        <CoverKeyField />
-
-        <div className="imp-body">
-          {games.map((g) => <ImpCard key={g.id} g={g} />)}
-        </div>
-
-        <div className="imp-foot">
-          <span className="count">{games.length} Spiele in der Bibliothek</span>
-          <button className="imp-btn ghost" onClick={() => { if (confirm('Alle Cover & Änderungen zurücksetzen?')) { GameStore.reset(); SFX.back(); } }}>Zurücksetzen</button>
-          <button className="imp-btn add" onClick={() => { GameStore.addGame(); SFX.select(); }}>{Icon.plus()} Spiel hinzufügen</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default ImportManager;
+// (The former overlay-style ImportManager moved into the parent curator app —
+// src/curator/CuratorApp.jsx composes ImpCard + CoverKeyField directly.)
+export default ImpCard;

@@ -171,6 +171,8 @@
 .launch-loader { width: 240px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.14); margin-top: 22px; overflow: hidden; }
 .launch-loader > i { display: block; height: 100%; background: var(--comet-cyan); border-radius: 3px; animation: loadBar 2.4s ease forwards; }
 @keyframes loadBar { 0%{width:0} 100%{width:100%} }
+.launch-substatus { font-size: 13px; color: var(--ink-mute); margin-top: 6px; font-weight: 500; }
+.launch-actions { display: flex; gap: 12px; }
 .launch-back { margin-top: 28px; padding: 11px 22px; border-radius: 999px; cursor: pointer; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; font-family: inherit; font-weight: 700; font-size: 13px; }
 .launch-back:hover { background: rgba(255,255,255,.2); }
 

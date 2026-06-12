@@ -8,6 +8,7 @@
 // The renderer reads/writes this only through the lp:games:* IPC channels.
 
 const { getStore } = require('./store');
+const { withCurationDefaults, childVisible, childOrder } = require('./curation');
 
 // Seed catalogue — mirrors the prototype's js/data.jsx GAMES. M3: launch kind is
 // inferred from `source` (Steam/Minecraft/LAUNCHPAD); Steam demos carry an `appid`.
@@ -55,11 +56,18 @@ function customs() { return getStore().get('gamesCustom') || []; }
 function merged() {
   const ov = overrides();
   const base = SEED.map((g) => ({ minAge: MIN_AGE[g.id] ?? DEFAULT_MIN_AGE, ...g, ...(ov[g.id] || {}) }));
-  return base.concat(customs().map((c) => ({ minAge: DEFAULT_MIN_AGE, ...c })));
+  return base.concat(customs().map((c) => ({ minAge: DEFAULT_MIN_AGE, ...c })))
+    .map(withCurationDefaults);
 }
 
 function listGames() {
   return merged().filter((g) => !g._hidden);
+}
+
+// The child shell's slice of the registry: approved-only, featured first,
+// low-prominence last. The age filter is applied on top of this in main.
+function listChildGames() {
+  return listGames().filter(childVisible).sort(childOrder);
 }
 
 function getGame(id) {
@@ -108,6 +116,9 @@ function upsert(p) {
   list.push({
     id, name: 'Neues Spiel', cat: 'Spiel', stars: 4, progress: 0,
     c1: '#475569', c2: '#0f172a', emblem: 'gamepad', _custom: true,
+    // New entries start un-approved: nothing reaches the child shell without
+    // a conscious decision in the curator ("Automation proposes. Parent curates.").
+    curation: 'new', surfacing: 'normal',
     ...data, id,
   });
   getStore().set('gamesCustom', list);
@@ -125,5 +136,5 @@ function reset() {
 }
 
 module.exports = {
-  listGames, getGame, setFavorite, install, setCover, upsert, remove, reset,
+  listGames, listChildGames, getGame, setFavorite, install, setCover, upsert, remove, reset,
 };

@@ -11,8 +11,10 @@ import { SFX } from '../lib/sfx.js';
 
 /* ---------------- PIN gate ----------------
    Verifies against the hashed PIN in main via window.launchpad.verifyPin.
-   Falls back to the demo "1234" only when no bridge is present (plain browser). */
-export function PinGate({ onUnlock, onCancel }) {
+   Falls back to the demo "1234" only when no bridge is present (plain browser).
+   On success the entered PIN is passed to onUnlock so the caller can hand it
+   to main again (e.g. lp:curator:open re-verifies before opening the window). */
+export function PinGate({ onUnlock, onCancel, sub }) {
   const [pin, setPin] = useState('');
   const [err, setErr] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -20,8 +22,8 @@ export function PinGate({ onUnlock, onCancel }) {
 
   useEffect(() => {
     let alive = true;
-    if (window.launchpad && window.launchpad.getParentalSettings) {
-      window.launchpad.getParentalSettings()
+    if (window.launchpad && window.launchpad.pinStatus) {
+      window.launchpad.pinStatus()
         .then((s) => { if (alive) setShowHint(!!(s && s.pinIsDefault)); })
         .catch(() => {});
     }
@@ -38,7 +40,7 @@ export function PinGate({ onUnlock, onCancel }) {
       ok = false;
     }
     checking.current = false;
-    if (ok) { SFX.launch(); onUnlock(); }
+    if (ok) { SFX.launch(); onUnlock(code); }
     else { setErr(true); SFX.back(); setTimeout(() => { setErr(false); setPin(''); }, 500); }
   };
 
@@ -66,7 +68,7 @@ export function PinGate({ onUnlock, onCancel }) {
       <div className="pin-card">
         <div className="pin-av">{Icon.lock()}</div>
         <div className="pin-title">Elternzugang</div>
-        <div className="pin-sub">PIN eingeben, um zum Windows-Desktop zu wechseln</div>
+        <div className="pin-sub">{sub || 'PIN eingeben, um zum Windows-Desktop zu wechseln'}</div>
         <div className={`pin-dots ${err ? 'err' : ''}`}>
           {[0, 1, 2, 3].map((i) => <i key={i} className={i < pin.length ? 'on' : ''}></i>)}
         </div>

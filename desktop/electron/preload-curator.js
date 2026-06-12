@@ -1,0 +1,38 @@
+// electron/preload-curator.js — the PARENT CURATOR bridge.
+// Same security posture as the child bridge (contextIsolation + sandbox, one
+// frozen allow-listed window.launchpad), but with the full curation surface:
+// catalogue edits, curation states, covers, parental settings, usage. Main
+// only answers these channels when the call comes from the curator window.
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+
+function on(channel, cb) {
+  const listener = (_e, payload) => cb(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
+contextBridge.exposeInMainWorld('launchpad', {
+  // catalogue — full, unfiltered (curation states, containment, tags included)
+  listAllGames: () => invoke('lp:games:list-all'),
+  upsertGame: (patch) => invoke('lp:games:upsert', patch),
+  removeGame: (id) => invoke('lp:games:remove', id),
+  resetGames: () => invoke('lp:games:reset'),
+  setCover: (id, source) => invoke('lp:games:cover', id, source),
+
+  // covers (SteamGridDB) — key resolved in main, never passed from renderer
+  searchCovers: (q) => invoke('lp:covers:search', q),
+  coversKeyStatus: () => invoke('lp:covers:key-status'),
+  setCoversKey: (key) => invoke('lp:covers:set-key', key),
+
+  // parental settings / PIN / usage
+  setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
+  getParentalSettings: () => invoke('lp:parental:get'),
+  setParentalSettings: (patch) => invoke('lp:parental:set', patch),
+  getUsageToday: () => invoke('lp:usage:today'),
+
+  // events
+  onGamesChanged: (cb) => on('lp:event:games-changed', cb),
+});

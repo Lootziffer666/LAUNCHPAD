@@ -1,5 +1,8 @@
 /* ============================================================
-   LAUNCHPAD Desktop — root app (stage scaling + shell switch + gate)
+   LAUNCHPAD Desktop — root of the CHILD app (stage scaling + shell
+   switch + gate). Two-app split: there is no parent surface in here —
+   game management and parental settings live in the curator window,
+   reachable only through the PIN gate (main verifies and opens it).
    ============================================================ */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useProfile } from './lib/useProfile.js';
@@ -9,8 +12,6 @@ import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
-import { ParentalPanel } from './apps/Parental.jsx';
-import { ImportManager } from './games/GameManager.jsx';
 
 function useScale(ref) {
   useEffect(() => {
@@ -48,10 +49,8 @@ export default function App() {
 
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
-  const [parental, setParental] = useState(false);
-  const [imp, setImp] = useState(false);
   const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows'
-  const [gate, setGate] = useState(false); // PIN gate before windows
+  const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
   // Games load over IPC (async). Hold the shells until the first load lands so
   // nothing renders against an empty catalogue. Brief navy splash on cold start.
@@ -67,7 +66,7 @@ export default function App() {
     if (!window.launchpad || !window.launchpad.onTimeLimitReached) return undefined;
     return window.launchpad.onTimeLimitReached(() => {
       setMode('launchpad');
-      setApp(null); setPlay(null); setParental(false); setImp(false); setGate(false);
+      setApp(null); setPlay(null); setGate(null);
       setTimeUp(true);
     });
   }, []);
@@ -83,11 +82,16 @@ export default function App() {
 
   const openApp = (id, origin) => { SFX.open(); setApp({ id, origin }); };
   const openPlay = (origin, initialGame) => { SFX.launch(); setPlay({ origin, initialGame: initialGame || null }); };
-  const openParental = () => { SFX.open(); setParental(true); };
-  const openImport = () => { SFX.open(); setImp(true); };
+  // "Elternbereich" → PIN gate → main opens the separate curator window.
+  const openParental = () => { SFX.open(); setGate({ target: 'curator' }); };
   const launchDirect = (game, origin) => openPlay(origin, game);
-  const openWindows = () => { SFX.select(); setGate(true); };
-  const unlockWindows = () => { setGate(false); setMode('windows'); };
+  const openWindows = () => { SFX.select(); setGate({ target: 'windows' }); };
+  const unlockGate = (pin) => {
+    const target = gate && gate.target;
+    setGate(null);
+    if (target === 'windows') setMode('windows');
+    else if (window.launchpad && window.launchpad.openCurator) window.launchpad.openCurator(pin);
+  };
   const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
 
   if (!ready) return <div className="stage-wrap" />;
@@ -115,10 +119,16 @@ export default function App() {
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}
         {play && <PlayOverlay kidName={t.kidName} origin={play.origin} initialGame={play.initialGame}
-          onExit={() => setPlay(null)} onOpenImport={openImport} />}
-        {parental && <ParentalPanel kidName={t.kidName} onClose={() => setParental(false)} />}
-        {imp && <ImportManager onClose={() => setImp(false)} />}
-        {gate && <PinGate onUnlock={unlockWindows} onCancel={() => setGate(false)} />}
+          onExit={() => setPlay(null)} />}
+        {gate && (
+          <PinGate
+            sub={gate.target === 'windows'
+              ? 'PIN eingeben, um zum Windows-Desktop zu wechseln'
+              : 'PIN eingeben, um die Familienzentrale zu öffnen'}
+            onUnlock={unlockGate}
+            onCancel={() => setGate(null)}
+          />
+        )}
       </div>
 
       {timeUp && (

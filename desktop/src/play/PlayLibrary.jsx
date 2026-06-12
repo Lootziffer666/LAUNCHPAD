@@ -21,36 +21,45 @@ function launchMessage(res) {
   switch (res && res.reason) {
     case 'time_limit': return 'Die Spielzeit für heute ist aufgebraucht 🌙';
     case 'blocked': return (res && res.message) || 'Dieses Spiel ist für dich noch gesperrt.';
+    case 'not_approved': return 'Dieses Spiel ist noch nicht freigegeben.';
     case 'not_installed': return 'Dieses Spiel ist noch nicht installiert.';
     case 'not_found': return 'Spiel nicht gefunden.';
     default: return (res && res.message) || 'Start fehlgeschlagen.';
   }
 }
 
-export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame }) {
+export function PlayOverlay({ kidName, origin, onExit, initialGame }) {
   const games = useGames();
   const [tab, setTabRaw] = useState(0);
   const [closing, setClosing] = useState(false);
   const [detail, setDetail] = useState(initialGame || null);
-  const [launch, setLaunch] = useState(null);
+  const [launch, setLaunch] = useState(null); // {g, phase: 'preflight'|'opening'|'failed', …}
 
   const setTab = (i) => { if (i !== tab) SFX.swipe(); setTabRaw(i); };
   const doExit = () => { setClosing(true); SFX.close(); setTimeout(onExit, 300); };
   const openDetail = (g) => { SFX.select(); setDetail(g); };
 
-  // Real launch: ask main to start the game (after the parental gate). On a
-  // block (age / time limit / not installed) the splash shows the reason
-  // instead of the "starting…" loader.
+  // Real launch with honest transition phases (windows-plan rule: the
+  // transition may calm, but never lie): preflight ("Startklar machen")
+  // while main checks the gate + resolves the target, opening ("Spiel wird
+  // geöffnet") once the start actually fired, failed otherwise. The error
+  // class decides whether retrying is offered.
   const launchGame = async (g) => {
     SFX.launch();
-    setLaunch({ g, pending: true });
+    setLaunch({ g, phase: 'preflight' });
     let res = { ok: true };
     if (window.launchpad && window.launchpad.launchGame) {
       try { res = await window.launchpad.launchGame(g.id); }
-      catch (e) { res = { ok: false, reason: 'error', message: String((e && e.message) || e) }; }
+      catch (e) { res = { ok: false, reason: 'error', errorClass: 'recoverable', message: String((e && e.message) || e) }; }
     }
-    if (res && res.ok) setLaunch({ g, pending: false });
-    else setLaunch({ g, pending: false, blocked: true, message: launchMessage(res) });
+    if (res && res.ok) setLaunch({ g, phase: 'opening' });
+    else {
+      setLaunch({
+        g, phase: 'failed',
+        message: launchMessage(res),
+        canRetry: !res || res.errorClass === 'recoverable' || !res.errorClass,
+      });
+    }
   };
 
   useEffect(() => {
@@ -66,9 +75,9 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
   }, [tab, detail, launch]);
 
   // After a successful launch the external game takes over — auto-dismiss the
-  // "starting…" splash so it doesn't hang. Blocked launches stay until tapped.
+  // "opening" splash so it doesn't hang. Failed launches stay until tapped.
   useEffect(() => {
-    if (launch && !launch.pending && !launch.blocked) {
+    if (launch && launch.phase === 'opening') {
       const t = setTimeout(() => setLaunch(null), 2600);
       return () => clearTimeout(t);
     }
@@ -97,7 +106,6 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
           <div className="pl-word">LAUNCH<b>PAD</b> <em>/ play</em></div>
         </div>
         <div className="pl-right">
-          <button className="pl-ghost" onClick={onOpenImport}>{Icon.plus()} Spiele</button>
           <div className="pl-user">
             <image-slot id="play-avatar" shape="circle" placeholder="Foto"></image-slot>
             <span>{kidName}</span>
@@ -168,14 +176,30 @@ export function PlayOverlay({ kidName, origin, onExit, onOpenImport, initialGame
             {!launch.g.cover && <div style={{ width: 96, height: 96, color: 'rgba(255,255,255,.9)' }}>{Icon[launch.g.emblem] && Icon[launch.g.emblem]()}</div>}
           </div>
           <div className="launch-name">{launch.g.name}</div>
-          {launch.blocked ? (
+          {launch.phase === 'failed' && (
             <>
-              <div className="launch-status blocked">{launch.message}</div>
-              <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Zurück</button>
+              <div className="launch-status blocked">Das hat gerade nicht geklappt</div>
+              <div className="launch-substatus">{launch.message}</div>
+              <div className="launch-actions">
+                {launch.canRetry && (
+                  <button className="launch-back" onClick={() => launchGame(launch.g)}>Nochmal versuchen</button>
+                )}
+                <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Zurück</button>
+              </div>
             </>
-          ) : (
+          )}
+          {launch.phase === 'preflight' && (
             <>
-              <div className="launch-status">Wird gestartet …</div>
+              <div className="launch-status">Startklar machen</div>
+              <div className="launch-substatus">Wir prüfen kurz alles</div>
+              <div className="launch-loader"><i></i></div>
+              <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Abbrechen</button>
+            </>
+          )}
+          {launch.phase === 'opening' && (
+            <>
+              <div className="launch-status">Spiel wird geöffnet</div>
+              <div className="launch-substatus">Das dauert nur einen Moment</div>
               <div className="launch-loader"><i></i></div>
               <button className="launch-back" onClick={() => { SFX.back(); setLaunch(null); }}>Abbrechen</button>
             </>

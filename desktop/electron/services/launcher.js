@@ -19,6 +19,22 @@ const ALLOWED_SCHEMES = new Set([
   'origin', 'roblox', 'msstore', 'ms-windows-store',
 ]);
 
+// Error classes from the original Windows launcher plan: the child sees a calm
+// phase ("Das hat gerade nicht geklappt"), the class decides what we offer —
+//   recoverable      → "Nochmal versuchen" makes sense
+//   blocked          → start is not sensible right now (not installed, time up)
+//   parent_required  → the child cannot fix this; a parent has to act
+//   fatal            → retrying automatically is pointless
+const FAILURE_CLASS = {
+  not_found: 'fatal',
+  not_approved: 'parent_required',
+  blocked: 'parent_required', // age gate — a parent decision, not a child problem
+  not_installed: 'blocked',
+  time_limit: 'blocked',
+  error: 'recoverable',
+};
+const classifyFailure = (reason) => FAILURE_CLASS[reason] || 'fatal';
+
 function inferKind(game) {
   if (game && game.launch && game.launch.kind) return game.launch.kind;
   const src = ((game && game.source) || '').toLowerCase();
@@ -29,8 +45,12 @@ function inferKind(game) {
 
 const schemeOf = (uri) => String(uri || '').split(':')[0].toLowerCase();
 
+// Config errors (missing appid/path/scheme/…) are a curation problem, not a
+// transient hiccup — the child can't fix them, so they class as parent_required.
+const cfgError = (message) => ({ kind: 'error', reason: 'error', errorClass: 'parent_required', message });
+
 function resolveLaunch(game) {
-  if (!game) return { kind: 'error', reason: 'not_found', message: 'Spiel nicht gefunden' };
+  if (!game) return { kind: 'error', reason: 'not_found', errorClass: 'fatal', message: 'Spiel nicht gefunden' };
   const kind = inferKind(game);
   const L = game.launch || {};
 
@@ -38,35 +58,37 @@ function resolveLaunch(game) {
 
   if (kind === 'steam') {
     const appid = L.appid || game.appid;
-    if (!appid) return { kind: 'error', reason: 'error', message: 'Steam-AppID fehlt' };
+    if (!appid) return cfgError('Steam-AppID fehlt');
     return { kind: 'external', url: `steam://rungameid/${appid}` };
   }
 
   if (kind === 'uri') {
     const uri = L.uri || (game.source === 'Minecraft' ? 'minecraft://' : '');
-    if (!uri) return { kind: 'error', reason: 'error', message: 'Keine Start-URL hinterlegt' };
+    if (!uri) return cfgError('Keine Start-URL hinterlegt');
     if (!ALLOWED_SCHEMES.has(schemeOf(uri))) {
-      return { kind: 'error', reason: 'error', message: `Schema nicht erlaubt: ${schemeOf(uri)}` };
+      return cfgError(`Schema nicht erlaubt: ${schemeOf(uri)}`);
     }
     return { kind: 'external', url: uri };
   }
 
   if (kind === 'exe') {
-    if (!L.path) return { kind: 'error', reason: 'error', message: 'Programmpfad fehlt' };
+    if (!L.path) return cfgError('Programmpfad fehlt');
     return { kind: 'spawn', cmd: L.path, args: Array.isArray(L.args) ? L.args : [] };
   }
 
   if (kind === 'uwp') {
-    if (!L.pfn) return { kind: 'error', reason: 'error', message: 'UWP-Paketname (PFN) fehlt' };
+    if (!L.pfn) return cfgError('UWP-Paketname (PFN) fehlt');
     return { kind: 'spawn', cmd: 'explorer.exe', args: [`shell:AppsFolder\\${L.pfn}!App`] };
   }
 
-  return { kind: 'error', reason: 'error', message: `Unbekannter Starttyp: ${kind}` };
+  return cfgError(`Unbekannter Starttyp: ${kind}`);
 }
 
 async function launchGame(game) {
   const plan = resolveLaunch(game);
-  if (plan.kind === 'error') return { ok: false, reason: plan.reason, message: plan.message };
+  if (plan.kind === 'error') {
+    return { ok: false, reason: plan.reason, errorClass: plan.errorClass || classifyFailure(plan.reason), message: plan.message };
+  }
   if (plan.kind === 'internal') return { ok: true, internal: true }; // renderer plays it in-app
 
   try {
@@ -77,16 +99,17 @@ async function launchGame(game) {
     }
     if (plan.kind === 'spawn') {
       if (process.platform !== 'win32') {
-        return { ok: false, reason: 'error', message: 'Dieser Spieltyp lässt sich nur unter Windows starten' };
+        return { ok: false, reason: 'error', errorClass: 'fatal', message: 'Dieser Spieltyp lässt sich nur unter Windows starten' };
       }
       const { spawn } = require('node:child_process');
       spawn(plan.cmd, plan.args, { detached: true, stdio: 'ignore' }).unref();
       return { ok: true };
     }
   } catch (e) {
-    return { ok: false, reason: 'error', message: String((e && e.message) || e) };
+    // A runtime exception (Steam hiccup, slow shell) may pass on retry.
+    return { ok: false, reason: 'error', errorClass: 'recoverable', message: String((e && e.message) || e) };
   }
-  return { ok: false, reason: 'error', message: 'Kein Startweg' };
+  return { ok: false, reason: 'error', errorClass: 'fatal', message: 'Kein Startweg' };
 }
 
-module.exports = { resolveLaunch, launchGame, ALLOWED_SCHEMES };
+module.exports = { resolveLaunch, launchGame, classifyFailure, ALLOWED_SCHEMES };
