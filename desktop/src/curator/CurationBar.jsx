@@ -81,7 +81,9 @@ export function CurationBar({ g }) {
   // Draft the warning locally and commit on blur/Enter — writing through on
   // every keystroke would mean an IPC round-trip + store write per character.
   const [warnDraft, setWarnDraft] = useState(g.parentWarning || '');
-  useEffect(() => { setWarnDraft(g.parentWarning || ''); }, [g.parentWarning]);
+  // g.id is a dependency so the draft resets when this instance ever shows a
+  // different game (today ImpCard keys by id, but don't rely on the parent).
+  useEffect(() => { setWarnDraft(g.parentWarning || ''); }, [g.id, g.parentWarning]);
   const commitWarning = () => {
     if (warnDraft.trim() !== (g.parentWarning || '')) {
       GameStore.setField(g.id, 'parentWarning', warnDraft.trim());
