@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Switch, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Switch, TouchableOpacity, Image, Alert, TextInput } from 'react-native';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { layout } from '../theme/spacing';
@@ -13,27 +13,54 @@ import {
   loadPreferences,
   savePreference,
   clearAllUserData,
+  loadParentalSettings,
+  setPageDisabled,
+  verifyParentalPin,
 } from '../services/storage';
 import type { AccountProfile } from '../data/mockData';
 
-export const SettingsScreen = () => {
+export const LOCKABLE_PAGES = ['Wishlist', 'Sales', 'Library', 'Family'] as const;
+
+interface SettingsScreenProps {
+  onParentalChange?: (disabledPages: string[]) => void;
+}
+
+export const SettingsScreen = ({ onParentalChange }: SettingsScreenProps) => {
   const [profiles, setProfiles] = useState<AccountProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [priceAlertThreshold, setPriceAlertThreshold] = useState(30);
+  const [parentalUnlocked, setParentalUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [disabledPages, setDisabledPages] = useState<string[]>([]);
 
   useEffect(() => {
-    Promise.all([loadAccountProfiles(), loadActiveProfileId(), loadPreferences()]).then(
-      ([profs, activeId, prefs]) => {
+    Promise.all([loadAccountProfiles(), loadActiveProfileId(), loadPreferences(), loadParentalSettings()]).then(
+      ([profs, activeId, prefs, parental]) => {
         setProfiles(profs);
         setActiveProfileId(activeId ?? (profs[0]?.id ?? null));
         setNotificationsEnabled(prefs.notificationsEnabled);
         setDarkMode(prefs.darkMode);
         setPriceAlertThreshold(prefs.priceAlertThreshold);
+        setDisabledPages(parental.disabledPages);
       }
     );
   }, []);
+
+  const handlePinSubmit = async () => {
+    const ok = await verifyParentalPin(pinInput);
+    setPinInput('');
+    setPinError(!ok);
+    setParentalUnlocked(ok);
+  };
+
+  const handleTogglePage = async (page: string, disabled: boolean) => {
+    const settings = await setPageDisabled(page, disabled);
+    setDisabledPages(settings.disabledPages);
+    onParentalChange?.(settings.disabledPages);
+  };
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId) ?? profiles[0];
 
@@ -227,6 +254,68 @@ export const SettingsScreen = () => {
           </View>
         </View>
 
+        {/* Eltern-Bereich (PIN-gated, mirrors the LAUNCHPAD Eltern-Modus) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle as any}>Eltern-Bereich</Text>
+          {!parentalUnlocked ? (
+            <View style={styles.pinCard}>
+              <Text style={styles.settingLabel as any}>Mit PIN entsperren</Text>
+              <Text style={styles.settingSubLabel as any}>
+                Hier können Eltern einzelne Seiten der App gezielt deaktivieren.
+              </Text>
+              <View style={styles.pinRow}>
+                <TextInput
+                  style={styles.pinInput as any}
+                  value={pinInput}
+                  onChangeText={(t) => {
+                    setPinInput(t.replace(/[^0-9]/g, ''));
+                    setPinError(false);
+                  }}
+                  placeholder="PIN"
+                  placeholderTextColor={colors.text.tertiary}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={8}
+                  onSubmitEditing={handlePinSubmit}
+                />
+                <Button title="Entsperren" variant="primary" size="M" onPress={handlePinSubmit} />
+              </View>
+              {pinError && (
+                <Text style={[styles.settingSubLabel, { color: colors.semantic.danger.default }] as any}>
+                  Falsche PIN.
+                </Text>
+              )}
+            </View>
+          ) : (
+            <>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelGroup}>
+                  <Text style={styles.settingSubLabel as any}>
+                    Deaktivierte Seiten verschwinden aus der Navigation, bis sie hier wieder
+                    freigegeben werden. Home und Settings bleiben immer verfügbar.
+                  </Text>
+                </View>
+                <Button title="Sperren" variant="secondary" size="S" onPress={() => setParentalUnlocked(false)} />
+              </View>
+              {LOCKABLE_PAGES.map((page) => (
+                <View key={page} style={styles.settingRow}>
+                  <View style={styles.settingLabelGroup}>
+                    <Text style={styles.settingLabel as any}>{page}</Text>
+                    <Text style={styles.settingSubLabel as any}>
+                      {disabledPages.includes(page) ? 'Deaktiviert' : 'Sichtbar'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={!disabledPages.includes(page)}
+                    onValueChange={(visible) => handleTogglePage(page, !visible)}
+                    trackColor={{ false: colors.stroke.default, true: colors.accent.secondary.default }}
+                  />
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+
         {/* About / System */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle as any}>System</Text>
@@ -305,6 +394,26 @@ const styles = StyleSheet.create({
   settingLabelGroup: { flex: 1 },
   settingLabel: { ...typography.roles.card.title.md, color: colors.text.primary },
   settingSubLabel: { ...typography.roles.meta.md, color: colors.text.tertiary, marginTop: 2 },
+  pinCard: {
+    backgroundColor: colors.surface.primary,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.stroke.subtle,
+    gap: 8,
+  },
+  pinRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 },
+  pinInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: colors.stroke.default,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    backgroundColor: colors.surface.secondary,
+    color: colors.text.primary,
+    ...typography.roles.body.md,
+  },
   thresholdButtons: { flexDirection: 'row', gap: 6 },
   thresholdBtn: {
     paddingHorizontal: 10,

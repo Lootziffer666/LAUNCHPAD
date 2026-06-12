@@ -82,7 +82,7 @@ export const DEFAULT_ACCOUNT_PROFILES: AccountProfile[] = [
     displayName: 'Commander Max',
     steamId: '76561198000000000',
     roleLabel: 'Hauptkonto',
-    accentColor: '#4E748B',
+    accentColor: '#4FB0E5',
     isActive: true,
     createdAt: '2024-01-01T00:00:00Z',
   },
@@ -253,9 +253,9 @@ export interface FamilyMember {
 }
 
 export const FAMILY_MEMBERS: FamilyMember[] = [
-  { id: 'm1', name: 'Max (Du)', role: 'Administrator', status: 'Online', activity: 'Spielt: Helldivers 2', color: '#4E748B', isCurrentSessionOccupied: true },
-  { id: 'm2', name: 'Julia', role: 'Erwachsener', status: 'Online', activity: 'Bereit für Coop', color: '#C65A46' },
-  { id: 'm3', name: 'Lukas', role: 'Kind', status: 'Offline', activity: 'Zuletzt vor 2h: Portal 2', color: '#4F7A5A' },
+  { id: 'm1', name: 'Max (Du)', role: 'Administrator', status: 'Online', activity: 'Spielt: Helldivers 2', color: '#4FB0E5', isCurrentSessionOccupied: true },
+  { id: 'm2', name: 'Julia', role: 'Erwachsener', status: 'Online', activity: 'Bereit für Coop', color: '#FF7A59' },
+  { id: 'm3', name: 'Lukas', role: 'Kind', status: 'Offline', activity: 'Zuletzt vor 2h: Portal 2', color: '#2BB673' },
 ];
 
 export const MOCK_CONFLICTS: FamilyConflict[] = [

@@ -24,6 +24,10 @@ const KEYS = {
   PRICE_ALERT_THRESHOLD: 'vent:price_alert_threshold',
 };
 
+// Deliberately NOT part of KEYS: must survive clearAllUserData(), otherwise
+// "Cache leeren" would let the child wipe the parental locks.
+const PARENTAL_KEY = 'vent:parental';
+
 // ─── Decision States ──────────────────────────────────────────────────────────
 
 export async function loadDecisionStates(): Promise<Record<string, DecisionState>> {
@@ -239,6 +243,57 @@ export async function toggleHiddenGame(gameId: string): Promise<string[]> {
   else hidden.push(gameId);
   await AsyncStorage.setItem(KEYS.HIDDEN_GAMES, JSON.stringify(hidden));
   return hidden;
+}
+
+// ─── Parental Controls ────────────────────────────────────────────────────────
+// Same demo PIN as the LAUNCHPAD desktop shell ('1234') until real provisioning
+// lands. Parents can disable individual pages; Home and Settings stay available
+// (Settings hosts the parent area, Home is the navigation fallback).
+
+const DEFAULT_PARENTAL_PIN = '1234';
+
+export interface ParentalSettings {
+  pin: string;
+  disabledPages: string[];
+}
+
+export async function loadParentalSettings(): Promise<ParentalSettings> {
+  const defaults: ParentalSettings = { pin: DEFAULT_PARENTAL_PIN, disabledPages: [] };
+  try {
+    const raw = await AsyncStorage.getItem(PARENTAL_KEY);
+    return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+export async function saveParentalSettings(settings: ParentalSettings): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PARENTAL_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('[Storage] saveParentalSettings failed:', e);
+  }
+}
+
+export async function setPageDisabled(page: string, disabled: boolean): Promise<ParentalSettings> {
+  const settings = await loadParentalSettings();
+  const set = new Set(settings.disabledPages);
+  if (disabled) set.add(page);
+  else set.delete(page);
+  settings.disabledPages = [...set];
+  await saveParentalSettings(settings);
+  return settings;
+}
+
+export async function verifyParentalPin(pin: string): Promise<boolean> {
+  const settings = await loadParentalSettings();
+  return pin === settings.pin;
+}
+
+export async function changeParentalPin(newPin: string): Promise<void> {
+  const settings = await loadParentalSettings();
+  settings.pin = newPin;
+  await saveParentalSettings(settings);
 }
 
 // ─── Clear all data (for logout / cache clear) ────────────────────────────────

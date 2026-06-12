@@ -33,8 +33,19 @@ npm run android      # auf Android-Gerät/Emulator
 Stand des Prototyps: Screens für Home, Wishlist, Families, Library, Sales,
 Compare, Activity, Game-Detail und Settings; Theme-Tokens unter `src/theme/`;
 CheapShark-Preisabfrage unter `src/services/cheapshark.ts`. `npx tsc --noEmit`
-meldet noch eine Handvoll Typfehler (ViewStyle/fontWeight-Strenge) — bekannt,
-nicht blockierend für `expo start`.
+läuft fehlerfrei.
+
+Das Theme nutzt die geteilte LAUNCHPAD-Palette („Verspielt & Bunt",
+`app/src/main/res/values/colors.xml`) — VENT, Launcher und Desktop-Shell
+wirken als ein Produkt.
+
+## 👨‍👩‍👧 Eltern-Bereich
+
+In den Settings gibt es einen PIN-geschützten Eltern-Bereich (Demo-PIN `1234`,
+wie in der Desktop-Shell): Eltern können dort die Seiten Wishlist, Sales,
+Library und Family einzeln deaktivieren — sie verschwinden aus der Navigation,
+bis sie wieder freigegeben werden. Home und Settings bleiben immer verfügbar.
+Die Eltern-Einstellungen überleben „Cache leeren" absichtlich.
 
 ## 📚 Docs
 

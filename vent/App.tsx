@@ -12,6 +12,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { colors } from './src/theme/colors';
 import { typography } from './src/theme/typography';
 import { api } from './src/services/api';
+import { loadParentalSettings } from './src/services/storage';
 import { Game, FamilyMember } from './src/data/mockData';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -30,16 +31,19 @@ export default function App() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [disabledPages, setDisabledPages] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
-    const [g, m, a] = await Promise.all([
+    const [g, m, a, parental] = await Promise.all([
       api.getGames(),
       api.getFamilyMembers(),
-      api.getActivities()
+      api.getActivities(),
+      loadParentalSettings()
     ]);
     setGames(g);
     setMembers(m);
     setActivities(a);
+    setDisabledPages(parental.disabledPages);
     setLoading(false);
   }, []);
 
@@ -60,6 +64,17 @@ export default function App() {
   const changeTab = (tab: Tab) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveTab(tab);
+  };
+
+  // Parent-disabled pages disappear from the bottom bar; Home and Profile
+  // (which hosts the PIN-gated parent area) can never be disabled.
+  const visibleTabs = TABS.filter((tab) => !disabledPages.includes(tab));
+
+  const handleParentalChange = (disabled: string[]) => {
+    setDisabledPages(disabled);
+    if (disabled.includes(activeTab)) {
+      setActiveTab('Home');
+    }
   };
 
   const simulatePriceDrop = async () => {
@@ -110,7 +125,7 @@ export default function App() {
       );
     }
 
-    switch (activeTab) {
+    switch (disabledPages.includes(activeTab) ? 'Home' : activeTab) {
       case 'Home':
         return <HomeScreen onNavigateToGame={navigateToGame} onSimulateSync={simulatePriceDrop} games={games} />;
       case 'Wishlist':
@@ -134,7 +149,7 @@ export default function App() {
       case 'Family':
         return <FamilyScreen members={members} />;
       case 'Profile':
-        return <SettingsScreen />;
+        return <SettingsScreen onParentalChange={handleParentalChange} />;
       default:
         return <HomeScreen onNavigateToGame={navigateToGame} onSimulateSync={simulatePriceDrop} games={games} />;
     }
@@ -160,7 +175,7 @@ export default function App() {
 
       {!selectedGameId && !comparingGameIds && (
         <View style={styles.bottomBar}>
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab;
             return (
               <TouchableOpacity
