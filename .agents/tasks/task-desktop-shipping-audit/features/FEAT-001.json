@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create a branded installer icon from the existing SVG assets and wire it into electron-builder. The icon should be a 256x256 PNG-compatible SVG (house on navy background) that electron-builder can auto-convert to .ico for the Windows installer.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create `desktop/build-resources/icon.svg` - a new branded SVG (256x256 viewBox) combining the white house path from `graphics/foreground.svg` centered on a navy (#0a1538) rounded-rect background. This gives electron-builder a source it can convert to multi-size .ico.",
     "Create `desktop/build-resources/icon.png` - a 256x256 fallback PNG. Since we cannot run ImageMagick, create this as a base64-encoded PNG written via a Node.js script, OR use the SVG directly since electron-builder 26+ accepts SVG. The simplest path: just provide the SVG and note in a comment that a real PNG should be generated for production. Actually electron-builder REQUIRES .ico or .png on Windows - SVG is NOT supported for win target. The best approach: write a small `desktop/scripts/generate-icon.js` script that uses the `sharp` npm package (or canvas) to render the SVG to PNG. But since we may not want to add deps, the pragmatic solution is to create the SVG icon and add a note that `npx electron-icon-builder` or similar should be run before dist. Actually the cleanest: electron-builder docs say if you provide a 256x256+ PNG at `build/icon.png` it auto-generates the .ico. So create a proper high-res PNG using Node Canvas or just provide the SVG with instructions. Given the constraints, create the branded SVG at `desktop/build-resources/icon.svg` and add a `prebuild:icons` npm script that renders it.",
@@ -20,5 +20,5 @@
     "Run `cd /projects/sandbox/LAUNCHPAD/desktop && npm test` to confirm no regressions"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "sharp 0.35.1 installed as devDependency and works for SVG-to-PNG rendering. The generated PNG is 5434 bytes, valid 256x256 RGBA. electron-builder config now points to build-resources/icon.png. All 44 existing tests still pass. The package-lock.json gained 31 packages from sharp."
 }
