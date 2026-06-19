@@ -1,5 +1,5 @@
 /* ============================================================
-   LAUNCHPAD -- ControllerGrid (Gate 6+7+10: Library Grid + Launch Adapter)
+   LAUNCHPAD -- ControllerGrid (Gate 6+7+10+11: Library Grid + Launch Adapter + Parent Gate)
    ============================================================
    A controller-navigable grid of approved game cards.
    - Arrow keys: spatial 2D navigation
@@ -8,12 +8,14 @@
    - Space: Trailer overlay
    - Escape: Close overlays / back (logged)
    - Ctrl+1/2/3: Switch glyph profile (Xbox/PS/Nintendo)
+   - Ctrl+P: Open parent gate (PIN entry for Familienzentrale)
    ============================================================ */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGames, gameCover } from '../games/useGames.js';
 import { InfoOverlay } from './InfoOverlay.jsx';
 import { TrailerOverlay } from './TrailerOverlay.jsx';
 import { LaunchOverlay } from './LaunchOverlay.jsx';
+import { ParentGate } from './ParentGate.jsx';
 import { getProfile, setProfile, glyph, profileName, allGlyphs } from '../lib/glyphs.js';
 import '../styles/tokens.css';
 import '../styles/controller.css';
@@ -35,6 +37,7 @@ export function ControllerGrid({ onBack }) {
   const [infoGame, setInfoGame] = useState(null);
   const [trailerGame, setTrailerGame] = useState(null);
   const [launchGame, setLaunchGame] = useState(null);
+  const [showParentGate, setShowParentGate] = useState(false);
   const [activeGlyphs, setActiveGlyphs] = useState(allGlyphs);
   const [activeProfileName, setActiveProfileName] = useState(profileName);
   const gridRef = useRef(null);
@@ -77,7 +80,7 @@ export function ControllerGrid({ onBack }) {
 
   // Keyboard navigation (only when no overlay is open)
   useEffect(() => {
-    if (infoGame || trailerGame || launchGame) return undefined;
+    if (infoGame || trailerGame || launchGame || showParentGate) return undefined;
 
     const handleKey = (e) => {
       const len = games.length;
@@ -126,9 +129,10 @@ export function ControllerGrid({ onBack }) {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [games, focusIndex, cols, infoGame, trailerGame, launchGame, showToast, onBack]);
+  }, [games, focusIndex, cols, infoGame, trailerGame, launchGame, showParentGate, showToast, onBack]);
 
   // Glyph profile switching: Ctrl+1 = Xbox, Ctrl+2 = PlayStation, Ctrl+3 = Nintendo
+  // Parent gate: Ctrl+P
   useEffect(() => {
     const PROFILE_MAP = { '1': 'xbox', '2': 'playstation', '3': 'nintendo' };
     const handleProfileKey = (e) => {
@@ -138,6 +142,10 @@ export function ControllerGrid({ onBack }) {
         setProfile(newProfile);
         refreshGlyphs();
         showToast(`Profil: ${profileName()}`);
+      }
+      if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        setShowParentGate(true);
       }
     };
     window.addEventListener('keydown', handleProfileKey);
@@ -252,6 +260,11 @@ export function ControllerGrid({ onBack }) {
         <LaunchOverlay game={launchGame} onClose={() => setLaunchGame(null)} />
       )}
 
+      {/* Parent Gate */}
+      {showParentGate && (
+        <ParentGate onClose={() => setShowParentGate(false)} />
+      )}
+
       {/* Action Hint Bar (Glyph Profile) */}
       <div
         className="glyph-hint-bar"
@@ -281,6 +294,9 @@ export function ControllerGrid({ onBack }) {
         <span><strong>[{activeGlyphs.trailer}]</strong> Trailer</span>
         <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: '0.85em' }}>
           {activeProfileName}
+        </span>
+        <span style={{ opacity: 0.4, fontSize: '0.85em' }}>
+          Ctrl+P: Elternbereich
         </span>
       </div>
 
