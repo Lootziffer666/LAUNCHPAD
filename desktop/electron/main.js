@@ -400,6 +400,11 @@ app.whenReady().then(() => {
   registerIpc();
   applyShellPrefs(); // register/refresh autostart before any window exists
   startUsageTicker();
+
+  // Weekly watchlist price refresh (background, non-blocking)
+  const { maybeRefreshWatchlist } = require('./services/watchlistScheduler');
+  maybeRefreshWatchlist();
+
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
