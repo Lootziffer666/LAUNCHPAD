@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  LAUNCHPAD branded icon (256x256).
+  White house (Material Design style) on dark navy rounded-rect background.
+  Source path derived from graphics/icon.svg (viewBox 0 -960 960 960).
+  Transform: scale(0.1875) then translate to center in 256x256 canvas.
+  The path spans roughly x:64-888 (824 units) and y:-800 to -160 (640 units).
+  At scale 0.1875: 960*0.1875 = 180px. Offset = (256-180)/2 = 38px each side.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="32" ry="32" fill="#0a1538"/>
+  <g transform="translate(38, 218) scale(0.1875)" fill="#ffffff">
+    <path d="M280-160q-33 0-56.5-23.5T200-240v-286l-80 61q-14 10-30 8.5T64-472q-10-14-8-30t16-26l359-275q11-8 23.5-12t25.5-4q13 0 25.5 4t23.5 12l111 85v-22q0-25 17.5-42.5T700-800q25 0 42.5 17.5T760-740v114l128 98q13 10 15.5 26t-7.5 30q-10 14-26 15.5t-30-8.5l-80-61v286q0 33-23.5 56.5T680-160h-40q-33 0-56.5-23.5T560-240v-80q0-33-23.5-56.5T480-400q-33 0-56.5 23.5T400-320v80q0 33-23.5 56.5T320-160h-40Zm120-399h160q0-32-24-52.5T480-632q-32 0-56 20.5T400-559Z"/>
+  </g>
+</svg>
