@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://launchpad.local/schemas/game-catalog.schema.json",
+  "title": "LAUNCHPAD Game Catalog",
+  "description": "Schema for the local game catalog used by LAUNCHPAD Desktop. PEGI/USK ratings are informational only -- parental approval always takes precedence.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/Game"
+  },
+  "definitions": {
+    "ApprovalState": {
+      "type": "string",
+      "enum": ["unknown", "needs-review", "approved", "blocked", "hidden"],
+      "description": "Parental approval state. This is the authoritative decision -- ratings do NOT block automatically."
+    },
+    "Source": {
+      "type": "string",
+      "enum": ["steam", "epic", "gog", "local", "xcloud"],
+      "description": "Platform source of the game."
+    },
+    "LaunchType": {
+      "type": "string",
+      "enum": ["steam", "exe", "uri", "edge-xcloud", "internal", "local-stub"],
+      "description": "How the game is launched."
+    },
+    "Players": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum number of players."
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of players."
+        },
+        "localCoop": {
+          "type": "boolean",
+          "description": "Whether local co-op is supported."
+        },
+        "onlineCoop": {
+          "type": "boolean",
+          "description": "Whether online co-op is supported."
+        },
+        "competitive": {
+          "type": "boolean",
+          "description": "Whether competitive mode is available."
+        }
+      },
+      "required": ["min", "max", "localCoop", "onlineCoop", "competitive"],
+      "additionalProperties": false
+    },
+    "Ratings": {
+      "type": "object",
+      "description": "INFORMATIONAL ONLY. These ratings do NOT automatically block games. Parental approval always overrides.",
+      "properties": {
+        "pegi": {
+          "type": "integer",
+          "enum": [3, 7, 12, 16, 18],
+          "description": "PEGI age rating (informational, does not block)."
+        },
+        "usk": {
+          "type": "integer",
+          "enum": [0, 6, 12, 16, 18],
+          "description": "USK age rating (informational, does not block)."
+        },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Reasons for the rating (e.g. 'Milde Gewalt', 'Online')."
+        }
+      },
+      "required": ["pegi", "usk", "reasons"],
+      "additionalProperties": false
+    },
+    "ParentDecision": {
+      "type": "object",
+      "description": "The authoritative parental decision for this game. Overrides any automatic rating logic.",
+      "properties": {
+        "approval": {
+          "$ref": "#/definitions/ApprovalState"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-text notes from the parent."
+        },
+        "reviewedStorePage": {
+          "type": "boolean",
+          "description": "Whether the parent has reviewed the store page."
+        }
+      },
+      "required": ["approval"],
+      "additionalProperties": false
+    },
+    "Profiles": {
+      "type": "object",
+      "description": "Per-child approval state. Keys are profile names, values are approval states.",
+      "additionalProperties": {
+        "$ref": "#/definitions/ApprovalState"
+      }
+    },
+    "Game": {
+      "type": "object",
+      "required": ["id", "title", "source", "launchType"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9\\-]*$",
+          "description": "Unique game identifier in kebab-case."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display name of the game."
+        },
+        "source": {
+          "$ref": "#/definitions/Source"
+        },
+        "launchType": {
+          "$ref": "#/definitions/LaunchType"
+        },
+        "launchTarget": {
+          "type": "string",
+          "description": "URI, path, or protocol address to launch the game."
+        },
+        "coverImage": {
+          "type": "string",
+          "description": "Relative path to cover image asset."
+        },
+        "trailerUrl": {
+          "type": "string",
+          "description": "URL to a trailer video (YouTube or empty string)."
+        },
+        "players": {
+          "$ref": "#/definitions/Players"
+        },
+        "ratings": {
+          "$ref": "#/definitions/Ratings"
+        },
+        "parent": {
+          "$ref": "#/definitions/ParentDecision"
+        },
+        "profiles": {
+          "$ref": "#/definitions/Profiles"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
