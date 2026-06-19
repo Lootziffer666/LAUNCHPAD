@@ -40,7 +40,7 @@ export function InfoOverlay({ game, onClose }) {
     ? `USK ${ratings.usk ?? '?'} / PEGI ${ratings.pegi ?? '?'}`
     : 'Keine Angabe';
 
-  const reasons = ratings?.reasons?.length ? ratings.reasons.join(', ') : null;
+  const reasons = ratings?.reasons?.length ? ratings.reasons : [];
 
   return (
     <div
@@ -74,7 +74,49 @@ export function InfoOverlay({ game, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 'clamp(16px, 2vw, 22px)' }}>
           <div><strong>Spieler:</strong> {playerLabel}</div>
           <div><strong>Bewertung:</strong> {ratingLabel}</div>
-          {reasons && <div><strong>Hinweise:</strong> {reasons}</div>}
+
+          {/* PEGI/USK reason chips */}
+          {reasons.length > 0 && (
+            <div>
+              <strong>Hinweise:</strong>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {reasons.map((reason, i) => (
+                  <span
+                    key={i}
+                    className="rating-reason-chip"
+                    style={{
+                      display: 'inline-block',
+                      padding: '4px 12px',
+                      borderRadius: 999,
+                      fontSize: 'clamp(12px, 1.4vw, 16px)',
+                      fontWeight: 500,
+                      background: 'rgba(61, 53, 48, 0.08)',
+                      border: '1px solid rgba(61, 53, 48, 0.15)',
+                      color: 'var(--color-text, #3d3530)',
+                    }}
+                  >
+                    {reason}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PEGI/USK explanation */}
+          {ratings && (
+            <div style={{
+              marginTop: 4,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: 'rgba(61, 53, 48, 0.04)',
+              fontSize: 'clamp(12px, 1.3vw, 15px)',
+              color: 'var(--color-muted, #8a7e74)',
+              lineHeight: 1.5,
+            }}>
+              Altersempfehlung (informativ, kein automatischer Block)
+            </div>
+          )}
+
           {parentNotes && (
             <div style={{ marginTop: 8, padding: '12px 16px', background: 'rgba(0,0,0,0.05)', borderRadius: 12 }}>
               <strong>Eltern-Notiz:</strong> {parentNotes}
