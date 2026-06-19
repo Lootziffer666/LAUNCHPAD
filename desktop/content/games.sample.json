@@ -1,0 +1,93 @@
+[
+  {
+    "id": "minecraft-java",
+    "title": "Minecraft: Java Edition",
+    "source": "local",
+    "launchType": "uri",
+    "launchTarget": "minecraft://",
+    "coverImage": "assets/covers/minecraft-java.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=MmB9b5njVbA",
+    "players": { "min": 1, "max": 8, "localCoop": true, "onlineCoop": true, "competitive": false },
+    "ratings": { "pegi": 7, "usk": 6, "reasons": ["Milde Gewalt"] },
+    "parent": { "approval": "approved", "notes": "Kreativmodus bevorzugt", "reviewedStorePage": true },
+    "profiles": { "jake": "approved", "luke": "approved" }
+  },
+  {
+    "id": "forza-horizon-5",
+    "title": "Forza Horizon 5",
+    "source": "steam",
+    "launchType": "steam",
+    "launchTarget": "steam://rungameid/1551360",
+    "coverImage": "assets/covers/forza-horizon-5.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=FYH9n37B7Yw",
+    "players": { "min": 1, "max": 2, "localCoop": true, "onlineCoop": true, "competitive": true },
+    "ratings": { "pegi": 3, "usk": 0, "reasons": [] },
+    "parent": { "approval": "approved", "notes": "", "reviewedStorePage": true },
+    "profiles": { "jake": "approved", "luke": "approved" }
+  },
+  {
+    "id": "lego-star-wars-skywalker",
+    "title": "LEGO Star Wars: Die Skywalker Saga",
+    "source": "steam",
+    "launchType": "steam",
+    "launchTarget": "steam://rungameid/920210",
+    "coverImage": "assets/covers/lego-star-wars.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=tS3m68NyFB4",
+    "players": { "min": 1, "max": 2, "localCoop": true, "onlineCoop": false, "competitive": false },
+    "ratings": { "pegi": 7, "usk": 6, "reasons": ["Milde Gewalt", "Angst"] },
+    "parent": { "approval": "approved", "notes": "Zusammen spielen empfohlen", "reviewedStorePage": true },
+    "profiles": { "jake": "approved", "luke": "approved" }
+  },
+  {
+    "id": "cyberpunk-2077",
+    "title": "Cyberpunk 2077",
+    "source": "gog",
+    "launchType": "exe",
+    "launchTarget": "C:\\GOG Games\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe",
+    "coverImage": "assets/covers/cyberpunk-2077.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=8X2kIfS6fb8",
+    "players": { "min": 1, "max": 1, "localCoop": false, "onlineCoop": false, "competitive": false },
+    "ratings": { "pegi": 18, "usk": 18, "reasons": ["Gewalt", "Drogen", "Sexuelle Inhalte"] },
+    "parent": { "approval": "blocked", "notes": "Nicht altersgerecht", "reviewedStorePage": true },
+    "profiles": { "jake": "blocked", "luke": "blocked" }
+  },
+  {
+    "id": "overcooked-2",
+    "title": "Overcooked! 2",
+    "source": "epic",
+    "launchType": "uri",
+    "launchTarget": "com.epicgames.launcher://apps/overcooked2",
+    "coverImage": "assets/covers/overcooked-2.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=EKGR2w1Bf_Y",
+    "players": { "min": 1, "max": 4, "localCoop": true, "onlineCoop": true, "competitive": true },
+    "ratings": { "pegi": 3, "usk": 0, "reasons": [] },
+    "parent": { "approval": "approved", "notes": "Familienspiel, ideal fuer gemeinsame Sessions", "reviewedStorePage": true },
+    "profiles": { "jake": "approved", "luke": "approved" }
+  },
+  {
+    "id": "phyphox-magnet",
+    "title": "Magnet Explorer (phyphox)",
+    "source": "local",
+    "launchType": "internal",
+    "launchTarget": "phyphox://01_magnet_explorer",
+    "coverImage": "assets/covers/phyphox-magnet.png",
+    "trailerUrl": "",
+    "players": { "min": 1, "max": 1, "localCoop": false, "onlineCoop": false, "competitive": false },
+    "ratings": { "pegi": 3, "usk": 0, "reasons": [] },
+    "parent": { "approval": "approved", "notes": "Lernspiel, Physik-Experiment", "reviewedStorePage": false },
+    "profiles": { "jake": "approved", "luke": "approved" }
+  },
+  {
+    "id": "sea-of-thieves",
+    "title": "Sea of Thieves",
+    "source": "xcloud",
+    "launchType": "edge-xcloud",
+    "launchTarget": "https://www.xbox.com/play/games/sea-of-thieves",
+    "coverImage": "assets/covers/sea-of-thieves.jpg",
+    "trailerUrl": "https://www.youtube.com/watch?v=r5JIBaaKb1I",
+    "players": { "min": 1, "max": 4, "localCoop": false, "onlineCoop": true, "competitive": true },
+    "ratings": { "pegi": 12, "usk": 12, "reasons": ["Gewalt", "Online"] },
+    "parent": { "approval": "needs-review", "notes": "Online-Interaktion pruefen", "reviewedStorePage": false },
+    "profiles": { "jake": "needs-review", "luke": "blocked" }
+  }
+]
