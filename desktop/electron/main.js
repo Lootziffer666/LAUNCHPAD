@@ -331,6 +331,12 @@ function registerIpc() {
     },
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
     'lp:pin:status': () => ({ pinIsDefault: !!parental.getSettings().pinIsDefault }),
+    'lp:recovery:status': () => parental.recoveryStatus(),
+    'lp:recovery:reset': (_e, code, newPin) => {
+      const freshCode = parental.resetPinWithRecovery(code, newPin);
+      if (!freshCode) return { ok: false };
+      return { ok: true, recoveryCode: freshCode };
+    },
     // The ONLY door from the child shell to the curator: PIN is verified in
     // main; on success the curator window opens as its own app surface.
     'lp:curator:open': (_e, pin) => {
@@ -363,6 +369,7 @@ function registerIpc() {
     'lp:deals:top': () => wishlist.topDeals({ minSavings: parental.getSettings().dealsMinSavings }),
 
     'lp:pin:set': (_e, oldP, newP) => parental.setPin(oldP, newP),
+    'lp:recovery:generate': () => parental.newRecoveryCode(),
     'lp:parental:get': () => parental.getSettings(),
     'lp:parental:set': mutating((_e, patch) => {
       const out = parental.setSettings(patch); // age rating affects the child list

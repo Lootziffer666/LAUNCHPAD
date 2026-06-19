@@ -18,6 +18,12 @@ export function PinGate({ onUnlock, onCancel, sub }) {
   const [pin, setPin] = useState('');
   const [err, setErr] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [recoveryMsg, setRecoveryMsg] = useState(null);
+  const [recoverySuccess, setRecoverySuccess] = useState(null);
+  const [hasRecovery, setHasRecovery] = useState(false);
   const checking = React.useRef(false);
 
   useEffect(() => {
@@ -25,6 +31,11 @@ export function PinGate({ onUnlock, onCancel, sub }) {
     if (window.launchpad && window.launchpad.pinStatus) {
       window.launchpad.pinStatus()
         .then((s) => { if (alive) setShowHint(!!(s && s.pinIsDefault)); })
+        .catch(() => {});
+    }
+    if (window.launchpad && window.launchpad.recoveryStatus) {
+      window.launchpad.recoveryStatus()
+        .then((s) => { if (alive) setHasRecovery(!!(s && s.configured)); })
         .catch(() => {});
     }
     return () => { alive = false; };
@@ -63,6 +74,60 @@ export function PinGate({ onUnlock, onCancel, sub }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [pin]);
 
+  const submitRecovery = async () => {
+    if (!window.launchpad || !window.launchpad.resetPinWithRecovery) return;
+    if (String(newPin).length < 4) { setRecoveryMsg('Neue PIN braucht mind. 4 Ziffern'); return; }
+    try {
+      const result = await window.launchpad.resetPinWithRecovery(recoveryCode, newPin);
+      if (result && result.ok) {
+        setRecoverySuccess(result.recoveryCode);
+        setRecoveryMsg(null);
+        SFX.launch();
+      } else {
+        setRecoveryMsg('Wiederherstellungscode ist falsch');
+        SFX.back();
+      }
+    } catch (e) {
+      setRecoveryMsg('Fehler bei der Wiederherstellung');
+      SFX.back();
+    }
+  };
+
+  if (recoveryMode) {
+    return (
+      <div className="pin-gate">
+        <div className="pin-card">
+          <div className="pin-av">{Icon.shield()}</div>
+          <div className="pin-title">PIN zurücksetzen</div>
+          {!recoverySuccess ? (
+            <>
+              <div className="pin-sub">Wiederherstellungscode und neue PIN eingeben</div>
+              <div className="pin-recovery-form">
+                <input type="text" placeholder="XXXX-XXXX-XXXX" value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)} className="pin-recovery-input" />
+                <input type="password" inputMode="numeric" placeholder="Neue PIN (mind. 4 Ziffern)"
+                  value={newPin} onChange={(e) => setNewPin(e.target.value)} className="pin-recovery-input" />
+                <button className="pin-recovery-btn" onClick={submitRecovery}>PIN zurücksetzen</button>
+              </div>
+              {recoveryMsg && <div className="pin-hint" style={{ color: '#ef4444' }}>{recoveryMsg}</div>}
+              <button className="pin-recovery-back" onClick={() => { setRecoveryMode(false); setRecoveryMsg(null); }}>Zurück zur PIN-Eingabe</button>
+            </>
+          ) : (
+            <>
+              <div className="pin-sub" style={{ color: '#22c55e' }}>PIN erfolgreich zurückgesetzt!</div>
+              <div className="pin-recovery-form">
+                <p className="pin-hint">Neuer Wiederherstellungscode:</p>
+                <code className="pin-recovery-code">{recoverySuccess}</code>
+                <p className="pin-hint" style={{ color: '#f59e0b' }}>Schreib diesen Code auf! Er wird nur einmal angezeigt.</p>
+                <button className="pin-recovery-btn" onClick={() => { setRecoveryMode(false); setRecoverySuccess(null); }}>Weiter</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pin-gate">
       <div className="pin-card">
@@ -81,6 +146,7 @@ export function PinGate({ onUnlock, onCancel, sub }) {
           <button className="pin-key fn" onClick={del}>⌫</button>
         </div>
         {showHint && <div className="pin-hint">Demo-PIN: <b>1234</b> · in den Eltern-Einstellungen änderbar</div>}
+        {hasRecovery && <button className="pin-recovery-link" onClick={() => setRecoveryMode(true)}>PIN vergessen?</button>}
       </div>
     </div>
   );

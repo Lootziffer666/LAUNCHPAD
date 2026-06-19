@@ -13,6 +13,7 @@ const { childVisible } = require('./curation');
 const DEFAULTS = {
   pinHash: null, // "salt:hash" (hex); null until seeded
   pinIsDefault: true, // true while still the seeded demo PIN; false once changed
+  recoveryHash: null, // "salt:hash" (hex); null until first real PIN set
   ageRating: '9', // "6" | "9" | "12" — filters visible games
   dailyLimitMin: 90,
   bedtime: { from: '20:30', to: '07:00' },
@@ -39,6 +40,65 @@ function hashPin(pin, salt) {
   return `${s}:${h}`;
 }
 
+// ── Recovery code: 3 groups of 4 alphanumeric chars (XXXX-XXXX-XXXX) ──
+const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 for readability
+
+function generateRecoveryCode() {
+  const bytes = crypto.randomBytes(12);
+  let code = '';
+  for (let i = 0; i < 12; i++) {
+    if (i > 0 && i % 4 === 0) code += '-';
+    code += RECOVERY_ALPHABET[bytes[i] % RECOVERY_ALPHABET.length];
+  }
+  return code;
+}
+
+function hashRecoveryCode(code) {
+  // Normalize: uppercase + strip dashes for hashing
+  const normalized = String(code).toUpperCase().replace(/-/g, '');
+  return hashPin(normalized);
+}
+
+function verifyRecoveryCode(code) {
+  const stored = raw().recoveryHash;
+  if (!stored) return false;
+  const normalized = String(code).toUpperCase().replace(/-/g, '');
+  const [salt, hash] = stored.split(':');
+  const cand = crypto.scryptSync(normalized, salt, SCRYPT_LEN).toString('hex');
+  const a = Buffer.from(hash, 'hex');
+  const b = Buffer.from(cand, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// Generate a new recovery code, store only its hash, return the raw code.
+// Called once when the parent first changes from the default PIN, or on demand
+// from the curator settings.
+function newRecoveryCode() {
+  const code = generateRecoveryCode();
+  save({ recoveryHash: hashRecoveryCode(code) });
+  return code;
+}
+
+// Reset PIN using a valid recovery code. On success: sets the new PIN,
+// generates a fresh recovery code, and returns it. On failure: returns null.
+function resetPinWithRecovery(recoveryCode, newPin) {
+  if (!recoveryCode || !newPin || String(newPin).length < 4) return null;
+  if (!verifyRecoveryCode(recoveryCode)) return null;
+  const freshCode = generateRecoveryCode();
+  save({
+    pinHash: hashPin(newPin),
+    pinIsDefault: false,
+    recoveryHash: hashRecoveryCode(freshCode),
+  });
+  return freshCode;
+}
+
+// Check whether a recovery code has been configured (without leaking it).
+function recoveryStatus() {
+  ensureSeeded();
+  return { configured: !!raw().recoveryHash, pinIsDefault: !!raw().pinIsDefault };
+}
+
 // Lazily seed the demo PIN on first access so verifyPin works immediately.
 function ensureSeeded() {
   if (!raw().pinHash) save({ pinHash: hashPin('1234') });
@@ -59,7 +119,15 @@ function setPin(oldPin, newPin) {
   ensureSeeded();
   if (!verifyPin(oldPin)) return false;
   if (!newPin || String(newPin).length < 4) return false;
+  const wasDefault = !!raw().pinIsDefault;
   save({ pinHash: hashPin(newPin), pinIsDefault: false });
+  // On first real PIN change, auto-generate the recovery code so the parent
+  // can write it down. Subsequent changes do not rotate it automatically.
+  if (wasDefault) {
+    const code = generateRecoveryCode();
+    save({ recoveryHash: hashRecoveryCode(code) });
+    return { ok: true, recoveryCode: code };
+  }
   return true;
 }
 
@@ -143,4 +211,5 @@ module.exports = {
   hashPin, verifyPin, setPin, getSettings, setSettings,
   getUsageToday, addUsage, ageAllows, timeLeft, canLaunch,
   isInBedtime, inBedtime,
+  generateRecoveryCode, newRecoveryCode, resetPinWithRecovery, recoveryStatus,
 };

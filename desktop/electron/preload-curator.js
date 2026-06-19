@@ -34,8 +34,11 @@ contextBridge.exposeInMainWorld('launchpad', {
   refreshWishlistPrices: () => invoke('lp:wishlist:prices'),
   topDeals: () => invoke('lp:deals:top'),
 
-  // parental settings / PIN / usage
+  // parental settings / PIN / usage / recovery
   setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
+  getRecoveryStatus: () => invoke('lp:recovery:status'),
+  generateRecoveryCode: () => invoke('lp:recovery:generate'),
+  resetPinWithRecovery: (code, newPin) => invoke('lp:recovery:reset', code, newPin),
   getParentalSettings: () => invoke('lp:parental:get'),
   setParentalSettings: (patch) => invoke('lp:parental:set', patch),
   getUsageToday: () => invoke('lp:usage:today'),

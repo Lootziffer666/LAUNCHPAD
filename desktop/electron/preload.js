@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('launchpad', {
   shellUnlock: (pin) => invoke('lp:shell:unlock', pin), // parent override; PIN re-verified in main
   verifyPin: (pin) => invoke('lp:pin:verify', pin),
   pinStatus: () => invoke('lp:pin:status'),
+  recoveryStatus: () => invoke('lp:recovery:status'),
+  resetPinWithRecovery: (code, newPin) => invoke('lp:recovery:reset', code, newPin),
   openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
 
   // events
