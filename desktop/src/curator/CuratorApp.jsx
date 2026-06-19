@@ -13,6 +13,7 @@ import { ImpCard, CoverKeyField } from '../games/GameManager.jsx';
 import { ParentalPanel } from '../apps/Parental.jsx';
 import { CurationBar } from './CurationBar.jsx';
 import { WishlistTab, DealsTab } from './SteamTools.jsx';
+import { ImportGames } from './ImportGames.jsx';
 
 // Review filters — the inbox view from the plan ("Candidate Review").
 const FILTERS = [
@@ -65,6 +66,7 @@ function LibraryTab() {
       )}
 
       <CoverKeyField />
+      <ImportGames />
 
       <div className="cur-cards">
         {shown.map((g) => (
