@@ -10,6 +10,7 @@ import { GameStore } from './games/useGames.js';
 import { SFX } from './lib/sfx.js';
 import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
+import { ControllerGrid } from './shells/ControllerGrid.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
 
@@ -49,7 +50,7 @@ export default function App() {
 
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
-  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows'
+  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller'
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
   // Games load over IPC (async). Hold the shells until the first load lands so
@@ -99,6 +100,18 @@ export default function App() {
     } catch (e) { /* keep the lock */ }
   };
 
+  // Ctrl+G toggles controller grid mode
+  useEffect(() => {
+    const handleCtrlG = (e) => {
+      if (e.ctrlKey && e.key === 'g') {
+        e.preventDefault();
+        setMode((m) => m === 'controller' ? 'launchpad' : 'controller');
+      }
+    };
+    window.addEventListener('keydown', handleCtrlG);
+    return () => window.removeEventListener('keydown', handleCtrlG);
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', t.theme);
     document.documentElement.style.setProperty('--comet-cyan', t.accent);
@@ -143,6 +156,9 @@ export default function App() {
             onHome={backToLaunchpad} onOpenPlay={openPlay}
             onOpenParental={openParental} onLaunchDirect={(g) => launchDirect(g)}
           />
+        )}
+        {mode === 'controller' && (
+          <ControllerGrid onBack={backToLaunchpad} />
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}
