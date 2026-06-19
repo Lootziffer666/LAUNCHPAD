@@ -19,6 +19,61 @@ const ALLOWED_SCHEMES = new Set([
   'origin', 'roblox', 'msstore', 'ms-windows-store',
 ]);
 
+// ── Active session tracking (for edge-xcloud and similar managed spawns) ──
+let activeSession = null; // { pid, proc, gameId, startedAt }
+
+function getActiveSession() {
+  return activeSession ? { pid: activeSession.pid, gameId: activeSession.gameId, startedAt: activeSession.startedAt } : null;
+}
+
+function killActiveSession() {
+  if (!activeSession) return { ok: false, reason: 'no_session' };
+  const { proc, pid } = activeSession;
+  try {
+    if (process.platform === 'win32') {
+      // On Windows, use taskkill to kill the process tree
+      const { execSync } = require('node:child_process');
+      try {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+      } catch (_) {
+        // Process may already be gone
+      }
+    } else {
+      // On Linux/macOS, send SIGTERM; fallback to SIGKILL after timeout
+      try { proc.kill('SIGTERM'); } catch (_) { /* already exited */ }
+      setTimeout(() => {
+        try { proc.kill('SIGKILL'); } catch (_) { /* already exited */ }
+      }, 5000);
+    }
+  } catch (e) {
+    console.error('[launchpad] killActiveSession failed:', e);
+    return { ok: false, reason: 'kill_failed', message: String(e.message || e) };
+  }
+  const killed = activeSession;
+  activeSession = null;
+  return { ok: true, pid: killed.pid, gameId: killed.gameId };
+}
+
+// Resolve the Edge binary path per platform
+function resolveEdgeBinary() {
+  if (process.platform === 'win32') {
+    const fs = require('node:fs');
+    const candidates = [
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return 'msedge'; // hope it is in PATH
+  }
+  if (process.platform === 'darwin') {
+    return '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+  }
+  // Linux: try common names
+  return 'microsoft-edge';
+}
+
 // Error classes from the original Windows launcher plan: the child sees a calm
 // phase ("Das hat gerade nicht geklappt"), the class decides what we offer —
 //   recoverable      → "Nochmal versuchen" makes sense
@@ -38,9 +93,11 @@ const classifyFailure = (reason) => FAILURE_CLASS[reason] || 'fatal';
 
 function inferKind(game) {
   if (game && game.launch && game.launch.kind) return game.launch.kind;
+  if (game && game.launchType) return game.launchType;
   const src = ((game && game.source) || '').toLowerCase();
   if (src === 'steam') return 'steam';
   if (src === 'minecraft') return 'uri';
+  if (src === 'xcloud') return 'edge-xcloud';
   return 'internal';
 }
 
@@ -82,6 +139,13 @@ function resolveLaunch(game) {
     return { kind: 'spawn', cmd: 'explorer.exe', args: [`shell:AppsFolder\\${L.pfn}!App`] };
   }
 
+  if (kind === 'edge-xcloud') {
+    const url = L.url || game.launchTarget;
+    if (!url) return cfgError('xCloud-URL fehlt');
+    const edge = resolveEdgeBinary();
+    return { kind: 'edge-xcloud', cmd: edge, args: ['--kiosk', url, '--edge-kiosk-type=fullscreen'], url };
+  }
+
   return cfgError(`Unbekannter Starttyp: ${kind}`);
 }
 
@@ -112,6 +176,26 @@ async function launchGame(game) {
       child.unref();
       return { ok: true };
     }
+    if (plan.kind === 'edge-xcloud') {
+      const { spawn } = require('node:child_process');
+      const child = spawn(plan.cmd, plan.args, { detached: true, stdio: 'ignore' });
+      child.on('error', (err) => {
+        console.error(`[launchpad] edge-xcloud spawn failed:`, err);
+        if (activeSession && activeSession.proc === child) activeSession = null;
+      });
+      child.on('exit', () => {
+        if (activeSession && activeSession.proc === child) activeSession = null;
+      });
+      // Track the session for later kill
+      activeSession = {
+        pid: child.pid,
+        proc: child,
+        gameId: game ? game.id : null,
+        startedAt: Date.now(),
+      };
+      child.unref();
+      return { ok: true, pid: child.pid };
+    }
   } catch (e) {
     // A runtime exception (Steam hiccup, slow shell) may pass on retry.
     return { ok: false, reason: 'error', errorClass: 'recoverable', message: String((e && e.message) || e) };
@@ -119,4 +203,4 @@ async function launchGame(game) {
   return { ok: false, reason: 'error', errorClass: 'fatal', message: 'Kein Startweg' };
 }
 
-module.exports = { resolveLaunch, launchGame, classifyFailure, ALLOWED_SCHEMES };
+module.exports = { resolveLaunch, launchGame, classifyFailure, killActiveSession, getActiveSession, ALLOWED_SCHEMES };

@@ -345,6 +345,9 @@ function registerIpc() {
       createCuratorWindow();
       return { ok: true };
     },
+
+    // session control — kill the active edge-xcloud session (child "Spiel beenden")
+    'lp:session:kill': () => launcher.killActiveSession(),
   };
 
   const curatorHandlers = {

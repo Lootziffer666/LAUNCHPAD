@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('launchpad', {
   resetPinWithRecovery: (code, newPin) => invoke('lp:recovery:reset', code, newPin),
   openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
 
+  // session control
+  killSession: () => invoke('lp:session:kill'),
+
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onLockChanged: (cb) => on('lp:event:lock', cb), // payload: 'bedtime'|'timeup'|null
