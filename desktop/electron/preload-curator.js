@@ -43,6 +43,9 @@ contextBridge.exposeInMainWorld('launchpad', {
   setParentalSettings: (patch) => invoke('lp:parental:set', patch),
   getUsageToday: () => invoke('lp:usage:today'),
 
+  // game import
+  scanSteam: () => invoke('lp:games:scan-steam'),
+
   // events
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
 });

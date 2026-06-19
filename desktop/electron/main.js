@@ -281,6 +281,7 @@ function registerIpc() {
   launcher = require('./services/launcher');
   covers = require('./services/covers');
   wishlist = require('./services/wishlist');
+  const steamImport = require('./services/steamImport');
 
   // after a successful mutation, let every window refetch
   const mutating = (fn) => async (...args) => {
@@ -377,6 +378,9 @@ function registerIpc() {
       return out;
     }),
     'lp:usage:today': () => parental.getUsageToday(),
+
+    // game import — scan local installations
+    'lp:games:scan-steam': () => steamImport.scanSteam(),
   };
 
   for (const [channel, fn] of Object.entries(childHandlers)) ipcMain.handle(channel, fn);
