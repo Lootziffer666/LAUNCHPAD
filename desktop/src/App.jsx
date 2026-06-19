@@ -11,6 +11,7 @@ import { SFX } from './lib/sfx.js';
 import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
 import { ControllerGrid } from './shells/ControllerGrid.jsx';
+import { HabitatShell } from './habitat/HabitatShell.jsx';
 import { BootScreen } from './shells/BootScreen.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
@@ -173,7 +174,7 @@ export default function App() {
             transition: 'opacity 400ms ease-out',
           }}>
             <BootScreen>
-              <ControllerGrid onBack={backToLaunchpad} />
+              <HabitatShell onBack={backToLaunchpad} />
             </BootScreen>
           </div>
         )}
