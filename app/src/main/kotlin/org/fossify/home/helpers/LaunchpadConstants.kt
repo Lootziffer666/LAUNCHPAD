@@ -171,6 +171,10 @@ object LaunchpadPrefs {
     const val PREF_PIN_FAIL_COUNT = "pin_fail_count"
     const val PREF_PIN_LOCKED_UNTIL = "pin_locked_until"
 
+    // PIN recovery: salted SHA-256 hash of the recovery code (XXXX-XXXX-XXXX format).
+    const val PREF_RECOVERY_HASH = "parent_recovery_hash"
+    const val PREF_RECOVERY_SALT = "parent_recovery_salt"
+
     // M4: QR pairing — launcher keypair (Base64), AES session key, paired parent identity
     const val PREF_PAIR_PRIVATE_KEY = "pair_private_key" // PKCS8 Base64
     const val PREF_PAIR_PUBLIC_KEY = "pair_public_key" // X509 Base64

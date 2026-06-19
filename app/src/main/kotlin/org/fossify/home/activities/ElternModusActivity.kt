@@ -74,6 +74,7 @@ class ElternModusActivity : AppCompatActivity() {
     private lateinit var strictStatus: android.widget.TextView
     private lateinit var childNameStatus: android.widget.TextView
     private lateinit var schoolStatus: android.widget.TextView
+    private lateinit var pinStatus: android.widget.TextView
 
     // Switches
     private lateinit var kindermodusSwitch: org.fossify.commons.views.MyMaterialSwitch
@@ -175,7 +176,100 @@ class ElternModusActivity : AppCompatActivity() {
                     }
                 }
             }
+            .setNeutralButton("PIN vergessen?") { _, _ -> showRecoveryInput() }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showRecoveryInput() {
+        if (!pinGate.hasRecoveryCode()) {
+            toast("Kein Wiederherstellungscode vorhanden")
+            finish()
+            return
+        }
+        val codeInput = EditText(this).apply {
+            hint = "XXXX-XXXX-XXXX"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setSingleLine()
+        }
+        AlertDialog.Builder(this)
+            .setTitle("PIN zurücksetzen")
+            .setMessage("Gib deinen Wiederherstellungscode ein:")
+            .setView(codeInput)
+            .setPositiveButton("Weiter") { _, _ ->
+                val code = codeInput.text.toString().trim()
+                if (code.replace("-", "").length != 12) {
+                    toast("Ungültiges Format (XXXX-XXXX-XXXX)")
+                    finish()
+                    return@setPositiveButton
+                }
+                showNewPinAfterRecovery(code)
+            }
+            .setNegativeButton("Abbrechen") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showNewPinAfterRecovery(recoveryCode: String) {
+        val newPinInput = EditText(this).apply {
+            hint = "Neuer PIN (mind. 4 Ziffern)"
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Neuen PIN festlegen")
+            .setView(newPinInput)
+            .setPositiveButton("Speichern") { _, _ ->
+                val newPin = newPinInput.text.toString()
+                if (newPin.length < 4) {
+                    toast("PIN muss mindestens 4 Ziffern haben")
+                    finish()
+                    return@setPositiveButton
+                }
+                val newCode = pinGate.resetPinWithRecovery(recoveryCode, newPin)
+                if (newCode != null) {
+                    showNewRecoveryCodeDialog(newCode)
+                } else {
+                    toast("Wiederherstellungscode ist falsch")
+                    finish()
+                }
+            }
+            .setNegativeButton("Abbrechen") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showNewRecoveryCodeDialog(code: String) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+            addView(android.widget.TextView(this@ElternModusActivity).apply {
+                text = "PIN wurde zurückgesetzt. Dein neuer Wiederherstellungscode:"
+                textSize = 14f
+                setTextColor(Color.parseColor("#333333"))
+                setPadding(0, 0, 0, 24)
+            })
+            addView(android.widget.TextView(this@ElternModusActivity).apply {
+                text = code
+                textSize = 28f
+                setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                setTextColor(Color.parseColor("#FF6B35"))
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 8, 0, 24)
+            })
+            addView(android.widget.TextView(this@ElternModusActivity).apply {
+                text = "Bitte notiere diesen Code an einem sicheren Ort."
+                textSize = 13f
+                setTextColor(Color.parseColor("#666666"))
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Neuer Wiederherstellungscode")
+            .setView(box)
+            .setPositiveButton("Verstanden, Code notiert") { _, _ ->
+                pinGate.activateParentMode(30)
+                showUiAndRefresh()
+            }
             .setCancelable(false)
             .show()
     }
@@ -221,6 +315,7 @@ class ElternModusActivity : AppCompatActivity() {
         strictStatus = findViewById(R.id.em_strict_status)
         childNameStatus = findViewById(R.id.em_child_name)
         schoolStatus = findViewById(R.id.em_school_status)
+        pinStatus = findViewById(R.id.em_pin_status)
 
         // Switches
         kindermodusSwitch = findViewById(R.id.em_kindermodus_switch)
@@ -252,6 +347,7 @@ class ElternModusActivity : AppCompatActivity() {
             },
             R.id.em_row_cooldown_rules to { showCooldownEditor() },
             R.id.em_row_hinweise to { showHinweiseDialog() },
+            R.id.em_row_pin to { showPinRecoveryDialog() },
             R.id.em_row_health to {
                 startActivity(Intent(this, PermissionHealthActivity::class.java))
             },
@@ -387,6 +483,8 @@ class ElternModusActivity : AppCompatActivity() {
                 .getBoolean(LaunchpadPrefs.PREF_STRICT_FOREGROUND_BLOCK, false)
             strictStatus.text = if (strict) "An — nur erlaubte Apps" else "Aus"
             childNameStatus.text = ChildProfile.name(this@ElternModusActivity)
+
+            pinStatus.text = if (pinGate.hasRecoveryCode()) "PIN gesetzt, Code vorhanden" else "PIN gesetzt"
 
             val ctx = this@ElternModusActivity
             schoolStatus.text = if (SchoolMode.isActive(ctx)) {
@@ -732,6 +830,76 @@ class ElternModusActivity : AppCompatActivity() {
             }
             .setNegativeButton("Schließen", null)
             .show()
+    }
+
+    private fun showPinRecoveryDialog() {
+        val options = arrayOf("PIN aendern", "Wiederherstellungscode anzeigen")
+        AlertDialog.Builder(this)
+            .setTitle("PIN & Wiederherstellung")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showChangePinDialog()
+                    1 -> showOrRegenerateRecoveryCode()
+                }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun showChangePinDialog() {
+        val oldPinInput = EditText(this).apply {
+            hint = "Aktueller PIN"
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        val newPinInput = EditText(this).apply {
+            hint = "Neuer PIN (mind. 4 Ziffern)"
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        val confirmPinInput = EditText(this).apply {
+            hint = "Neuer PIN wiederholen"
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+            addView(oldPinInput); addView(newPinInput); addView(confirmPinInput)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("PIN aendern")
+            .setView(box)
+            .setPositiveButton("Speichern") { _, _ ->
+                val oldPin = oldPinInput.text.toString()
+                val newPin = newPinInput.text.toString()
+                val confirm = confirmPinInput.text.toString()
+                when {
+                    newPin.length < 4 -> toast("Neuer PIN muss mindestens 4 Ziffern haben")
+                    newPin != confirm -> toast("PINs stimmen nicht überein")
+                    !pinGate.changePin(oldPin, newPin) -> toast("Aktueller PIN ist falsch")
+                    else -> toast("PIN wurde geaendert")
+                }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun showOrRegenerateRecoveryCode() {
+        if (pinGate.hasRecoveryCode()) {
+            AlertDialog.Builder(this)
+                .setTitle("Wiederherstellungscode")
+                .setMessage(
+                    "Es ist bereits ein Wiederherstellungscode gespeichert. " +
+                        "Moechtest du einen neuen generieren? Der alte wird damit ungueltig."
+                )
+                .setPositiveButton("Neuen Code generieren") { _, _ ->
+                    val code = pinGate.setRecoveryCode()
+                    showNewRecoveryCodeDialog(code)
+                }
+                .setNegativeButton("Abbrechen", null)
+                .show()
+        } else {
+            val code = pinGate.setRecoveryCode()
+            showNewRecoveryCodeDialog(code)
+        }
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

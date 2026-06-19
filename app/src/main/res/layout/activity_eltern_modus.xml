@@ -356,6 +356,25 @@
                 android:id="@+id/em_sec_schutz"
                 android:text="Schutz &amp; Status" />
 
+            <LinearLayout android:id="@+id/em_row_pin"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="PIN &amp; Wiederherstellung" />
+                    <TextView android:id="@+id/em_pin_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="PIN gesetzt"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="&#x203A;" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <LinearLayout android:id="@+id/em_row_health"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
