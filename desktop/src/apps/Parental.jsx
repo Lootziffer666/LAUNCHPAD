@@ -92,8 +92,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
     if (String(pinNew).length < 4) { setPinMsg('Neue PIN braucht mind. 4 Ziffern'); SFX.back(); return; }
     let result = false;
     try { result = await api.setPin(pinOld, pinNew); } catch (e) { result = false; }
-    // setPin returns true, {ok:true, recoveryCode:'...'}, or false
-    const ok = result === true || (result && result.ok);
+    // setPin always returns { ok: boolean, recoveryCode?: string } or false on exception
+    const ok = result && result.ok;
     if (ok) {
       setPinOld(''); setPinNew(''); SFX.select(); setPinMsg('PIN geändert \u2713');
       if (result && result.recoveryCode) {

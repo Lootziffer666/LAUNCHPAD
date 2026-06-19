@@ -192,12 +192,21 @@ class PinGateHelper(
     }
 
     // ─── Recovery code support ────────────────────────────────────────────────
+    // NOTE: No automated test coverage exists for the recovery flow (generateRecoveryCode,
+    // setRecoveryCode, resetPinWithRecovery, hasRecoveryCode, changePin). The workspace
+    // lacks a Robolectric or instrumented test framework. A future effort should add parity
+    // with the desktop test suite (6 tests covering code format, uniqueness, correct/wrong
+    // code reset, short PIN rejection, and status reporting).
 
     /**
      * Generate a 12-character alphanumeric recovery code formatted as XXXX-XXXX-XXXX.
+     * The alphabet MUST remain exactly 32 characters so that `byte % 32` (used for
+     * index selection via SecureRandom) produces uniform distribution without modulo
+     * bias (256 / 32 = 8, divides evenly).
      */
     fun generateRecoveryCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no 0/O/1/I to avoid confusion
+        require(chars.length == 32) { "Recovery alphabet must be exactly 32 chars to avoid modulo bias" }
         val random = SecureRandom()
         val code = StringBuilder(12)
         repeat(12) { code.append(chars[random.nextInt(chars.length)]) }
@@ -228,16 +237,34 @@ class PinGateHelper(
     /**
      * Verify the recovery code and, if valid, reset the PIN to [newPin] and generate a fresh
      * recovery code. Returns the new recovery code on success, or null on mismatch.
+     *
+     * Respects lockout state: if the device is currently locked out (from failed PIN attempts),
+     * recovery is also blocked to prevent an attacker from pivoting to brute-force the
+     * recovery code while the PIN path is locked.
      */
     fun resetPinWithRecovery(recoveryCode: String, newPin: String): String? {
+        // Check lockout before attempting verification to prevent bypass.
+        if (isLockedOut()) return null
+
         val storedHash = prefs.getString(RECOVERY_HASH_KEY, "").orEmpty()
         val salt = prefs.getString(RECOVERY_SALT_KEY, "").orEmpty()
         if (storedHash.isEmpty() || salt.isEmpty()) return null
 
         val inputNormalized = recoveryCode.replace("-", "").uppercase()
-        if (!constantTimeEquals(hashPin(inputNormalized, salt), storedHash)) return null
+        if (!constantTimeEquals(hashPin(inputNormalized, salt), storedHash)) {
+            // Increment shared fail counter so recovery attempts contribute to lockout.
+            val newCount = prefs.getInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0) + 1
+            val lockoutMs = lockoutDurationMs(newCount)
+            val now = System.currentTimeMillis()
+            val newLockedUntil = if (lockoutMs > 0L) now + lockoutMs else 0L
+            prefs.edit()
+                .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, newCount)
+                .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, newLockedUntil)
+                .apply()
+            return null
+        }
 
-        // Valid recovery code — reset everything.
+        // Valid recovery code -- reset everything.
         setPinCode(newPin)
         // Clear lockout state.
         prefs.edit()

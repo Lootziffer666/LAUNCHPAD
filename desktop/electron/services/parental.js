@@ -14,6 +14,8 @@ const DEFAULTS = {
   pinHash: null, // "salt:hash" (hex); null until seeded
   pinIsDefault: true, // true while still the seeded demo PIN; false once changed
   recoveryHash: null, // "salt:hash" (hex); null until first real PIN set
+  lockoutFails: 0, // shared fail counter for PIN and recovery attempts
+  lockoutUntil: 0, // timestamp (ms) when lockout expires; 0 = not locked
   ageRating: '9', // "6" | "9" | "12" — filters visible games
   dailyLimitMin: 90,
   bedtime: { from: '20:30', to: '07:00' },
@@ -41,7 +43,10 @@ function hashPin(pin, salt) {
 }
 
 // ── Recovery code: 3 groups of 4 alphanumeric chars (XXXX-XXXX-XXXX) ──
+// The alphabet MUST remain exactly 32 characters so that `byte % 32` produces
+// uniform distribution without modulo bias (256 / 32 = 8, divides evenly).
 const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 for readability
+if (RECOVERY_ALPHABET.length !== 32) throw new Error('RECOVERY_ALPHABET must be exactly 32 chars to avoid modulo bias');
 
 function generateRecoveryCode() {
   const bytes = crypto.randomBytes(12);
@@ -81,14 +86,27 @@ function newRecoveryCode() {
 
 // Reset PIN using a valid recovery code. On success: sets the new PIN,
 // generates a fresh recovery code, and returns it. On failure: returns null.
+// Respects lockout state: if the user is locked out (from failed PIN attempts),
+// recovery is also blocked to prevent pivot attacks.
 function resetPinWithRecovery(recoveryCode, newPin) {
   if (!recoveryCode || !newPin || String(newPin).length < 4) return null;
-  if (!verifyRecoveryCode(recoveryCode)) return null;
+  // Enforce lockout: recovery must not bypass the existing rate-limiting.
+  const s = raw();
+  if (s.lockoutUntil && s.lockoutUntil > Date.now()) return null;
+  if (!verifyRecoveryCode(recoveryCode)) {
+    // Count failed recovery attempts against the shared lockout counter.
+    const failCount = (s.lockoutFails || 0) + 1;
+    const lockoutMs = failCount >= 15 ? 900000 : failCount >= 10 ? 300000 : failCount >= 5 ? 30000 : 0;
+    save({ lockoutFails: failCount, lockoutUntil: lockoutMs > 0 ? Date.now() + lockoutMs : 0 });
+    return null;
+  }
   const freshCode = generateRecoveryCode();
   save({
     pinHash: hashPin(newPin),
     pinIsDefault: false,
     recoveryHash: hashRecoveryCode(freshCode),
+    lockoutFails: 0,
+    lockoutUntil: 0,
   });
   return freshCode;
 }
@@ -117,8 +135,8 @@ function verifyPin(pin) {
 
 function setPin(oldPin, newPin) {
   ensureSeeded();
-  if (!verifyPin(oldPin)) return false;
-  if (!newPin || String(newPin).length < 4) return false;
+  if (!verifyPin(oldPin)) return { ok: false };
+  if (!newPin || String(newPin).length < 4) return { ok: false };
   const wasDefault = !!raw().pinIsDefault;
   save({ pinHash: hashPin(newPin), pinIsDefault: false });
   // On first real PIN change, auto-generate the recovery code so the parent
@@ -128,7 +146,7 @@ function setPin(oldPin, newPin) {
     save({ recoveryHash: hashRecoveryCode(code) });
     return { ok: true, recoveryCode: code };
   }
-  return true;
+  return { ok: true };
 }
 
 // Public settings — never leak pinHash; expose pinSet instead.
