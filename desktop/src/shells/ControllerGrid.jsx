@@ -40,6 +40,7 @@ export function ControllerGrid({ onBack }) {
   const [showParentGate, setShowParentGate] = useState(false);
   const [activeGlyphs, setActiveGlyphs] = useState(allGlyphs);
   const [activeProfileName, setActiveProfileName] = useState(profileName);
+  const [timeLeftMin, setTimeLeftMin] = useState(null);
   const gridRef = useRef(null);
   const cardRefs = useRef([]);
   const toastTimer = useRef(null);
@@ -157,8 +158,60 @@ export function ControllerGrid({ onBack }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
+  // Time-remaining indicator: poll shellStatus every 60s
+  useEffect(() => {
+    let alive = true;
+    const fetchTime = async () => {
+      if (!window.launchpad || !window.launchpad.shellStatus) return;
+      try {
+        const s = await window.launchpad.shellStatus();
+        if (alive && s && typeof s.timeLeftMin === 'number') {
+          setTimeLeftMin(s.timeLeftMin);
+        }
+      } catch (e) { /* swallow */ }
+    };
+    fetchTime();
+    const interval = setInterval(fetchTime, 60000);
+    return () => { alive = false; clearInterval(interval); };
+  }, []);
+
+  // Determine time badge state
+  const timeBadgeColor = timeLeftMin !== null && timeLeftMin < 5
+    ? '#e8673c'
+    : timeLeftMin !== null && timeLeftMin < 15
+      ? '#d4943a'
+      : 'rgba(255,255,255,0.7)';
+  const timeBadgePulse = timeLeftMin !== null && timeLeftMin < 5;
+
   return (
     <div className="controller-surface" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Time remaining badge */}
+      {timeLeftMin !== null && (
+        <div
+          className={timeBadgePulse ? 'time-badge time-badge-pulse' : 'time-badge'}
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 24,
+            zIndex: 6000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 14px',
+            borderRadius: 999,
+            background: 'rgba(10, 21, 56, 0.7)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: timeBadgeColor,
+            fontSize: 'clamp(13px, 1.4vw, 17px)',
+            fontWeight: 600,
+            pointerEvents: 'none',
+          }}
+        >
+          <span role="img" aria-label="Zeit">&#9201;</span>
+          <span>{timeLeftMin} Min</span>
+        </div>
+      )}
       {/* Header */}
       <header style={{ marginBottom: 'var(--space-lg, 40px)' }}>
         <h1 className="display-title">Bibliothek</h1>
@@ -300,11 +353,18 @@ export function ControllerGrid({ onBack }) {
         </span>
       </div>
 
-      {/* Inline keyframes for toast animation */}
+      {/* Inline keyframes for toast animation + time badge pulse */}
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateX(-50%) translateY(12px); }
           to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes gentlePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+        .time-badge-pulse {
+          animation: gentlePulse 2s ease-in-out infinite;
         }
       `}</style>
     </div>
