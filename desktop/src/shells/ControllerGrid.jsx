@@ -1,5 +1,5 @@
 /* ============================================================
-   LAUNCHPAD — ControllerGrid (Gate 6: Library Grid v0)
+   LAUNCHPAD — ControllerGrid (Gate 6+7: Library Grid + Glyph Profiles)
    ============================================================
    A controller-navigable grid of approved game cards.
    - Arrow keys: spatial 2D navigation
@@ -7,11 +7,13 @@
    - Tab: Info overlay (players, ratings, parent notes)
    - Space: Trailer overlay
    - Escape: Close overlays / back (logged)
+   - Ctrl+1/2/3: Switch glyph profile (Xbox/PS/Nintendo)
    ============================================================ */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGames, gameCover } from '../games/useGames.js';
 import { InfoOverlay } from './InfoOverlay.jsx';
 import { TrailerOverlay } from './TrailerOverlay.jsx';
+import { getProfile, setProfile, glyph, profileName, allGlyphs } from '../lib/glyphs.js';
 import '../styles/tokens.css';
 import '../styles/controller.css';
 
@@ -31,9 +33,17 @@ export function ControllerGrid({ onBack }) {
   const [toast, setToast] = useState(null);
   const [infoGame, setInfoGame] = useState(null);
   const [trailerGame, setTrailerGame] = useState(null);
+  const [activeGlyphs, setActiveGlyphs] = useState(allGlyphs);
+  const [activeProfileName, setActiveProfileName] = useState(profileName);
   const gridRef = useRef(null);
   const cardRefs = useRef([]);
   const toastTimer = useRef(null);
+
+  // Refresh glyph display state from module
+  const refreshGlyphs = useCallback(() => {
+    setActiveGlyphs(allGlyphs());
+    setActiveProfileName(profileName());
+  }, []);
 
   // Calculate columns based on container width
   const [cols, setCols] = useState(4);
@@ -115,6 +125,22 @@ export function ControllerGrid({ onBack }) {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [games, focusIndex, cols, infoGame, trailerGame, showToast, onBack]);
+
+  // Glyph profile switching: Ctrl+1 = Xbox, Ctrl+2 = PlayStation, Ctrl+3 = Nintendo
+  useEffect(() => {
+    const PROFILE_MAP = { '1': 'xbox', '2': 'playstation', '3': 'nintendo' };
+    const handleProfileKey = (e) => {
+      if (e.ctrlKey && PROFILE_MAP[e.key]) {
+        e.preventDefault();
+        const newProfile = PROFILE_MAP[e.key];
+        setProfile(newProfile);
+        refreshGlyphs();
+        showToast(`Profil: ${profileName()}`);
+      }
+    };
+    window.addEventListener('keydown', handleProfileKey);
+    return () => window.removeEventListener('keydown', handleProfileKey);
+  }, [showToast, refreshGlyphs]);
 
   // Cleanup toast timer
   useEffect(() => () => {
@@ -218,6 +244,38 @@ export function ControllerGrid({ onBack }) {
       {trailerGame && (
         <TrailerOverlay game={trailerGame} onClose={() => setTrailerGame(null)} />
       )}
+
+      {/* Action Hint Bar (Glyph Profile) */}
+      <div
+        className="glyph-hint-bar"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 'var(--space-lg, 40px)',
+          padding: '12px 24px',
+          background: 'rgba(10, 21, 56, 0.85)',
+          backdropFilter: 'blur(8px)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          zIndex: 5000,
+          fontSize: 'clamp(13px, 1.4vw, 17px)',
+          color: 'rgba(255,255,255,0.85)',
+          fontFamily: 'inherit',
+          letterSpacing: '0.02em',
+        }}
+      >
+        <span><strong>[{activeGlyphs.confirm}]</strong> Starten</span>
+        <span><strong>[{activeGlyphs.back}]</strong> Zurueck</span>
+        <span><strong>[{activeGlyphs.info}]</strong> Info</span>
+        <span><strong>[{activeGlyphs.trailer}]</strong> Trailer</span>
+        <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: '0.85em' }}>
+          {activeProfileName}
+        </span>
+      </div>
 
       {/* Inline keyframes for toast animation */}
       <style>{`
