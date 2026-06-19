@@ -1,11 +1,13 @@
 /* ============================================================
-   LAUNCHPAD -- HabitatShell (Gate 22: Stanley Voice v0)
+   LAUNCHPAD -- HabitatShell (Gate 22: Stanley Voice + Gate 23: Rituals)
    ============================================================
    Spatial room navigation with contextual commentary.
    - Left/Right arrows switch between rooms (with animation)
    - Within a room: Up/Down/Enter navigate the game grid
    - Stanley (Hausgeist) provides atmospheric comments on
      room changes, idle moments, and pre-launch.
+   - Rituals: small recurring moments (daily greeting, treasure
+     day, weekend vibe, forgotten games) triggered on mount.
    - All existing overlays (Launch, Info, Trailer, ParentGate)
      continue to work as before.
    - Glyph hints, time indicator, and boot screen are preserved.
@@ -14,6 +16,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGames, gameCover } from '../games/useGames.js';
 import { ROOMS, gamesForRoom } from './rooms.js';
 import * as stanley from './stanley.js';
+import { detectRitual, checkFirstLaunchToday } from './rituals.js';
 import { StanleyBubble } from './StanleyBubble.jsx';
 import { InfoOverlay } from '../shells/InfoOverlay.jsx';
 import { TrailerOverlay } from '../shells/TrailerOverlay.jsx';
@@ -91,6 +94,28 @@ export function HabitatShell({ onBack }) {
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, [resetIdleTimer]);
+
+  // Gate 23: Ritual detection on mount (once per session)
+  const ritualFired = useRef(false);
+  useEffect(() => {
+    if (ritualFired.current) return;
+    if (!games || games.length === 0) return;
+    ritualFired.current = true;
+
+    const now = new Date();
+    const isFirstLaunchToday = checkFirstLaunchToday();
+    const ritual = detectRitual({
+      hour: now.getHours(),
+      dayOfWeek: now.getDay(),
+      isFirstLaunchToday,
+      games,
+    });
+
+    if (ritual) {
+      // Show ritual comment before normal room comment
+      showStanley(ritual.comment);
+    }
+  }, [games, showStanley]);
 
   // Calculate columns based on container width
   const [cols, setCols] = useState(4);

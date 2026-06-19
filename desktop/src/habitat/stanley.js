@@ -1,5 +1,5 @@
 /* ============================================================
-   LAUNCHPAD -- Stanley Voice v0 (Gate 22)
+   LAUNCHPAD -- Stanley Voice (Gate 22 + Gate 23 Rituals)
    ============================================================
    Stanley ist der freundliche Hausgeist des Launchers.
    Er kommentiert, was passiert -- trocken, warm, nie aufdringlich.
@@ -189,4 +189,91 @@ export function emptyRoom() {
  */
 export function lowTime(_minutes) {
   return pick(LOW_TIME_COMMENTS);
+}
+
+// ── Gate 23: Ritual Comment Pools ──
+
+const DAILY_GREETING_COMMENTS = {
+  morning: [
+    'Guten Morgen! Ein neuer Tag voller Moeglichkeiten.',
+    'Willkommen zurueck! Was spielen wir heute?',
+    'Schoen, dass du da bist. Los gehts!',
+    'Ein frischer Tag wartet auf dich.',
+    'Guten Morgen, Entdecker!',
+  ],
+  afternoon: [
+    'Hallo! Schoen, dich heute zu sehen.',
+    'Willkommen zurueck! Was spielen wir heute?',
+    'Der Nachmittag gehoert dir.',
+    'Schoen, dass du da bist. Los gehts!',
+    'Na, bereit fuer heute?',
+  ],
+  evening: [
+    'Guten Abend! Schoen, dass du noch vorbeischaust.',
+    'Willkommen zurueck! Ein ruhiger Abend wartet.',
+    'Schoen, dass du da bist. Los gehts!',
+    'Ein Abendbesuch -- wie nett.',
+    'Der Abend gehoert dir.',
+  ],
+};
+
+const TREASURE_DAY_COMMENTS = [
+  'Heute ist Schatzkistentag! Schau mal, was drin liegt.',
+  'Die Schatzkiste hat etwas Neues fuer dich.',
+  'Samstag = Entdeckertag. Schau in die Schatzkiste!',
+  'Es funkelt in der Schatzkiste -- schau rein!',
+  'Besonderer Tag, besondere Schaetze.',
+];
+
+const FORGOTTEN_GAME_COMMENTS = [
+  '{title} wartet schon eine Weile auf dich.',
+  'Weisst du noch? {title} liegt im Regal.',
+  'Vielleicht hat {title} etwas Neues zu erzaehlen.',
+  '{title} vermisst dich bestimmt.',
+  'Hast du {title} schon lange nicht besucht?',
+];
+
+const WEEKEND_VIBE_COMMENTS = [
+  'Wochenende! Mehr Zeit zum Spielen.',
+  'Endlich frei.',
+  'Das Wochenende gehoert dir.',
+  'Keine Eile heute -- geniess es.',
+  'Wochenende. Alles ist moeglich.',
+];
+
+/**
+ * Returns a daily greeting based on the hour (first launch of the day).
+ * @param {number} hour - 0-23
+ * @returns {string}
+ */
+export function dailyGreeting(hour) {
+  if (hour >= 5 && hour < 12) return pick(DAILY_GREETING_COMMENTS.morning);
+  if (hour >= 12 && hour < 18) return pick(DAILY_GREETING_COMMENTS.afternoon);
+  return pick(DAILY_GREETING_COMMENTS.evening);
+}
+
+/**
+ * Returns a comment suggesting the Schatzkiste (treasure day).
+ * @returns {string}
+ */
+export function treasureDay() {
+  return pick(TREASURE_DAY_COMMENTS);
+}
+
+/**
+ * Returns a comment about a forgotten game.
+ * @param {string} gameTitle - the title of the forgotten game
+ * @returns {string}
+ */
+export function forgottenGame(gameTitle) {
+  const template = pick(FORGOTTEN_GAME_COMMENTS);
+  return template.replace('{title}', gameTitle);
+}
+
+/**
+ * Returns a weekend vibe comment.
+ * @returns {string}
+ */
+export function weekendVibe() {
+  return pick(WEEKEND_VIBE_COMMENTS);
 }
