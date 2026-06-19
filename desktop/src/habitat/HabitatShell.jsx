@@ -1,9 +1,11 @@
 /* ============================================================
-   LAUNCHPAD -- HabitatShell (Gate 21: Habitat Rooms v0)
+   LAUNCHPAD -- HabitatShell (Gate 22: Stanley Voice v0)
    ============================================================
-   Replaces the flat ControllerGrid with spatial room navigation.
+   Spatial room navigation with contextual commentary.
    - Left/Right arrows switch between rooms (with animation)
    - Within a room: Up/Down/Enter navigate the game grid
+   - Stanley (Hausgeist) provides atmospheric comments on
+     room changes, idle moments, and pre-launch.
    - All existing overlays (Launch, Info, Trailer, ParentGate)
      continue to work as before.
    - Glyph hints, time indicator, and boot screen are preserved.
@@ -11,6 +13,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGames, gameCover } from '../games/useGames.js';
 import { ROOMS, gamesForRoom } from './rooms.js';
+import * as stanley from './stanley.js';
+import { StanleyBubble } from './StanleyBubble.jsx';
 import { InfoOverlay } from '../shells/InfoOverlay.jsx';
 import { TrailerOverlay } from '../shells/TrailerOverlay.jsx';
 import { LaunchOverlay } from '../shells/LaunchOverlay.jsx';
@@ -44,11 +48,14 @@ export function HabitatShell({ onBack }) {
   const [activeGlyphs, setActiveGlyphs] = useState(allGlyphs);
   const [activeProfileName, setActiveProfileName] = useState(profileName);
   const [timeLeftMin, setTimeLeftMin] = useState(null);
+  const [stanleyText, setStanleyText] = useState(null);
   const gridRef = useRef(null);
   const cardRefs = useRef([]);
   const toastTimer = useRef(null);
   const announceTimer = useRef(null);
   const slideTimer = useRef(null);
+  const idleTimer = useRef(null);
+  const stanleySeq = useRef(0); // unique key to re-trigger bubble on same text
 
   const currentRoom = ROOMS[roomIndex];
   const roomGames = gamesForRoom(currentRoom, games);
@@ -58,6 +65,32 @@ export function HabitatShell({ onBack }) {
     setActiveGlyphs(allGlyphs());
     setActiveProfileName(profileName());
   }, []);
+
+  // Stanley: show a comment (generates unique key to retrigger even on same text)
+  const showStanley = useCallback((text) => {
+    if (!text) return;
+    stanleySeq.current += 1;
+    setStanleyText(text + '\u200B'.repeat(stanleySeq.current % 3)); // invisible variation for key
+  }, []);
+
+  // Stanley: reset idle timer on any keypress
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => {
+      showStanley(stanley.idle());
+    }, 30000);
+  }, [showStanley]);
+
+  // Reset idle timer on keydown
+  useEffect(() => {
+    const handleActivity = () => resetIdleTimer();
+    window.addEventListener('keydown', handleActivity);
+    resetIdleTimer(); // start initial timer
+    return () => {
+      window.removeEventListener('keydown', handleActivity);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  }, [resetIdleTimer]);
 
   // Calculate columns based on container width
   const [cols, setCols] = useState(4);
@@ -105,7 +138,12 @@ export function HabitatShell({ onBack }) {
     // Clear slide direction after animation
     if (slideTimer.current) clearTimeout(slideTimer.current);
     slideTimer.current = setTimeout(() => setSlideDir(null), 400);
-  }, [roomIndex]);
+
+    // Stanley: comment on room enter (delayed slightly so announcement shows first)
+    setTimeout(() => {
+      showStanley(stanley.roomEntered(ROOMS[newIndex].id));
+    }, ROOM_ANNOUNCE_DURATION + 200);
+  }, [roomIndex, showStanley]);
 
   // Keyboard navigation (only when no overlay is open)
   useEffect(() => {
@@ -144,6 +182,7 @@ export function HabitatShell({ onBack }) {
         case 'Enter':
           e.preventDefault();
           if (roomGames[focusIndex]) {
+            showStanley(stanley.preLaunch(roomGames[focusIndex]));
             setLaunchGame(roomGames[focusIndex]);
           }
           break;
@@ -194,6 +233,7 @@ export function HabitatShell({ onBack }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     if (announceTimer.current) clearTimeout(announceTimer.current);
     if (slideTimer.current) clearTimeout(slideTimer.current);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
   }, []);
 
   // Time-remaining indicator: poll shellStatus every 60s
@@ -250,6 +290,9 @@ export function HabitatShell({ onBack }) {
           <span>{timeLeftMin} Min</span>
         </div>
       )}
+
+      {/* Stanley Bubble (atmospheric commentary) */}
+      <StanleyBubble text={stanleyText} />
 
       {/* Room Announcement (big text, appears briefly on room switch) */}
       {roomAnnounce && (
