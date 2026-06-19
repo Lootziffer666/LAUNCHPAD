@@ -11,6 +11,7 @@ import { SFX } from './lib/sfx.js';
 import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
 import { ControllerGrid } from './shells/ControllerGrid.jsx';
+import { BootScreen } from './shells/BootScreen.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
 
@@ -51,6 +52,7 @@ export default function App() {
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
   const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller'
+  const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
   // Games load over IPC (async). Hold the shells until the first load lands so
@@ -133,7 +135,15 @@ export default function App() {
     if (target === 'windows') setMode('windows');
     else if (window.launchpad && window.launchpad.openCurator) window.launchpad.openCurator(pin);
   };
-  const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
+  const backToLaunchpad = () => {
+    SFX.back();
+    if (mode === 'controller') {
+      setControllerFading(true);
+      setTimeout(() => { setControllerFading(false); setMode('launchpad'); }, 400);
+    } else {
+      setMode('launchpad');
+    }
+  };
 
   if (!ready) return <div className="stage-wrap" />;
 
@@ -158,7 +168,14 @@ export default function App() {
           />
         )}
         {mode === 'controller' && (
-          <ControllerGrid onBack={backToLaunchpad} />
+          <div style={{
+            opacity: controllerFading ? 0 : 1,
+            transition: 'opacity 400ms ease-out',
+          }}>
+            <BootScreen>
+              <ControllerGrid onBack={backToLaunchpad} />
+            </BootScreen>
+          </div>
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}
