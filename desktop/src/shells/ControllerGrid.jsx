@@ -1,9 +1,9 @@
 /* ============================================================
-   LAUNCHPAD — ControllerGrid (Gate 6+7: Library Grid + Glyph Profiles)
+   LAUNCHPAD -- ControllerGrid (Gate 6+7+10: Library Grid + Launch Adapter)
    ============================================================
    A controller-navigable grid of approved game cards.
    - Arrow keys: spatial 2D navigation
-   - Enter: "Launch requested" toast
+   - Enter: Launch game (LaunchOverlay state machine)
    - Tab: Info overlay (players, ratings, parent notes)
    - Space: Trailer overlay
    - Escape: Close overlays / back (logged)
@@ -13,6 +13,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGames, gameCover } from '../games/useGames.js';
 import { InfoOverlay } from './InfoOverlay.jsx';
 import { TrailerOverlay } from './TrailerOverlay.jsx';
+import { LaunchOverlay } from './LaunchOverlay.jsx';
 import { getProfile, setProfile, glyph, profileName, allGlyphs } from '../lib/glyphs.js';
 import '../styles/tokens.css';
 import '../styles/controller.css';
@@ -33,6 +34,7 @@ export function ControllerGrid({ onBack }) {
   const [toast, setToast] = useState(null);
   const [infoGame, setInfoGame] = useState(null);
   const [trailerGame, setTrailerGame] = useState(null);
+  const [launchGame, setLaunchGame] = useState(null);
   const [activeGlyphs, setActiveGlyphs] = useState(allGlyphs);
   const [activeProfileName, setActiveProfileName] = useState(profileName);
   const gridRef = useRef(null);
@@ -75,7 +77,7 @@ export function ControllerGrid({ onBack }) {
 
   // Keyboard navigation (only when no overlay is open)
   useEffect(() => {
-    if (infoGame || trailerGame) return undefined;
+    if (infoGame || trailerGame || launchGame) return undefined;
 
     const handleKey = (e) => {
       const len = games.length;
@@ -101,7 +103,7 @@ export function ControllerGrid({ onBack }) {
         case 'Enter':
           e.preventDefault();
           if (games[focusIndex]) {
-            showToast(`Launch requested: ${games[focusIndex].title}`);
+            setLaunchGame(games[focusIndex]);
           }
           break;
         case 'Tab':
@@ -124,7 +126,7 @@ export function ControllerGrid({ onBack }) {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [games, focusIndex, cols, infoGame, trailerGame, showToast, onBack]);
+  }, [games, focusIndex, cols, infoGame, trailerGame, launchGame, showToast, onBack]);
 
   // Glyph profile switching: Ctrl+1 = Xbox, Ctrl+2 = PlayStation, Ctrl+3 = Nintendo
   useEffect(() => {
@@ -185,7 +187,7 @@ export function ControllerGrid({ onBack }) {
               position: 'relative',
             }}
             onFocus={() => setFocusIndex(i)}
-            onClick={() => showToast(`Launch requested: ${game.title}`)}
+            onClick={() => setLaunchGame(game)}
           >
             {/* Title label at bottom */}
             <div
@@ -243,6 +245,11 @@ export function ControllerGrid({ onBack }) {
       {/* Trailer Overlay */}
       {trailerGame && (
         <TrailerOverlay game={trailerGame} onClose={() => setTrailerGame(null)} />
+      )}
+
+      {/* Launch Overlay */}
+      {launchGame && (
+        <LaunchOverlay game={launchGame} onClose={() => setLaunchGame(null)} />
       )}
 
       {/* Action Hint Bar (Glyph Profile) */}
