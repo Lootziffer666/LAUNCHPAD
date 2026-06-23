@@ -85,7 +85,8 @@ function resolveLaunch(game) {
   return cfgError(`Unbekannter Starttyp: ${kind}`);
 }
 
-async function launchGame(game) {
+async function launchGame(game, opts = {}) {
+  const onExit = typeof opts.onExit === 'function' ? opts.onExit : null;
   const plan = resolveLaunch(game);
   if (plan.kind === 'error') {
     return { ok: false, reason: plan.reason, errorClass: plan.errorClass || classifyFailure(plan.reason), message: plan.message };
@@ -96,7 +97,11 @@ async function launchGame(game) {
     if (plan.kind === 'external') {
       const { shell } = require('electron');
       await shell.openExternal(plan.url);
-      return { ok: true };
+      // External handlers (Steam, Epic, …) own their own process — we get no
+      // exit signal, so return-to-launcher for these relies on the game closing
+      // and the kiosk window regaining focus. Tracked launches (spawn) below do
+      // call back on exit.
+      return { ok: true, tracked: false };
     }
     if (plan.kind === 'spawn') {
       if (process.platform !== 'win32') {
@@ -109,8 +114,11 @@ async function launchGame(game) {
       child.on('error', (err) => {
         console.error(`[launchpad] spawn failed for ${plan.cmd}:`, err);
       });
+      // Bring the shell back to the front when the launched program exits, so
+      // a closed game lands the child on LAUNCHPAD — not on the bare desktop.
+      if (onExit) child.on('exit', () => { try { onExit(); } catch (e) { /* never crash main */ } });
       child.unref();
-      return { ok: true };
+      return { ok: true, tracked: true };
     }
   } catch (e) {
     // A runtime exception (Steam hiccup, slow shell) may pass on retry.

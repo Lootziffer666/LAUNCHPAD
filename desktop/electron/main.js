@@ -41,6 +41,7 @@ let launcher;
 let covers;
 let wishlist;
 let updater;
+let quitting = false; // set true on a real (parent/system) quit so close-guards stand down
 
 // ── lock model (bedtime / daily time limit) with parent override ──
 // Overrides are in-memory on purpose: a reboot re-locks. The bedtime override
@@ -93,6 +94,25 @@ function applyShellPrefs() {
     } catch (e) {
       console.error('[launchpad] setLoginItemSettings failed:', e);
     }
+  }
+}
+
+// Bring the child shell to the front and re-assert its cage. Called when a
+// tracked (spawned) game exits, so a closed program lands the child back on
+// LAUNCHPAD instead of the bare Windows desktop.
+function focusShell() {
+  if (!win || win.isDestroyed()) return;
+  try {
+    if (win.isMinimized()) win.restore();
+    if (!isDev) {
+      if (shellPrefs().kiosk) win.setKiosk(true);
+      else if (!win.isFullScreen()) win.setFullScreen(true);
+    }
+    win.show();
+    if (typeof win.moveTop === 'function') win.moveTop();
+    win.focus();
+  } catch (e) {
+    console.error('[launchpad] focusShell failed:', e);
   }
 }
 
@@ -151,6 +171,7 @@ function createWindow() {
       const mod = input.control || input.meta;
       const blocked =
         k === 'f5' || k === 'f11' ||
+        (input.alt && k === 'f4') ||
         (mod && k === 'r') ||
         (mod && k === 'w') ||
         (mod && k === 'q') ||
@@ -158,6 +179,20 @@ function createWindow() {
       if (blocked) e.preventDefault();
     });
   }
+
+  // Don't let the child window be closed from under the kid. In kiosk it is
+  // hard-blocked; in a packaged non-kiosk build an accidental close relaunches
+  // the shell. A real parent-initiated quit sets `quitting` first.
+  win.on('close', (e) => {
+    if (quitting || isDev) return;
+    if (shellPrefs().kiosk) { e.preventDefault(); focusShell(); }
+  });
+  win.on('closed', () => {
+    if (quitting || isDev) { win = null; return; }
+    // Unexpected close in a packaged build → come straight back up.
+    try { app.relaunch(); } catch (err) { /* ignore */ }
+    app.exit(0);
+  });
 
   maybeCaptureForVerification();
 }
@@ -328,7 +363,12 @@ function registerIpc() {
       });
       if (!gate.ok) return { ...gate, errorClass: launcher.classifyFailure(gate.reason) };
       if (process.env.LP_LAUNCH_DRYRUN === '1') return { ok: true, dryRun: true, plan: launcher.resolveLaunch(game) };
-      return launcher.launchGame(game);
+      return launcher.launchGame(game, {
+        onExit: () => {
+          focusShell();
+          if (win && !win.isDestroyed()) win.webContents.send('lp:event:game-closed', id);
+        },
+      });
     },
 
     // shell / gate
@@ -412,18 +452,32 @@ function registerIpc() {
   }
 }
 
-app.whenReady().then(() => {
-  if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
-  registerIpc();
-  applyShellPrefs(); // register/refresh autostart before any window exists
-  startUsageTicker();
-  createWindow();
-  updater.checkOnStartup(); // silent internet update check (packaged builds only)
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
+// ── single-instance lock ──
+// The child shell is the persistent background "desktop": exactly one instance,
+// always present and never minimized, so when a foreground game exits the OS
+// falls back to LAUNCHPAD on its own (user-directed design). A second launch
+// just refocuses the existing shell instead of stacking windows.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => { focusShell(); });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.on('before-quit', () => { quitting = true; });
+
+  app.whenReady().then(() => {
+    if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
+    registerIpc();
+    applyShellPrefs(); // register/refresh autostart before any window exists
+    startUsageTicker();
+    createWindow();
+    updater.checkOnStartup(); // silent internet update check (packaged builds only)
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}

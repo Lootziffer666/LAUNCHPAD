@@ -99,6 +99,17 @@ export default function App() {
     } catch (e) { /* keep the lock */ }
   };
 
+  // When a tracked (spawned) game exits, main brings the shell forward and
+  // emits game-closed — drop any overlay and land back on the LAUNCHPAD home,
+  // so a finished game always ends in the launcher, never on a bare desktop.
+  useEffect(() => {
+    if (!window.launchpad || !window.launchpad.onGameClosed) return undefined;
+    const off = window.launchpad.onGameClosed(() => {
+      setPlay(null); setApp(null); setGate(null); setMode('launchpad');
+    });
+    return off;
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', t.theme);
     document.documentElement.style.setProperty('--comet-cyan', t.accent);
