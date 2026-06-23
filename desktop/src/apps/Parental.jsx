@@ -94,6 +94,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const [kiosk, setKiosk] = useState(false);
   const [autostart, setAutostart] = useState(true);
   const [modules, setModules] = useState({ wishlist: true, deals: true });
+  const [windDownOn, setWindDownOn] = useState(true);
+  const [graceUses, setGraceUses] = useState(1);
   const [saved, setSaved] = useState(false);
 
   // PIN change
@@ -118,6 +120,8 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           setKiosk(!!s.kiosk);
           setAutostart(s.autostart !== false);
           if (s.modules) setModules((m) => ({ ...m, ...s.modules }));
+          if (s.windDown) setWindDownOn(s.windDown.enabled !== false);
+          if (s.grace) setGraceUses(Number.isFinite(s.grace.perDay) ? s.grace.perDay : 1);
           setHasRecovery(!!s.hasRecovery);
         }
         if (u) setUsed(u.usedMin || 0);
@@ -128,14 +132,22 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
 
   const close = () => { setClosing(true); SFX.close(); setTimeout(onClose, 240); };
   const toggle = (id) => { SFX.select(); setApprovals((a) => ({ ...a, [id]: !a[id] })); };
-  const usedPct = Math.min(100, (used / limit) * 100);
-  const over = used > limit;
+  const noLimit = !limit || limit <= 0;
+  const usedPct = noLimit ? 0 : Math.min(100, (used / limit) * 100);
+  const over = !noLimit && used > limit;
 
   const save = async () => {
     SFX.select();
     if (api) {
       try {
-        await api.setParentalSettings({ ageRating: age, dailyLimitMin: limit, bedtime: { from: bedFrom, to: bedTo }, approvals, kiosk, autostart, modules });
+        await api.setParentalSettings({
+          ageRating: age,
+          dailyLimitMin: limit,
+          bedtime: { from: bedFrom, to: bedTo },
+          approvals, kiosk, autostart, modules,
+          windDown: { enabled: windDownOn, warnAt: [30, 15, 10, 5], persistFromMin: 5 },
+          grace: { minutes: 5, perDay: graceUses },
+        });
       } catch (e) { /* ignore */ }
     }
     setSaved(true);
@@ -177,15 +189,42 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           <div className="par-card span2">
             <h3>{Icon.clock()} Tägliche Bildschirmzeit</h3>
             <p className="desc">Wie lange darf {kidName} pro Tag das Gerät nutzen?</p>
-            <div className="par-slider">
-              <input type="range" min="30" max="180" step="15" value={limit}
-                onChange={(e) => { setLimit(+e.target.value); SFX.select(); }} />
-              <div className="val">{Math.floor(limit / 60)}h {limit % 60 ? `${limit % 60}m` : ''} <small>/ Tag</small></div>
-            </div>
-            <div className="par-used">
-              <div className="lbl"><span>Heute genutzt</span><span>{used} / {limit} Min{over ? ' · Limit erreicht' : ''}</span></div>
-              <div className="bar"><i className={over ? 'over' : ''} style={{ width: `${usedPct}%` }}></i></div>
-            </div>
+
+            <label className="par-switch">
+              <input type="checkbox" checked={noLimit}
+                onChange={(e) => { setLimit(e.target.checked ? 0 : 90); SFX.select(); }} />
+              <span>Unbegrenzt – kein Limit (kuratieren &amp; mitspielen statt Zeit messen)</span>
+            </label>
+
+            {!noLimit && (
+              <React.Fragment>
+                <div className="par-slider">
+                  <input type="range" min="30" max="180" step="15" value={limit}
+                    onChange={(e) => { setLimit(+e.target.value); SFX.select(); }} />
+                  <div className="val">{Math.floor(limit / 60)}h {limit % 60 ? `${limit % 60}m` : ''} <small>/ Tag</small></div>
+                </div>
+                <div className="par-used">
+                  <div className="lbl"><span>Heute genutzt</span><span>{used} / {limit} Min{over ? ' · Limit erreicht' : ''}</span></div>
+                  <div className="bar"><i className={over ? 'over' : ''} style={{ width: `${usedPct}%` }}></i></div>
+                </div>
+
+                <div className="par-winddown">
+                  <label className="par-switch">
+                    <input type="checkbox" checked={windDownOn} onChange={(e) => { setWindDownOn(e.target.checked); SFX.select(); }} />
+                    <span>Sanftes Erinnern (ruhig, kein Druck-Countdown) – Hinweise ab 30/15/10/5 Min</span>
+                  </label>
+                  <label className="par-grace">
+                    <span>„Noch kurz"-Puffer für {kidName} (zum Speichern, ohne PIN):</span>
+                    <select className="imp-input sm" value={graceUses} onChange={(e) => { setGraceUses(+e.target.value); SFX.select(); }}>
+                      <option value={0}>aus</option>
+                      <option value={1}>1× am Tag (+5 Min)</option>
+                      <option value={2}>2× am Tag (+5 Min)</option>
+                      <option value={3}>3× am Tag (+5 Min)</option>
+                    </select>
+                  </label>
+                </div>
+              </React.Fragment>
+            )}
           </div>
 
           {/* age rating */}

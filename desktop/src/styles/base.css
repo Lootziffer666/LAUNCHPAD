@@ -147,3 +147,29 @@ html, body {
 /* utility */
 .lower { text-transform: lowercase; }
 .thin  { font-weight: 300; }
+
+
+/* ── Gentle wind-down (AuDHD-friendly: calm, steady, no flashing) ── */
+.wd-banner {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: 9000; max-width: 90vw;
+  padding: 12px 22px; border-radius: 999px;
+  background: rgba(16, 28, 60, 0.92); color: #eaf0ff;
+  border: 1px solid rgba(120, 150, 220, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  font-size: 16px; font-weight: 600; letter-spacing: 0.01em;
+  backdrop-filter: blur(8px);
+}
+.wd-toast {
+  position: fixed; left: 50%; top: 26px; transform: translateX(-50%);
+  z-index: 9000;
+  padding: 10px 20px; border-radius: 999px;
+  background: rgba(16, 28, 60, 0.88); color: #cfe0ff;
+  border: 1px solid rgba(120, 150, 220, 0.28);
+  font-size: 15px; font-weight: 600;
+  animation: wd-fade 0.5s ease both;
+}
+.wd-toast.noanim { animation: none; }
+@keyframes wd-fade { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* never strobe/pulse — reduced-motion users get a perfectly static banner */
+[data-reduce] .wd-banner, [data-reduce] .wd-toast { animation: none !important; transition: none !important; }

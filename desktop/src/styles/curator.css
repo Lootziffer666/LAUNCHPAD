@@ -185,3 +185,23 @@ body.curator {
 .cur-home-btns .imp-btn { padding: 4px 10px; }
 .cur-home-btns .imp-btn:disabled { opacity: .35; cursor: not-allowed; }
 .curb-hint-inline { font-size: 11.5px; opacity: .55; margin-left: 8px; }
+
+
+/* ── Steam-Import tab ── */
+.cur-steam-intro h2 { display: flex; align-items: center; gap: 10px; font-size: 20px; margin: 0 0 4px; }
+.cur-steam-intro h2 svg { width: 22px; height: 22px; }
+.cur-steam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 14px; }
+.cur-field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.cur-field span { font-size: 12px; opacity: .7; }
+.cur-steam-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.cur-steam-usk { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 10px; }
+.cur-steam-row { display: flex; gap: 8px; align-items: center; }
+.cur-steam-row .imp-input { flex: 1 1 auto; }
+.cur-steam-prog { display: flex; flex-direction: column; gap: 6px; }
+.cur-steam-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.10); overflow: hidden; }
+.cur-steam-bar i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #2a6f8e); transition: width .3s ease; }
+.cur-steam-msg { margin-top: 10px; color: #9fe6c0; }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; opacity: .85; }
+.par-btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,.18); }
+.par-btn.primary { background: linear-gradient(135deg, #2a6f8e, #1c3f6e); border-color: transparent; color: #eaf0ff; }
+.par-btn:disabled { opacity: .45; cursor: not-allowed; }

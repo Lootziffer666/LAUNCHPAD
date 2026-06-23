@@ -42,6 +42,43 @@ function Starfield() {
   );
 }
 
+// Gentle, AuDHD-friendly wind-down. Calm and steady — no pressure countdown,
+// no audio, no flashing. Brief reassuring note when crossing a mark; from the
+// persist threshold a steady "save when you can" line stays put.
+function WindDown({ warn, reduce }) {
+  const { enabled, warnAt = [], persistFromMin = 5, minutesLeft } = warn || {};
+  const [toast, setToast] = useState(null);
+  const announced = useRef(new Set());
+  useEffect(() => {
+    if (!enabled || !Number.isFinite(minutesLeft)) return undefined;
+    const ceiling = Math.max(30, ...warnAt);
+    if (minutesLeft > ceiling) { announced.current.clear(); return undefined; } // far from end → reset (new day / grace)
+    const hit = warnAt
+      .filter((tt) => minutesLeft <= tt && !announced.current.has(tt))
+      .sort((a, b) => b - a)[0];
+    if (hit != null && minutesLeft > persistFromMin) {
+      announced.current.add(hit);
+      setToast(`Noch ${minutesLeft} Minuten – alles gut. 💜`);
+      const id = setTimeout(() => setToast(null), 6000);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [minutesLeft, enabled]);
+
+  if (!enabled) return null;
+  const persist = Number.isFinite(minutesLeft) && minutesLeft <= persistFromMin && minutesLeft > 0;
+  return (
+    <React.Fragment>
+      {toast && <div className={`wd-toast ${reduce ? 'noanim' : ''}`}>{toast}</div>}
+      {persist && (
+        <div className="wd-banner" role="status" aria-live="polite">
+          💜 Speicher in Ruhe – in {minutesLeft} {minutesLeft === 1 ? 'Minute' : 'Minuten'} ist für heute Schluss.
+        </div>
+      )}
+    </React.Fragment>
+  );
+}
+
 export default function App() {
   const [t] = useProfile();
   const stageRef = useRef(null);
@@ -68,6 +105,8 @@ export default function App() {
   // the override holds (bedtime: until the window ends, time: until midnight).
   const [lock, setLock] = useState(null);
   const [lockGate, setLockGate] = useState(false);
+  const [warn, setWarn] = useState(null); // wind-down status from main
+  const [grace, setGrace] = useState({ enabled: false, usesLeft: 0, minutes: 5 });
   useEffect(() => {
     if (!window.launchpad) return undefined;
     let alive = true;
@@ -82,11 +121,30 @@ export default function App() {
       setLock(l || null);
     };
     if (window.launchpad.shellStatus) {
-      window.launchpad.shellStatus().then((s) => s && apply(s.lock)).catch(() => {});
+      window.launchpad.shellStatus().then((s) => {
+        if (!s || !alive) return;
+        apply(s.lock);
+        if (s.windDown) setWarn(s.windDown);
+        if (s.grace) setGrace(s.grace);
+      }).catch(() => {});
     }
-    const off = window.launchpad.onLockChanged ? window.launchpad.onLockChanged(apply) : undefined;
-    return () => { alive = false; if (off) off(); };
+    const offLock = window.launchpad.onLockChanged ? window.launchpad.onLockChanged(apply) : undefined;
+    const offWarn = window.launchpad.onTimeWarn ? window.launchpad.onTimeWarn((w) => { if (alive) setWarn(w); }) : undefined;
+    return () => { alive = false; if (offLock) offLock(); if (offWarn) offWarn(); };
   }, []);
+
+  // Kid "Noch kurz" buffer — a few more minutes to save, no PIN, no parent.
+  const useGrace = async () => {
+    if (!window.launchpad || !window.launchpad.requestGrace) return;
+    try {
+      const r = await window.launchpad.requestGrace();
+      if (r && r.ok) {
+        SFX.select();
+        setLock(null);
+        setGrace((g) => ({ ...g, usesLeft: r.usesLeft }));
+      }
+    } catch (e) { /* keep the lock */ }
+  };
 
   // PinGate has already verified the PIN for UX; main verifies it again and
   // arms the actual override — the renderer alone can never lift the lock.
@@ -170,6 +228,8 @@ export default function App() {
         )}
       </div>
 
+      {!lock && <WindDown warn={warn} reduce={t.reduceMotion} />}
+
       {lock && (
         <div
           className="timeup-overlay"
@@ -180,19 +240,38 @@ export default function App() {
             background: 'rgba(8,16,40,.92)', backdropFilter: 'blur(10px)',
           }}
         >
-          <div style={{ fontSize: 64 }}>🌙</div>
+          <div style={{ fontSize: 64 }}>{lock === 'bedtime' ? '🌙' : '🌟'}</div>
           <div style={{ fontSize: 32, fontWeight: 800 }}>
-            {lock === 'bedtime' ? 'Ruhezeit' : 'Für heute ist Schluss'}
+            {lock === 'bedtime' ? 'Ruhezeit' : 'Pause für heute'}
           </div>
-          <div style={{ fontSize: 18, color: '#9fb2e6', maxWidth: 440 }}>
+          <div style={{ fontSize: 18, color: '#9fb2e6', maxWidth: 460 }}>
             {lock === 'bedtime'
               ? 'Zeit zum Schlafen. LAUNCHPAD macht Pause und ist morgen früh wieder für dich da. 😴'
-              : 'Die Spielzeit für heute ist aufgebraucht. Morgen geht’s weiter — bis dann! 👋'}
+              : 'Für heute hast du genug gespielt – morgen geht’s weiter. Deine verdiente Zeit bleibt dir erhalten. 💜'}
           </div>
+
+          {lock === 'timeup' && grace.enabled && grace.usesLeft > 0 && (
+            <button
+              onClick={useGrace}
+              style={{
+                marginTop: 16, padding: '12px 22px', borderRadius: 999, cursor: 'pointer',
+                background: 'linear-gradient(135deg,#2a6f8e,#1c3f6e)', border: 'none',
+                color: '#eaf0ff', font: 'inherit', fontSize: 16, fontWeight: 700,
+              }}
+            >
+              Noch {grace.minutes} Minuten zum Speichern
+            </button>
+          )}
+          {lock === 'timeup' && grace.enabled && grace.usesLeft > 0 && (
+            <div style={{ fontSize: 12.5, color: '#6b7da6' }}>
+              In Ruhe fertig machen – danach ist für heute Schluss.
+            </div>
+          )}
+
           <button
             onClick={() => { SFX.open(); setLockGate(true); }}
             style={{
-              marginTop: 18, padding: '8px 18px', borderRadius: 999, cursor: 'pointer',
+              marginTop: 10, padding: '8px 18px', borderRadius: 999, cursor: 'pointer',
               background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)',
               color: '#9fb2e6', font: 'inherit', fontSize: 13,
             }}

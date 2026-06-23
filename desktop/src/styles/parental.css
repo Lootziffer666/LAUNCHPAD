@@ -131,3 +131,11 @@
 .par-update-status.s-error { color: #fb7185; }
 .par-update-status.s-downloaded, .par-update-status.s-available, .par-update-status.s-downloading { color: #38bdf8; }
 .par-update-actions { display: flex; gap: 8px; }
+
+
+/* ── unlimited toggle + gentle wind-down controls ── */
+.par-switch { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-size: 13.5px; cursor: pointer; }
+.par-switch input { width: 18px; height: 18px; accent-color: #38bdf8; flex: 0 0 auto; }
+.par-winddown { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 8px; }
+.par-grace { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.imp-input.sm { width: auto; padding: 6px 10px; }

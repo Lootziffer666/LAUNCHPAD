@@ -15,14 +15,24 @@ const DEFAULTS = {
   pinIsDefault: true, // true while still the seeded demo PIN; false once changed
   recoveryHash: null, // "salt:hash" of the parent recovery code; null until generated
   ageRating: '9', // "6" | "9" | "12" — filters visible games
-  dailyLimitMin: 90,
+  dailyLimitMin: 90, // 0 (or less) = unlimited: no time-up lock, no wind-down warnings
   bedtime: { from: '20:30', to: '07:00' },
   approvals: { browser: true, videos: true, music: true, play: true, friends: false },
+  // Gentle, AuDHD-friendly wind-down. NO pressure countdown, no scary audio —
+  // calm, steady reminders so a kid can reach a save point on their own terms.
+  // enabled:false → silent. warnAt: minutes-left marks for a brief calm note;
+  // persistFromMin: from here a steady "save when you can" line stays visible.
+  windDown: { enabled: true, warnAt: [30, 15, 10, 5], persistFromMin: 5 },
+  // Kid-controlled buffer for "my base is under attack" moments: tap once for a
+  // few more minutes to save — no PIN, no parent. perDay:0 disables it.
+  grace: { minutes: 5, perDay: 1 },
   kiosk: false, // hard cage: child shell runs as an unescapable kiosk window
   autostart: true, // launch the shell when the OS profile logs in (packaged builds)
   modules: { wishlist: true, deals: true }, // Familienzentrale pages, individually disableable
   dealsMinSavings: 30, // Angebote page: only show deals with at least this discount (%)
+  autoApproveMaxUsk: null, // null = off; e.g. 6 → auto-approve games rated USK ≤ 6
   usage: {}, // { 'YYYY-MM-DD': minutesUsed }
+  graceLog: {}, // { 'YYYY-MM-DD': { used: count, bonus: minutes } }
 };
 
 const SCRYPT_LEN = 32;
@@ -129,7 +139,7 @@ function getSettings() {
 }
 
 function setSettings(patch) {
-  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart', 'modules', 'dealsMinSavings'];
+  const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart', 'modules', 'dealsMinSavings', 'autoApproveMaxUsk', 'windDown', 'grace'];
   const clean = {};
   for (const k of allowed) if (patch && k in patch) clean[k] = patch[k];
   const { pinHash, recoveryHash, ...rest } = save(clean);
@@ -175,9 +185,61 @@ function ageAllows(game) {
   return min <= rating;
 }
 
+// A daily limit of 0 (or less) means UNLIMITED — no time-up lock, no wind-down
+// warnings. This is a first-class state for parents who curate + co-play rather
+// than meter time.
+function hasDailyLimit() {
+  const lim = parseInt(raw().dailyLimitMin, 10);
+  return Number.isFinite(lim) && lim > 0;
+}
+
 function timeLeft() {
+  if (!hasDailyLimit()) return Infinity; // unlimited
   const u = getUsageToday();
-  return Math.max(0, u.limitMin - u.usedMin);
+  const bonus = graceToday().bonus || 0; // kid "Noch kurz" buffer
+  return Math.max(0, u.limitMin + bonus - u.usedMin);
+}
+
+// ── kid "Noch kurz" grace buffer ──
+function graceToday() {
+  const g = (raw().graceLog || {})[todayKey()];
+  return { used: (g && g.used) || 0, bonus: (g && g.bonus) || 0 };
+}
+
+function graceStatus() {
+  const cfg = raw().grace || {};
+  const perDay = parseInt(cfg.perDay, 10) || 0;
+  const minutes = parseInt(cfg.minutes, 10) || 0;
+  const used = graceToday().used;
+  return {
+    enabled: perDay > 0 && minutes > 0 && hasDailyLimit(),
+    minutes,
+    usesLeft: Math.max(0, perDay - used),
+  };
+}
+
+// Grant one buffer: adds `minutes` to today's budget. No PIN — this is the kid's
+// own escape hatch for "let me save first". Returns the new status.
+function grantGrace() {
+  const st = graceStatus();
+  if (!st.enabled) return { ok: false, reason: 'off' };
+  if (st.usesLeft <= 0) return { ok: false, reason: 'spent', usesLeft: 0 };
+  const g = graceToday();
+  const log = { ...(raw().graceLog || {}) };
+  log[todayKey()] = { used: g.used + 1, bonus: g.bonus + st.minutes };
+  save({ graceLog: log });
+  return { ok: true, minutes: st.minutes, usesLeft: st.usesLeft - 1, timeLeftMin: timeLeft() };
+}
+
+// Wind-down config for the renderer, with the live minutes-left.
+function windDownStatus() {
+  const wd = raw().windDown || {};
+  return {
+    enabled: wd.enabled !== false && hasDailyLimit(),
+    warnAt: Array.isArray(wd.warnAt) ? wd.warnAt : [30, 15, 10, 5],
+    persistFromMin: Number.isFinite(wd.persistFromMin) ? wd.persistFromMin : 5,
+    minutesLeft: timeLeft(),
+  };
 }
 
 // `overrides` carries the parent's PIN-verified lock overrides from main
@@ -202,5 +264,6 @@ module.exports = {
   regenerateRecovery, hasRecovery, verifyRecovery, resetPinWithRecovery,
   formatRecoveryCode, generateRecoveryPlain,
   getUsageToday, addUsage, ageAllows, timeLeft, canLaunch,
+  hasDailyLimit, graceStatus, grantGrace, windDownStatus,
   isInBedtime, inBedtime,
 };

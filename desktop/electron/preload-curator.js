@@ -46,7 +46,16 @@ contextBridge.exposeInMainWorld('launchpad', {
   checkForUpdate: () => invoke('lp:update:check'),
   installUpdate: () => invoke('lp:update:install'),
 
+  // Steam library import + USK auto-approval
+  steamStatus: () => invoke('lp:steam:status'),
+  setSteamCreds: (creds) => invoke('lp:steam:set-creds', creds),
+  steamImport: () => invoke('lp:steam:import'),
+  steamAutoApprove: (maxUsk) => invoke('lp:steam:auto-approve', maxUsk),
+  steamAutoApproveStop: () => invoke('lp:steam:auto-approve-stop'),
+  approveAll: () => invoke('lp:games:approve-all'), // approve everything, ignore USK
+
   // events
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
   onUpdate: (cb) => on('lp:event:update', cb),
+  onSteamProgress: (cb) => on('lp:event:steam-progress', cb),
 });

@@ -13,6 +13,7 @@ import { ImpCard, CoverKeyField } from '../games/GameManager.jsx';
 import { ParentalPanel } from '../apps/Parental.jsx';
 import { CurationBar } from './CurationBar.jsx';
 import { WishlistTab, DealsTab } from './SteamTools.jsx';
+import { SteamImport } from './SteamImport.jsx';
 
 // Review filters — the inbox view from the plan ("Candidate Review").
 const FILTERS = [
@@ -134,6 +135,7 @@ function LibraryTab() {
 // under Eltern & Sicherheit (settings.modules); library and safety are fixed.
 const TABS = [
   { id: 'library', label: 'Bibliothek & Kuration', ic: 'gamepad', fixed: true },
+  { id: 'steam', label: 'Steam-Import', ic: 'bolt', fixed: true },
   { id: 'wishlist', label: 'Wunschliste', ic: 'star' },
   { id: 'deals', label: 'Angebote', ic: 'bell' },
   { id: 'safety', label: 'Eltern & Sicherheit', ic: 'shield', fixed: true },
@@ -186,6 +188,7 @@ export default function CuratorApp() {
 
       <main className="cur-main">
         {tab === 'library' && <LibraryTab />}
+        {tab === 'steam' && <SteamImport />}
         {tab === 'wishlist' && <WishlistTab />}
         {tab === 'deals' && <DealsTab />}
         {tab === 'safety' && <ParentalPanel inline />}

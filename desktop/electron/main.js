@@ -41,7 +41,9 @@ let launcher;
 let covers;
 let wishlist;
 let updater;
+let steamLib;
 let quitting = false; // set true on a real (parent/system) quit so close-guards stand down
+let uskPass = null; // { stop: bool } — active USK auto-approval run, if any
 
 // ── lock model (bedtime / daily time limit) with parent override ──
 // Overrides are in-memory on purpose: a reboot re-locks. The bedtime override
@@ -67,6 +69,13 @@ function currentLock() {
 
 function emitLock(lock) {
   if (win && !win.isDestroyed()) win.webContents.send('lp:event:lock', lock);
+}
+
+// Gentle wind-down: push the live minutes-left so the renderer can show calm,
+// steady reminders (no pressure countdown). Suppressed entirely when unlimited.
+function emitTimeWarn() {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('lp:event:timewarn', parental.windDownStatus());
 }
 
 // Kiosk = env override (LP_KIOSK=1) OR the parent's persisted setting; in prod
@@ -293,6 +302,49 @@ function emitGamesChanged() {
   }
 }
 
+// ── Steam library: USK auto-approval pass ──
+// Throttled background run: read each owned Steam game's USK rating from the
+// public store endpoint and auto-approve those at/under the parent threshold,
+// so a 2000-title f2p library doesn't have to be reviewed by hand. Progress is
+// pushed to the curator; it can be stopped. Approvals are written in batches.
+function emitSteamProgress(p) {
+  if (curatorWin && !curatorWin.isDestroyed()) curatorWin.webContents.send('lp:event:steam-progress', p);
+}
+
+async function runUskAutoApprove(maxUsk, opts = {}) {
+  if (uskPass) return { ok: false, reason: 'busy' };
+  const max = parseInt(maxUsk, 10);
+  if (!Number.isFinite(max)) return { ok: false, reason: 'no_threshold' };
+  uskPass = { stop: false };
+  const delay = opts.delayMs != null ? opts.delayMs : 1500; // gentle on the public appdetails endpoint
+  const targets = registry.listGames().filter((g) =>
+    (g.source === 'Steam' || /^steam-/.test(g.id)) && g.appid
+    && (g.curation === 'new' || g.minAge == null));
+  let checked = 0;
+  let approved = 0;
+  let batch = {};
+  emitSteamProgress({ phase: 'start', total: targets.length });
+  for (const g of targets) {
+    if (uskPass.stop) break;
+    const usk = await steamLib.fetchUsk(g.appid);
+    checked++;
+    if (usk != null) {
+      batch[g.id] = { minAge: usk };
+      if (steamLib.shouldAutoApprove(usk, max)) { batch[g.id].curation = 'approved'; approved++; }
+    }
+    if (checked % 20 === 0) {
+      registry.bulkPatch(batch); batch = {}; emitGamesChanged();
+      emitSteamProgress({ phase: 'progress', checked, total: targets.length, approved });
+    }
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  if (Object.keys(batch).length) { registry.bulkPatch(batch); emitGamesChanged(); }
+  const stopped = uskPass.stop;
+  uskPass = null;
+  emitSteamProgress({ phase: 'done', checked, total: targets.length, approved, stopped });
+  return { ok: true, checked, approved, stopped };
+}
+
 // Accrue foreground time and drive the lock state. (A future pass can scope
 // usage to the child shell / active use only.)
 //
@@ -312,6 +364,8 @@ function startUsageTicker() {
       lastLock = lock;
       emitLock(lock);
     }
+    // Steady, calm wind-down signal (renderer decides how/whether to show it).
+    if (!lock) emitTimeWarn();
   }, USAGE_TICK_MS);
 }
 
@@ -327,6 +381,7 @@ function registerIpc() {
   covers = require('./services/covers');
   wishlist = require('./services/wishlist');
   updater = require('./services/updater');
+  steamLib = require('./services/steamLibrary');
 
   // Push update state to the curator window whenever it changes.
   updater.init((u) => {
@@ -374,7 +429,12 @@ function registerIpc() {
     // shell / gate
     // Lock state for the renderer on mount — with autostart the shell can come
     // up mid-bedtime or with the budget already spent, before any tick fires.
-    'lp:shell:status': () => ({ lock: currentLock(), timeLeftMin: parental.timeLeft() }),
+    'lp:shell:status': () => ({
+      lock: currentLock(),
+      timeLeftMin: parental.timeLeft(),
+      windDown: parental.windDownStatus(),
+      grace: parental.graceStatus(),
+    }),
     // Parent override for the lock overlays. PIN verified HERE in main; the
     // renderer's PinGate check is just UX. Sets the matching override and
     // reports the new lock state.
@@ -384,6 +444,17 @@ function registerIpc() {
       if (parental.timeLeft() <= 0) timeOverrideDay = dayKey();
       lastLock = currentLock(); // keep the ticker's edge detection in sync
       return { ok: true, lock: lastLock };
+    },
+    // Kid-controlled "Noch kurz" buffer: grant a few minutes to save, no PIN.
+    // Refreshes the lock state + wind-down so the overlay/banner update at once.
+    'lp:shell:grace': () => {
+      const r = parental.grantGrace();
+      if (r.ok) {
+        lastLock = currentLock();
+        emitLock(lastLock);
+        emitTimeWarn();
+      }
+      return r;
     },
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
     'lp:pin:status': () => ({
@@ -441,6 +512,29 @@ function registerIpc() {
     'lp:update:state': () => updater.getState(),
     'lp:update:check': () => updater.check(),
     'lp:update:install': () => updater.installNow(),
+
+    // Steam library import + USK auto-approval — parent surface
+    'lp:steam:status': () => steamLib.credsStatus(),
+    'lp:steam:set-creds': (_e, creds) => steamLib.setCreds(creds),
+    'lp:steam:import': mutating(async () => {
+      const r = await steamLib.fetchOwnedGames();
+      if (!r.ok) return r;
+      const sum = registry.importGames(r.games);
+      return { ok: true, ...sum };
+    }),
+    'lp:steam:auto-approve': (_e, maxUsk) => {
+      runUskAutoApprove(maxUsk).catch((e) => console.error('[launchpad] usk pass failed', e));
+      return { ok: true, started: true };
+    },
+    'lp:steam:auto-approve-stop': () => { if (uskPass) uskPass.stop = true; return { ok: true }; },
+
+    // Approve EVERY not-yet-approved game at once, regardless of USK rating —
+    // the parent's call always overrides the rating (USK is advice, not a gate).
+    'lp:games:approve-all': mutating(() => {
+      const updates = {};
+      for (const g of registry.listGames()) if (g.curation !== 'approved') updates[g.id] = { curation: 'approved' };
+      return { ok: true, approved: registry.bulkPatch(updates) };
+    }),
   };
 
   for (const [channel, fn] of Object.entries(childHandlers)) ipcMain.handle(channel, fn);
