@@ -40,6 +40,7 @@ let parental;
 let launcher;
 let covers;
 let wishlist;
+let updater;
 
 // ── lock model (bedtime / daily time limit) with parent override ──
 // Overrides are in-memory on purpose: a reboot re-locks. The bedtime override
@@ -290,6 +291,12 @@ function registerIpc() {
   launcher = require('./services/launcher');
   covers = require('./services/covers');
   wishlist = require('./services/wishlist');
+  updater = require('./services/updater');
+
+  // Push update state to the curator window whenever it changes.
+  updater.init((u) => {
+    if (curatorWin && !curatorWin.isDestroyed()) curatorWin.webContents.send('lp:event:update', u);
+  });
 
   // after a successful mutation, let every window refetch
   const mutating = (fn) => async (...args) => {
@@ -389,6 +396,11 @@ function registerIpc() {
       return out;
     }),
     'lp:usage:today': () => parental.getUsageToday(),
+
+    // internet updates (electron-updater) — parent surface
+    'lp:update:state': () => updater.getState(),
+    'lp:update:check': () => updater.check(),
+    'lp:update:install': () => updater.installNow(),
   };
 
   for (const [channel, fn] of Object.entries(childHandlers)) ipcMain.handle(channel, fn);
@@ -406,6 +418,7 @@ app.whenReady().then(() => {
   applyShellPrefs(); // register/refresh autostart before any window exists
   startUsageTicker();
   createWindow();
+  updater.checkOnStartup(); // silent internet update check (packaged builds only)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

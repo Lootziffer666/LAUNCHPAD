@@ -10,6 +10,63 @@ import { SFX } from '../lib/sfx.js';
 
 const api = (typeof window !== 'undefined' && window.launchpad) || null;
 
+const UPDATE_COPY = {
+  idle: 'Bereit.',
+  checking: 'Suche nach Updates…',
+  available: 'Update gefunden — wird im Hintergrund geladen…',
+  downloading: 'Update wird geladen…',
+  downloaded: 'Update bereit zur Installation.',
+  current: 'LAUNCHPAD ist aktuell. ✓',
+  error: 'Update konnte nicht geprüft werden.',
+  dev: 'Updates greifen nur in der installierten App.',
+};
+
+function UpdatesCard() {
+  const [st, setSt] = useState({ status: 'idle', version: null, latest: null, progress: null });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!api || !api.updateState) return undefined;
+    api.updateState().then((s) => { if (alive && s) setSt(s); }).catch(() => {});
+    const off = api.onUpdate ? api.onUpdate((s) => { if (alive && s) setSt(s); }) : undefined;
+    return () => { alive = false; if (off) off(); };
+  }, []);
+  const check = async () => {
+    if (!api || !api.checkForUpdate) return;
+    setBusy(true); SFX.select();
+    try { const r = await api.checkForUpdate(); if (r && r.state) setSt(r.state); } catch (e) { /* ignore */ }
+    setBusy(false);
+  };
+  const install = async () => {
+    if (!api || !api.installUpdate) return;
+    SFX.launch();
+    try { await api.installUpdate(); } catch (e) { /* app restarts on success */ }
+  };
+  return (
+    <div className="par-card span2">
+      <h3>{Icon.bolt()} App-Updates</h3>
+      <p className="desc">
+        LAUNCHPAD aktualisiert sich übers Internet — Updates werden im Hintergrund geladen und
+        beim nächsten Neustart angewandt.
+      </p>
+      <div className="par-update">
+        <div className="par-update-meta">
+          <span className="par-ver">Version {st.version || '—'}{st.latest && st.latest !== st.version ? ` → ${st.latest}` : ''}</span>
+          <span className={`par-update-status s-${st.status}`}>
+            {UPDATE_COPY[st.status] || ''}
+            {st.status === 'downloading' && st.progress != null ? ` ${st.progress}%` : ''}
+          </span>
+        </div>
+        <div className="par-update-actions">
+          {st.status === 'downloaded'
+            ? <button className="par-btn primary" onClick={install}>Jetzt neu starten &amp; installieren</button>
+            : <button className="par-btn" onClick={check} disabled={busy}>{busy ? 'Prüfe…' : 'Nach Updates suchen'}</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PAR_APPS = [
   { id: 'browser', name: 'Browser', sub: 'Sicheres Surfen', ic: 'globe', c: '#2563eb' },
   { id: 'videos', name: 'Videos', sub: 'Comet Video', ic: 'film', c: '#7c3aed' },
@@ -201,6 +258,9 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
               <div className={`p-toggle ${autostart ? 'on' : ''}`} onClick={() => { SFX.select(); setAutostart(!autostart); }}><i></i></div>
             </div>
           </div>
+
+          {/* app updates */}
+          <UpdatesCard />
 
           {/* parent PIN */}
           <div className="par-card span2">

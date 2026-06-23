@@ -41,6 +41,12 @@ contextBridge.exposeInMainWorld('launchpad', {
   setParentalSettings: (patch) => invoke('lp:parental:set', patch),
   getUsageToday: () => invoke('lp:usage:today'),
 
+  // internet updates (electron-updater)
+  updateState: () => invoke('lp:update:state'),
+  checkForUpdate: () => invoke('lp:update:check'),
+  installUpdate: () => invoke('lp:update:install'),
+
   // events
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
+  onUpdate: (cb) => on('lp:event:update', cb),
 });
