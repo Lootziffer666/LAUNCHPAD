@@ -173,3 +173,32 @@ html, body {
 @keyframes wd-fade { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 /* never strobe/pulse — reduced-motion users get a perfectly static banner */
 [data-reduce] .wd-banner, [data-reduce] .wd-toast { animation: none !important; transition: none !important; }
+
+
+/* ── Boot sequence (meta-game intro) ── */
+.boot {
+  position: fixed; inset: 0; z-index: 12000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  background: radial-gradient(120% 120% at 50% 30%, #0e1f4a 0%, #060c22 70%, #04081a 100%);
+  color: #eaf0ff; overflow: hidden;
+}
+.boot-video { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+.boot-stage { position: relative; width: 180px; height: 180px; display: grid; place-items: center; }
+.boot-glyph { font-size: 84px; animation: boot-bob 2.2s ease-in-out infinite; filter: drop-shadow(0 8px 24px rgba(56,189,248,.35)); }
+.boot-orbit {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(120,160,240,.25); border-top-color: rgba(120,200,255,.9);
+  animation: boot-spin 1.3s linear infinite;
+}
+.boot-caption { font-size: 22px; font-weight: 700; letter-spacing: .01em; text-align: center; max-width: 80vw; }
+.boot-caption.warm { color: #ffd1e6; }
+.boot-bar { width: min(360px, 70vw); height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0);
+  background: linear-gradient(90deg, #38bdf8, #7c5cff); animation-name: boot-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+.boot-warm .boot-bar i { background: linear-gradient(90deg, #ff8ac6, #ffd1e6); }
+@keyframes boot-bob { 0%,100% { transform: translateY(-6px) rotate(-3deg); } 50% { transform: translateY(8px) rotate(3deg); } }
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+@keyframes boot-fill { to { transform: scaleX(1); } }
+.boot.noanim .boot-glyph, .boot.noanim .boot-orbit { animation: none; }
+.boot.noanim .boot-bar i { animation: none; transform: scaleX(1); }
+[data-reduce] .boot-glyph, [data-reduce] .boot-orbit { animation: none !important; }

@@ -12,6 +12,8 @@ import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
+import { BootSequence } from './boot/BootSequence.jsx';
+import { listClips, pickAnimation } from './lib/bootAnimations.js';
 
 function useScale(ref) {
   useEffect(() => {
@@ -96,6 +98,18 @@ export default function App() {
     if (GameStore.isLoaded()) { setReady(true); return undefined; }
     return GameStore.subscribe(() => { if (GameStore.isLoaded()) setReady(true); });
   }, []);
+
+  // The boot is a META-GAME: a randomly chosen animation (the user's Steam Deck
+  // boot clips, all ~7s — except one long gag that fires rarely). Picked once,
+  // remembering the last so it never repeats back to back.
+  const [bootDone, setBootDone] = useState(false);
+  const [bootClip] = useState(() => {
+    let last = null;
+    try { last = localStorage.getItem('lp_boot_last'); } catch (e) { /* ignore */ }
+    const clip = pickAnimation({ clips: listClips(), last, reduceMotion: t.reduceMotion });
+    try { if (clip) localStorage.setItem('lp_boot_last', clip.id); } catch (e) { /* ignore */ }
+    return clip;
+  });
 
   // Lock model: main owns the state ('bedtime' | 'timeup' | null) and emits
   // every transition; the morning unlock arrives the same way. On mount we ask
@@ -191,7 +205,14 @@ export default function App() {
   };
   const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
 
-  if (!ready) return <div className="stage-wrap" />;
+  if (!ready || !bootDone) {
+    return (
+      <div className="stage-wrap">
+        <BootSequence clip={bootClip} kidName={t.kidName} reduceMotion={t.reduceMotion}
+          onDone={() => setBootDone(true)} />
+      </div>
+    );
+  }
 
   return (
     <div className="stage-wrap">
