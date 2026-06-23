@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "test": "node --test \"electron/**/*.test.js\"",
     "pack:win": "vite build && electron-builder --win dir",
-    "dist:win": "vite build && electron-builder --win nsis"
+    "dist:win": "vite build && electron-builder --win nsis",
+    "dist:msix": "vite build && electron-builder --win appx"
   },
   "build": {
     "appId": "com.inkandironglow.launchpad",
@@ -47,11 +48,25 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "menuCategory": false,
+      "deleteAppDataOnUninstall": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "LAUNCHPAD",
       "shortcutName": "LAUNCHPAD"
+    },
+    "appx": {
+      "identityName": "InkAndIronGlow.LAUNCHPAD",
+      "publisher": "CN=Ink & Iron Glow",
+      "publisherDisplayName": "Ink & Iron Glow",
+      "applicationId": "LAUNCHPAD",
+      "backgroundColor": "#0a1538",
+      "showNameOnTiles": true,
+      "languages": ["de-DE", "en-US"]
     }
   },
   "dependencies": {

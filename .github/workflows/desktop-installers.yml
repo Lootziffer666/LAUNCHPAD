@@ -1,0 +1,64 @@
+name: Desktop installers
+
+# Builds the LAUNCHPAD desktop installers on a real Windows runner:
+#   - NSIS .exe (per-user, minimal registry footprint)
+#   - MSIX/APPX (for the Microsoft Store; best-effort)
+# Artifacts are uploaded for download. Publishing to GitHub Releases (which also
+# feeds electron-updater) is intentionally NOT done here — add `--publish always`
+# + GH_TOKEN on a tagged release when you're ready to ship updates.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: desktop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  windows-installers:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Build NSIS installer (.exe)
+        run: npx --no-install electron-builder --win nsis --publish never
+      - name: Build MSIX / APPX (MS Store — best effort)
+        run: npx --no-install electron-builder --win appx --publish never
+        continue-on-error: true
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: launchpad-windows-installers
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.appx
+            desktop/release/*.msix
+            desktop/release/*.blockmap
+            desktop/release/latest.yml
+          if-no-files-found: warn
