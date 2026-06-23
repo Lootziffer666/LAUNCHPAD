@@ -18,17 +18,39 @@ export function PinGate({ onUnlock, onCancel, sub }) {
   const [pin, setPin] = useState('');
   const [err, setErr] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [hasRecovery, setHasRecovery] = useState(false);
+  const [mode, setMode] = useState('pin'); // 'pin' | 'recover'
+  const [recCode, setRecCode] = useState('');
+  const [recPin, setRecPin] = useState('');
+  const [recMsg, setRecMsg] = useState(null);
   const checking = React.useRef(false);
 
   useEffect(() => {
     let alive = true;
     if (window.launchpad && window.launchpad.pinStatus) {
       window.launchpad.pinStatus()
-        .then((s) => { if (alive) setShowHint(!!(s && s.pinIsDefault)); })
+        .then((s) => { if (alive) { setShowHint(!!(s && s.pinIsDefault)); setHasRecovery(!!(s && s.hasRecovery)); } })
         .catch(() => {});
     }
     return () => { alive = false; };
   }, []);
+
+  const submitRecovery = async () => {
+    if (!window.launchpad || !window.launchpad.recoverPin) { setRecMsg('Nicht verfügbar'); return; }
+    if (String(recPin).length < 4) { setRecMsg('Neue PIN braucht mind. 4 Ziffern'); SFX.back(); return; }
+    let r = { ok: false };
+    try { r = await window.launchpad.recoverPin(recCode.trim(), recPin); }
+    catch (e) { r = { ok: false, reason: 'error' }; }
+    if (r && r.ok) {
+      SFX.launch();
+      setRecMsg('PIN neu gesetzt ✓ — bitte mit der neuen PIN anmelden.');
+      setRecCode(''); setRecPin('');
+      setTimeout(() => { setMode('pin'); setRecMsg(null); }, 2200);
+    } else {
+      SFX.back();
+      setRecMsg(r && r.reason === 'no_recovery' ? 'Kein Wiederherstellungscode hinterlegt.' : 'Code stimmt nicht.');
+    }
+  };
 
   const submit = async (code) => {
     if (checking.current) return;
@@ -55,32 +77,58 @@ export function PinGate({ onUnlock, onCancel, sub }) {
 
   useEffect(() => {
     const onKey = (e) => {
+      if (mode !== 'pin') { if (e.key === 'Escape') setMode('pin'); return; }
       if (e.key >= '0' && e.key <= '9') press(e.key);
       else if (e.key === 'Backspace') del();
       else if (e.key === 'Escape') onCancel();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pin]);
+  }, [pin, mode]);
 
   return (
     <div className="pin-gate">
       <div className="pin-card">
         <div className="pin-av">{Icon.lock()}</div>
         <div className="pin-title">Elternzugang</div>
-        <div className="pin-sub">{sub || 'PIN eingeben, um zum Windows-Desktop zu wechseln'}</div>
-        <div className={`pin-dots ${err ? 'err' : ''}`}>
-          {[0, 1, 2, 3].map((i) => <i key={i} className={i < pin.length ? 'on' : ''}></i>)}
-        </div>
-        <div className="pin-pad">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} className="pin-key" onClick={() => press(String(n))}>{n}</button>
-          ))}
-          <button className="pin-key fn" onClick={onCancel}>Zurück</button>
-          <button className="pin-key" onClick={() => press('0')}>0</button>
-          <button className="pin-key fn" onClick={del}>⌫</button>
-        </div>
-        {showHint && <div className="pin-hint">Demo-PIN: <b>1234</b> · in den Eltern-Einstellungen änderbar</div>}
+        {mode === 'pin' ? (
+          <React.Fragment>
+            <div className="pin-sub">{sub || 'PIN eingeben, um zum Windows-Desktop zu wechseln'}</div>
+            <div className={`pin-dots ${err ? 'err' : ''}`}>
+              {[0, 1, 2, 3].map((i) => <i key={i} className={i < pin.length ? 'on' : ''}></i>)}
+            </div>
+            <div className="pin-pad">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                <button key={n} className="pin-key" onClick={() => press(String(n))}>{n}</button>
+              ))}
+              <button className="pin-key fn" onClick={onCancel}>Zurück</button>
+              <button className="pin-key" onClick={() => press('0')}>0</button>
+              <button className="pin-key fn" onClick={del}>⌫</button>
+            </div>
+            {showHint && <div className="pin-hint">Demo-PIN: <b>1234</b> · in den Eltern-Einstellungen änderbar</div>}
+            {hasRecovery && (
+              <button className="pin-forgot" onClick={() => { SFX.select(); setMode('recover'); setRecMsg(null); }}>
+                PIN vergessen?
+              </button>
+            )}
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <div className="pin-sub">Wiederherstellungscode eingeben und eine neue PIN setzen.</div>
+            <div className="pin-recover">
+              <input className="pin-rec-input" autoFocus placeholder="XXXX-XXXX-XXXX-XXXX"
+                value={recCode} onChange={(e) => setRecCode(e.target.value)} />
+              <input className="pin-rec-input" type="password" inputMode="numeric" placeholder="Neue PIN (mind. 4 Ziffern)"
+                value={recPin} onChange={(e) => setRecPin(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && submitRecovery()} />
+              <div className="pin-rec-actions">
+                <button className="pin-key fn" onClick={() => { SFX.back(); setMode('pin'); setRecMsg(null); }}>Zurück</button>
+                <button className="pin-key go" onClick={submitRecovery}>PIN zurücksetzen</button>
+              </div>
+              {recMsg && <div className="pin-hint">{recMsg}</div>}
+            </div>
+          </React.Fragment>
+        )}
       </div>
     </div>
   );

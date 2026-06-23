@@ -13,6 +13,7 @@ const { childVisible } = require('./curation');
 const DEFAULTS = {
   pinHash: null, // "salt:hash" (hex); null until seeded
   pinIsDefault: true, // true while still the seeded demo PIN; false once changed
+  recoveryHash: null, // "salt:hash" of the parent recovery code; null until generated
   ageRating: '9', // "6" | "9" | "12" — filters visible games
   dailyLimitMin: 90,
   bedtime: { from: '20:30', to: '07:00' },
@@ -39,6 +40,17 @@ function hashPin(pin, salt) {
   return `${s}:${h}`;
 }
 
+// Pure constant-time compare of a "salt:hash" record against a raw value.
+// Shared by PIN and recovery-code verification; no store access, so unit-testable.
+function verifyHash(stored, rawValue) {
+  if (!stored || typeof stored !== 'string' || !stored.includes(':')) return false;
+  const [salt, hash] = stored.split(':');
+  const cand = crypto.scryptSync(String(rawValue), salt, SCRYPT_LEN).toString('hex');
+  const a = Buffer.from(hash, 'hex');
+  const b = Buffer.from(cand, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 // Lazily seed the demo PIN on first access so verifyPin works immediately.
 function ensureSeeded() {
   if (!raw().pinHash) save({ pinHash: hashPin('1234') });
@@ -46,13 +58,7 @@ function ensureSeeded() {
 
 function verifyPin(pin) {
   ensureSeeded();
-  const stored = raw().pinHash;
-  if (!stored) return false;
-  const [salt, hash] = stored.split(':');
-  const cand = crypto.scryptSync(String(pin), salt, SCRYPT_LEN).toString('hex');
-  const a = Buffer.from(hash, 'hex');
-  const b = Buffer.from(cand, 'hex');
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return verifyHash(raw().pinHash, String(pin));
 }
 
 function setPin(oldPin, newPin) {
@@ -63,19 +69,71 @@ function setPin(oldPin, newPin) {
   return true;
 }
 
+// ── PIN recovery (forgot-PIN escape that doesn't wipe the device) ──
+// A recovery code is a high-entropy string the parent records once. We store
+// only its hash (same scheme as the PIN). If the PIN is forgotten, the code
+// resets it — without resetting settings or needing to delete the data store.
+const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O/1/I/L
+const RECOVERY_GROUPS = 4;
+const RECOVERY_GROUP_LEN = 4;
+
+function formatRecoveryCode(raw) {
+  // Normalize for comparison: uppercase, strip anything outside the alphabet.
+  return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+    .replace(/[O]/g, '0').replace(/[IL]/g, '1'); // forgiving: O→0, I/L→1 won't matter — alphabet excludes them, kept for paranoia
+}
+
+function generateRecoveryPlain() {
+  const groups = [];
+  for (let g = 0; g < RECOVERY_GROUPS; g++) {
+    let s = '';
+    for (let i = 0; i < RECOVERY_GROUP_LEN; i++) {
+      s += RECOVERY_ALPHABET[crypto.randomInt(RECOVERY_ALPHABET.length)];
+    }
+    groups.push(s);
+  }
+  return groups.join('-'); // e.g. "K7HM-9FRT-2WQX-PB48"
+}
+
+// Create (or replace) the recovery code. Returns the PLAINTEXT once — the only
+// time it is ever available — so the curator can show it to the parent.
+function regenerateRecovery() {
+  const plain = generateRecoveryPlain();
+  save({ recoveryHash: hashPin(formatRecoveryCode(plain)) });
+  return plain;
+}
+
+function hasRecovery() { return !!raw().recoveryHash; }
+
+function verifyRecovery(code) {
+  return verifyHash(raw().recoveryHash, formatRecoveryCode(code));
+}
+
+// Reset the PIN using the recovery code. On success a FRESH recovery code is
+// issued (the used one is invalidated) and returned so the parent can record
+// the new one. Returns { ok, recovery? } | { ok:false, reason }.
+function resetPinWithRecovery(code, newPin) {
+  if (!hasRecovery()) return { ok: false, reason: 'no_recovery' };
+  if (!verifyRecovery(code)) return { ok: false, reason: 'bad_code' };
+  if (!newPin || String(newPin).length < 4) return { ok: false, reason: 'bad_pin' };
+  save({ pinHash: hashPin(newPin), pinIsDefault: false });
+  const recovery = regenerateRecovery();
+  return { ok: true, recovery };
+}
+
 // Public settings — never leak pinHash; expose pinSet instead.
 function getSettings() {
   ensureSeeded();
-  const { pinHash, ...rest } = raw();
-  return { ...rest, pinSet: !!pinHash };
+  const { pinHash, recoveryHash, ...rest } = raw();
+  return { ...rest, pinSet: !!pinHash, hasRecovery: !!recoveryHash };
 }
 
 function setSettings(patch) {
   const allowed = ['ageRating', 'dailyLimitMin', 'bedtime', 'approvals', 'kiosk', 'autostart', 'modules', 'dealsMinSavings'];
   const clean = {};
   for (const k of allowed) if (patch && k in patch) clean[k] = patch[k];
-  const { pinHash, ...rest } = save(clean);
-  return { ...rest, pinSet: !!pinHash };
+  const { pinHash, recoveryHash, ...rest } = save(clean);
+  return { ...rest, pinSet: !!pinHash, hasRecovery: !!recoveryHash };
 }
 
 function todayKey() { return new Date().toISOString().slice(0, 10); }
@@ -140,7 +198,9 @@ function canLaunch(game, overrides = {}) {
 }
 
 module.exports = {
-  hashPin, verifyPin, setPin, getSettings, setSettings,
+  hashPin, verifyHash, verifyPin, setPin, getSettings, setSettings,
+  regenerateRecovery, hasRecovery, verifyRecovery, resetPinWithRecovery,
+  formatRecoveryCode, generateRecoveryPlain,
   getUsageToday, addUsage, ageAllows, timeLeft, canLaunch,
   isInBedtime, inBedtime,
 };

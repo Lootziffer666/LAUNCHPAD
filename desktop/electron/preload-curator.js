@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('launchpad', {
 
   // parental settings / PIN / usage
   setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
+  generateRecoveryCode: () => invoke('lp:pin:recovery-generate'),
   getParentalSettings: () => invoke('lp:parental:get'),
   setParentalSettings: (patch) => invoke('lp:parental:set', patch),
   getUsageToday: () => invoke('lp:usage:today'),

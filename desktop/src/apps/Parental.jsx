@@ -43,6 +43,9 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const [pinOld, setPinOld] = useState('');
   const [pinNew, setPinNew] = useState('');
   const [pinMsg, setPinMsg] = useState(null);
+  // recovery code
+  const [hasRecovery, setHasRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState(null); // shown once after generation
 
   useEffect(() => {
     let alive = true;
@@ -58,6 +61,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           setKiosk(!!s.kiosk);
           setAutostart(s.autostart !== false);
           if (s.modules) setModules((m) => ({ ...m, ...s.modules }));
+          setHasRecovery(!!s.hasRecovery);
         }
         if (u) setUsed(u.usedMin || 0);
       })
@@ -89,6 +93,14 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
     if (ok) { setPinOld(''); setPinNew(''); SFX.select(); setPinMsg('PIN geändert ✓'); }
     else { SFX.back(); setPinMsg('Alte PIN stimmt nicht'); }
     setTimeout(() => setPinMsg(null), 2600);
+  };
+
+  const makeRecovery = async () => {
+    if (!api || !api.generateRecoveryCode) { setPinMsg('Nicht verfügbar'); return; }
+    try {
+      const r = await api.generateRecoveryCode();
+      if (r && r.ok && r.code) { setRecoveryCode(r.code); setHasRecovery(true); SFX.launch(); }
+    } catch (e) { SFX.back(); }
   };
 
   const panel = (
@@ -202,6 +214,37 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
               <button className="par-btn" onClick={changePin}>PIN ändern</button>
             </div>
             {pinMsg && <div className="desc" style={{ marginTop: 6 }}>{pinMsg}</div>}
+
+            <div className="par-recovery">
+              <div className="par-rec-head">
+                <b>{Icon.shield()} Wiederherstellungscode</b>
+                <span className={`par-rec-badge ${hasRecovery ? 'on' : ''}`}>
+                  {hasRecovery ? 'Code aktiv' : 'Kein Code'}
+                </span>
+              </div>
+              <p className="desc">
+                Falls die PIN einmal vergessen wird: Mit diesem Code lässt sich am Kinder-Gerät
+                eine neue PIN setzen — ohne Datenverlust. <b>Jetzt notieren und sicher aufbewahren</b>
+                (er wird nur einmal angezeigt).
+              </p>
+              {recoveryCode ? (
+                <div className="par-rec-code">
+                  <code>{recoveryCode}</code>
+                  <button className="par-btn" onClick={() => {
+                    try { navigator.clipboard.writeText(recoveryCode); SFX.select(); } catch (e) { /* ignore */ }
+                  }}>Kopieren</button>
+                </div>
+              ) : (
+                <button className="par-btn" onClick={makeRecovery}>
+                  {hasRecovery ? 'Neuen Code erzeugen & anzeigen' : 'Code erzeugen & anzeigen'}
+                </button>
+              )}
+              {recoveryCode && (
+                <div className="desc" style={{ marginTop: 6 }}>
+                  Ein neuer Code ersetzt den alten. Nach dem Schließen ist er nicht mehr abrufbar.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* weekly activity */}

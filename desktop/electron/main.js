@@ -22,6 +22,13 @@ const isDev = !app.isPackaged;
 const DEV_URL = process.env.LP_DEV_URL || 'http://localhost:5173';
 const HARD_KIOSK = process.env.LP_KIOSK === '1';
 
+// Branded window/taskbar icon. On Windows the packaged .exe icon comes from
+// electron-builder (build/icon.ico); this is the in-process window icon (used
+// in dev and as a fallback). Resolve defensively — a missing file must never
+// crash window creation.
+const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.png');
+const WINDOW_ICON = fs.existsSync(ICON_PATH) ? ICON_PATH : undefined;
+
 // Usage ticker knobs (env-overridable so CI can exercise the time-limit fast).
 const USAGE_TICK_MS = parseInt(process.env.LP_USAGE_TICK_MS, 10) || 60000;
 const USAGE_TICK_MIN = parseInt(process.env.LP_USAGE_TICK_MIN, 10) || 1;
@@ -104,6 +111,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0a1538',
     show: false,
+    icon: WINDOW_ICON,
     kiosk: shellPrefs().kiosk, // hard cage: LP_KIOSK=1 or the parent's setting
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -169,6 +177,7 @@ function createCuratorWindow() {
     minHeight: 600,
     backgroundColor: '#0b1430',
     show: false,
+    icon: WINDOW_ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload-curator.js'),
       contextIsolation: true,
@@ -330,7 +339,14 @@ function registerIpc() {
       return { ok: true, lock: lastLock };
     },
     'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
-    'lp:pin:status': () => ({ pinIsDefault: !!parental.getSettings().pinIsDefault }),
+    'lp:pin:status': () => ({
+      pinIsDefault: !!parental.getSettings().pinIsDefault,
+      hasRecovery: parental.hasRecovery(),
+    }),
+    // Forgot-PIN escape: reset the PIN with the recovery code (no device wipe).
+    // Child-accessible on purpose — the gate lives in the child shell — but it
+    // demands the high-entropy recovery code, so it is not a bypass.
+    'lp:pin:recover': (_e, code, newPin) => parental.resetPinWithRecovery(code, newPin),
     // The ONLY door from the child shell to the curator: PIN is verified in
     // main; on success the curator window opens as its own app surface.
     'lp:curator:open': (_e, pin) => {
@@ -363,6 +379,9 @@ function registerIpc() {
     'lp:deals:top': () => wishlist.topDeals({ minSavings: parental.getSettings().dealsMinSavings }),
 
     'lp:pin:set': (_e, oldP, newP) => parental.setPin(oldP, newP),
+    // Generate/replace the parent recovery code; returns the plaintext ONCE so
+    // the curator can show it. Curator-only (sender-enforced).
+    'lp:pin:recovery-generate': () => ({ ok: true, code: parental.regenerateRecovery() }),
     'lp:parental:get': () => parental.getSettings(),
     'lp:parental:set': mutating((_e, patch) => {
       const out = parental.setSettings(patch); // age rating affects the child list
