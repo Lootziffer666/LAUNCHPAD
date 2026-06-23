@@ -62,9 +62,16 @@ Not written / not used: **no HKLM**, no file associations, no protocol handlers,
 services, no scheduled tasks, no shell-extension entries. Uninstall removes the keys
 above and the shortcuts.
 
-> Autostart, when enabled in the parent settings, adds the standard per-user run
-> entry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\LAUNCHPAD`. Turning
-> autostart off removes it. It is set by the app at runtime, not by the installer.
+> **Autostart is registry-free.** The kiosk's "launch at login" uses a shortcut in
+> the per-user **Startup folder**
+> (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\LAUNCHPAD.lnk`), created/
+> removed at runtime by the app — **not** the `HKCU\…\Run` registry value. Turning
+> autostart off deletes the shortcut. The unkillable cage itself (kiosk window,
+> single-instance lock, close/Alt+F4 block, auto-relaunch, return-to-launcher) is
+> **100% runtime, zero registry**.
+
+> MSIX note: when shipped via the Store, autostart is declared in the package
+> manifest (`StartupTask`) and managed by Windows — also registry-free.
 
 ## MSIX / APPX — Microsoft Store
 

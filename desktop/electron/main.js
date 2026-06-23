@@ -17,6 +17,7 @@
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.LP_DEV_URL || 'http://localhost:5173';
@@ -78,6 +79,43 @@ function emitTimeWarn() {
   win.webContents.send('lp:event:timewarn', parental.windDownStatus());
 }
 
+// ── registry-free autostart ──
+// Instead of HKCU\…\Run (a registry value), drop a shortcut in the per-user
+// Startup folder. Same effect (launch the cage at login), but lives entirely in
+// the user profile — zero registry. Created/removed at runtime so the parent's
+// autostart toggle still works. Best-effort + non-blocking; never crashes main.
+function psQuote(s) { return `'${String(s).replace(/'/g, "''")}'`; } // single-quoted PS literal
+
+function startupShortcutPath() {
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  return path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'LAUNCHPAD.lnk');
+}
+
+function applyAutostart(enabled) {
+  if (isDev || process.platform !== 'win32') return; // dev would register the bare electron binary
+  const lnk = startupShortcutPath();
+  try {
+    if (enabled) {
+      const { execFile } = require('node:child_process');
+      const target = process.execPath; // the installed LAUNCHPAD.exe
+      const script = [
+        '$ws = New-Object -ComObject WScript.Shell;',
+        `$s = $ws.CreateShortcut(${psQuote(lnk)});`,
+        `$s.TargetPath = ${psQuote(target)};`,
+        `$s.WorkingDirectory = ${psQuote(path.dirname(target))};`,
+        '$s.Save()',
+      ].join(' ');
+      execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], (err) => {
+        if (err) console.error('[launchpad] autostart shortcut create failed:', err);
+      });
+    } else if (fs.existsSync(lnk)) {
+      fs.unlinkSync(lnk); // removing the .lnk is a plain file delete — no PowerShell needed
+    }
+  } catch (e) {
+    console.error('[launchpad] applyAutostart failed:', e);
+  }
+}
+
 // Kiosk = env override (LP_KIOSK=1) OR the parent's persisted setting; in prod
 // the child shell is fullscreen even without kiosk. registerIpc() loads the
 // parental service before any window exists, so prefs are always readable here.
@@ -97,12 +135,10 @@ function applyShellPrefs() {
     if (!prefs.kiosk && !isDev && !win.isFullScreen()) win.setFullScreen(true);
   }
   if (!isDev) {
-    // supported on Windows/macOS only; never let a platform quirk kill main
-    try {
-      app.setLoginItemSettings({ openAtLogin: prefs.autostart });
-    } catch (e) {
-      console.error('[launchpad] setLoginItemSettings failed:', e);
-    }
+    // Registry-free autostart: a shortcut in the per-user Startup folder
+    // (not the HKCU\…\Run registry value). Keeps the kiosk's "boot into the
+    // cage at login" behaviour with zero registry footprint.
+    applyAutostart(prefs.autostart);
   }
 }
 
