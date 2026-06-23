@@ -88,5 +88,5 @@ const BOOKMARKS = [
   { name: 'World Atlas', c1: '#2563eb', c2: '#1e3a8a', ic: 'map' },
 ];
 
-export const CometData = { cover, SOURCES, GAMES, DIRECT, LEARN, CREATE, BOOKMARKS };
+export const CometData = { cover, SOURCES, sourceBadge, GAMES, DIRECT, LEARN, CREATE, BOOKMARKS };
 export default CometData;

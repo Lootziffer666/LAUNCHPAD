@@ -25,7 +25,14 @@ export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaun
   const games = useGames();
   const installedCount = games.filter((g) => g.installed).length;
   const favs = games.filter((g) => g.favorite && g.installed).slice(0, 3);
-  const featCover = games.find((g) => g.featured) || games[0];
+  // Home tiles are data-driven now: parents pin games to the home screen and
+  // order them in the Familienzentrale. The first pinned game is the big hero
+  // tile; the rest fill the smaller direct tiles. Falls back to featured/first.
+  const pinned = games
+    .filter((g) => g.pinned)
+    .sort((a, b) => (Number.isFinite(a.homeOrder) ? a.homeOrder : 9) - (Number.isFinite(b.homeOrder) ? b.homeOrder : 9));
+  const heroGame = pinned[0] || games.find((g) => g.featured) || games[0];
+  const directRest = (pinned.length ? pinned.slice(1) : games.filter((g) => g.id !== (heroGame && heroGame.id)).slice(0, 2));
 
   return (
     <div className="desktop">
@@ -82,23 +89,26 @@ export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaun
             <div className="htile-label">Web</div>
           </button>
 
-          {/* direct launch — Minecraft (cover art) */}
-          <button className="htile direct" style={gameCover(featCover, 135)} onClick={(e) => onLaunchDirect(featCover, originFromEvent(e))}>
-            <div className="direct-scrim"></div>
-            {!featCover.cover && <div className="direct-emb">{Icon[featCover.emblem] && Icon[featCover.emblem]()}</div>}
-            <div className="direct-foot">
-              <span className="src-badge" style={{ background: DD.SOURCES[featCover.source].c }}>{DD.SOURCES[featCover.source].label}</span>
-              <div className="htile-label sm">{featCover.name}</div>
-            </div>
-          </button>
-
-          {/* direct row: Steam + Scratch */}
-          {DD.DIRECT.filter((d) => d.id !== featCover.id).map((d) => (
-            <button key={d.id} className="htile direct small" style={{ background: DD.cover(d.c1, d.c2, 135) }}
-              onClick={(e) => d.platform ? onOpenPlay(originFromEvent(e)) : onLaunchDirect(games.find((g) => g.id === d.id) || d, originFromEvent(e))}>
-              <div className="direct-emb sm">{Icon[d.emblem] && Icon[d.emblem]()}</div>
+          {/* direct launch — first pinned game (data-driven hero) */}
+          {heroGame && (
+            <button className="htile direct" style={gameCover(heroGame, 135)} onClick={(e) => onLaunchDirect(heroGame, originFromEvent(e))}>
+              <div className="direct-scrim"></div>
+              {!heroGame.cover && <div className="direct-emb">{Icon[heroGame.emblem] && Icon[heroGame.emblem]()}</div>}
               <div className="direct-foot">
-                <span className="src-badge" style={{ background: DD.SOURCES[d.source].c }}>{DD.SOURCES[d.source].label}</span>
+                <span className="src-badge" style={{ background: DD.sourceBadge(heroGame.source).c }}>{DD.sourceBadge(heroGame.source).label}</span>
+                <div className="htile-label sm">{heroGame.name}</div>
+              </div>
+            </button>
+          )}
+
+          {/* remaining pinned games as smaller direct tiles */}
+          {directRest.map((d) => (
+            <button key={d.id} className="htile direct small" style={gameCover(d, 135)}
+              onClick={(e) => onLaunchDirect(d, originFromEvent(e))}>
+              <div className="direct-scrim"></div>
+              {!d.cover && <div className="direct-emb sm">{Icon[d.emblem] && Icon[d.emblem]()}</div>}
+              <div className="direct-foot">
+                <span className="src-badge" style={{ background: DD.sourceBadge(d.source).c }}>{DD.sourceBadge(d.source).label}</span>
                 <div className="htile-label sm">{d.name}</div>
               </div>
             </button>
