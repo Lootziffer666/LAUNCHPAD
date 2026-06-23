@@ -17,6 +17,7 @@
 const ALLOWED_SCHEMES = new Set([
   'steam', 'minecraft', 'com.epicgames.launcher', 'uplay',
   'origin', 'roblox', 'msstore', 'ms-windows-store',
+  'goggalaxy', 'battlenet', 'itch',
 ]);
 
 // Error classes from the original Windows launcher plan: the child sees a calm
@@ -36,11 +37,13 @@ const FAILURE_CLASS = {
 };
 const classifyFailure = (reason) => FAILURE_CLASS[reason] || 'fatal';
 
+// Launch kind comes from game.launch.kind when set, else inferred from a few
+// well-known sources. Minecraft is intentionally NOT special-cased: it is a
+// game like any other and carries its own explicit launch target (uri/uwp/exe).
 function inferKind(game) {
   if (game && game.launch && game.launch.kind) return game.launch.kind;
   const src = ((game && game.source) || '').toLowerCase();
   if (src === 'steam') return 'steam';
-  if (src === 'minecraft') return 'uri';
   return 'internal';
 }
 
@@ -64,7 +67,7 @@ function resolveLaunch(game) {
   }
 
   if (kind === 'uri') {
-    const uri = L.uri || (game.source === 'Minecraft' ? 'minecraft://' : '');
+    const uri = L.uri || '';
     if (!uri) return cfgError('Keine Start-URL hinterlegt');
     if (!ALLOWED_SCHEMES.has(schemeOf(uri))) {
       return cfgError(`Schema nicht erlaubt: ${schemeOf(uri)}`);

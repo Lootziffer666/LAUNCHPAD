@@ -15,6 +15,7 @@ const { withCurationDefaults, childVisible, childOrder } = require('./curation')
 const SEED = [
   { id: 'minecraft', name: 'Minecraft', cat: 'Sandbox', source: 'Minecraft', installed: true, favorite: true,
     featured: true, progress: 0.0, playtime: '48 Std', stars: 5, c1: '#3b8526', c2: '#0f3d1a', emblem: 'grid',
+    launch: { kind: 'uri', uri: 'minecraft://' },
     desc: 'Bau, erkunde und überlebe in einer Welt aus Blöcken. Allein oder im Kreativmodus.' },
   { id: 'galaxy-racer', name: 'Galaxy Racer', cat: 'Rennen', source: 'Steam', installed: true, favorite: true,
     appid: '400', progress: 0.3, playtime: '9 Std', stars: 4, c1: '#a855f7', c2: '#1e1b4b', emblem: 'rocket',
