@@ -14,6 +14,7 @@ import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
 import { BootSequence } from './boot/BootSequence.jsx';
 import { listClips, pickAnimation } from './lib/bootAnimations.js';
+import { personalityEnabled } from './lib/features.js';
 
 function useScale(ref) {
   useEffect(() => {
@@ -99,11 +100,12 @@ export default function App() {
     return GameStore.subscribe(() => { if (GameStore.isLoaded()) setReady(true); });
   }, []);
 
-  // The boot is a META-GAME: a randomly chosen animation (the user's Steam Deck
-  // boot clips, all ~7s — except one long gag that fires rarely). Picked once,
-  // remembering the last so it never repeats back to back.
+  // The boot meta-game is part of the DORMANT personality layer — off in the
+  // shipping build, switched on later via update. v1 boots clean.
+  const personality = personalityEnabled();
   const [bootDone, setBootDone] = useState(false);
   const [bootClip] = useState(() => {
+    if (!personality) return null;
     let last = null;
     try { last = localStorage.getItem('lp_boot_last'); } catch (e) { /* ignore */ }
     const clip = pickAnimation({ clips: listClips(), last, reduceMotion: t.reduceMotion });
@@ -205,7 +207,9 @@ export default function App() {
   };
   const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
 
-  if (!ready || !bootDone) {
+  // v1 ships clean: a brief plain splash until the catalogue loads. The boot
+  // meta-game only runs once the personality layer is switched on by an update.
+  if (personality && (!ready || !bootDone)) {
     return (
       <div className="stage-wrap">
         <BootSequence clip={bootClip} kidName={t.kidName} reduceMotion={t.reduceMotion}
@@ -213,6 +217,7 @@ export default function App() {
       </div>
     );
   }
+  if (!ready) return <div className="stage-wrap" />;
 
   return (
     <div className="stage-wrap">

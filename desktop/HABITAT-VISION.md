@@ -54,6 +54,8 @@ The mischief must **delight, never destabilise**. Rules for every gag:
   all the same length except one rare long gag (the 20s "plug in a controller"
   troll). Built-in CSS fallback incl. the warm *"Daddy war hier"* variant. Calm
   mode for sensitive days. Selection is pure + deterministic.
+  **Ships DORMANT** behind `FEATURES.personality` (`src/lib/features.js`) — v1 boots
+  clean; the layer is switched on later, *schleichend per Update* (the sleeper effect).
 - **Gentle wind-down + "Noch kurz" buffer + unlimited mode** — dignity over control.
 - **Curated, per-title library** (Steam import, USK-as-advice) — the loving act of
   picking games *for* someone.
