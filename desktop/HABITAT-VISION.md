@@ -4,11 +4,17 @@ LAUNCHPAD is the safe, shippable launcher. **HABITAT is what it wants to become:
 not a launcher you *use* but a world you **inhabit**. An avatar lives here. Things
 change. It has moods, jokes, secrets — and a little bit of benevolent madness.
 
-> Tone: **kids' cartoon × Monty Python × The Stanley Parable × P.T.**
-> A launcher with a soul and a sense of humour. **Adult version included.**
+> Tone: **kids' cartoon × Monty Python × the warm wit of The Stanley Parable's narrator.**
+> A launcher with a soul and a sense of humour. **Gentle, never scary.**
 
 This file is the compass. Every feature should ask: *does this make HABITAT feel
 more alive, more mine, more surprising — without ever betraying the kid's dignity?*
+
+> **Scope line (important):** LAUNCHPAD/HABITAT is the warm, family product. It is
+> **NOT** the horror/jumpscare launcher. The P.T.-style viral troll launcher (the
+> "Stanley Launcher") is a **separate product** — different brand, different repo —
+> that may reuse the underlying mischief engine but shares nothing of LAUNCHPAD's
+> content or feel. See the bottom note. LAUNCHPAD never does jumpscares.
 
 ---
 
@@ -27,9 +33,9 @@ more alive, more mine, more surprising — without ever betraying the kid's dign
    - props that lie, captions that argue, a loading bar that finishes a keystroke early
 5. **Easter eggs & love notes.** Rare warm moments — *"Daddy war hier 💜"* — hidden
    in the machine, found, not announced.
-6. **Two voices: kid & adult.** Same engine, different content/intensity. The adult
-   version leans harder into Monty Python / P.T.; the kid version stays bright,
-   gentle, and **AuDHD-safe**.
+6. **One warm voice (kid + grown-ups).** Same world the whole family enjoys. A
+   grown-up can get a slightly drier Monty-Python wit, but the feel never turns
+   dark — LAUNCHPAD is bright, gentle, and **AuDHD-safe**, full stop.
 
 ## The non-negotiable: AuDHD-safe mischief
 
@@ -71,9 +77,22 @@ The mischief must **delight, never destabilise**. Rules for every gag:
 - [ ] Visit another Habitat (companion/cloud sync), leave/bring small things
 - [ ] Gifts, mailbox, gentle async presence
 
-**Phase 4 — Two editions**
-- [ ] Adult version: harder Monty Python / P.T. energy, mature content tier
-- [ ] Shared engine, separate content packs + intensity profiles
+**Phase 4 — Habitat depth**
+- [ ] Richer customisation, more residents/events, seasonal content
+- [ ] Shareable Habitat themes / packs (still warm, still family-safe)
+
+## Sibling product (NOT LAUNCHPAD): the "Stanley Launcher"
+
+The P.T.-style viral troll launcher — the one that makes a streamer jump — is a
+**separate product**. Different name, different brand, **its own repo**. It may
+reuse this project's *mischief engine* (the rare/timed/no-repeat machinery) as a
+shared dependency, but it shares **none** of LAUNCHPAD's content, look, or family
+feel. It is parked here only as a pointer so the two never get confused:
+
+- **LAUNCHPAD** = warm, dignified, AuDHD-safe, family. **Never a jumpscare.**
+- **Stanley Launcher** = horror/comedy troll for adults, opt-in, consent-gated,
+  no-strobe/seizure-safe, built and shipped entirely on its own. Its design notes
+  live with *that* project, not here.
 
 ## Design guardrails (so we don't lose the soul)
 
