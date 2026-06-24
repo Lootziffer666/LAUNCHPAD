@@ -202,3 +202,83 @@ html, body {
 .boot.noanim .boot-glyph, .boot.noanim .boot-orbit { animation: none; }
 .boot.noanim .boot-bar i { animation: none; transform: scaleX(1); }
 [data-reduce] .boot-glyph, [data-reduce] .boot-orbit { animation: none !important; }
+
+
+/* ============================================================
+   Enchantment layer — ambient lighting, particles, the companion,
+   and tile microinteractions. Additive only. Honours reduced motion.
+   ============================================================ */
+
+/* ── ambient lighting + motes ── */
+.ambient { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.ambient-aurora {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(40% 35% at 22% 18%, rgba(124, 92, 255, 0.20), transparent 70%),
+    radial-gradient(45% 40% at 82% 26%, rgba(56, 189, 248, 0.18), transparent 70%),
+    radial-gradient(50% 45% at 50% 92%, rgba(34, 211, 170, 0.12), transparent 72%);
+  filter: blur(18px);
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+.ambient-glow {
+  position: absolute; left: 50%; top: 12%; width: 60%; height: 50%; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(120, 170, 255, 0.10), transparent 75%);
+  animation: glow-breathe 9s ease-in-out infinite;
+}
+.ambient-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 100% at 50% 38%, transparent 55%, rgba(4, 8, 22, 0.55) 100%);
+}
+.mote {
+  position: absolute; border-radius: 50%; opacity: 0; filter: blur(0.4px);
+  box-shadow: 0 0 8px currentColor;
+  animation-name: mote-float; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+}
+.mote-a { color: rgba(170, 200, 255, 0.85); background: rgba(200, 220, 255, 0.9); }
+.mote-b { color: rgba(150, 255, 220, 0.8); background: rgba(190, 255, 235, 0.9); }
+@keyframes aurora-drift { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(3%, 2%, 0) scale(1.08); } }
+@keyframes glow-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes mote-float {
+  0% { opacity: 0; transform: translate(0, 12px) scale(0.7); }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.7; }
+  100% { opacity: 0; transform: translate(var(--drift, 0), -120px) scale(1); }
+}
+.ambient.still .ambient-aurora, .ambient.still .ambient-glow { animation: none; }
+[data-reduce] .ambient-aurora, [data-reduce] .ambient-glow, [data-reduce] .mote { animation: none !important; }
+[data-reduce] .mote { display: none; }
+
+/* ── companion (wandering critter) ── */
+.companion-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.companion { position: absolute; left: 0; top: 0; will-change: transform; }
+.companion-hit {
+  pointer-events: auto; background: none; border: none; padding: 0; cursor: pointer;
+  display: grid; place-items: end center; line-height: 1;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.45));
+}
+.companion-hit:active { transform: translateY(1px); }
+.companion-sprite, .sprite, .sprite-emoji { display: inline-block; user-select: none; }
+
+/* emoji fallback "animations" so it feels alive before real sprites land */
+.sprite-emoji { transition: transform 0.18s ease; }
+.sprite-emoji[data-anim="idle"] { animation: critter-idle 3.2s ease-in-out infinite; }
+.sprite-emoji[data-anim="walk"] { animation: critter-walk 0.5s ease-in-out infinite; }
+.sprite-emoji[data-anim="run"] { animation: critter-walk 0.22s linear infinite; }
+.sprite-emoji[data-anim="lie"] { transform: scaleX(var(--f, 1)) rotate(90deg) scale(0.9); animation: critter-purr 1.1s ease-in-out infinite; }
+.sprite-emoji[data-anim="scratch"] { animation: critter-scratch 0.12s linear infinite; }
+@keyframes critter-idle { 0%, 100% { transform: translateY(0) scaleX(1); } 50% { transform: translateY(-2px) scaleX(1.02); } }
+@keyframes critter-walk { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+@keyframes critter-purr { 0%, 100% { transform: rotate(90deg) scale(0.9); } 50% { transform: rotate(90deg) scale(0.96); } }
+@keyframes critter-scratch { 0% { transform: translateX(-3px) rotate(-4deg); } 100% { transform: translateX(3px) rotate(4deg); } }
+.companion-hearts {
+  position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+  font-size: 26px; pointer-events: none; animation: heart-rise 1.4s ease-out forwards;
+}
+@keyframes heart-rise { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60px) scale(1.1); } }
+[data-reduce] .sprite-emoji { animation: none !important; }
+
+/* ── tile microinteractions (additive glow/press; no transforms that fight layout) ── */
+.htile { transition: box-shadow 0.18s ease, filter 0.18s ease; }
+.htile:hover { filter: brightness(1.06) saturate(1.05); box-shadow: 0 14px 44px rgba(56, 189, 248, 0.22); }
+.htile:active { filter: brightness(0.98); }
+[data-reduce] .htile { transition: none; }

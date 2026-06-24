@@ -15,6 +15,8 @@ import { AppShell } from './apps/AppShell.jsx';
 import { BootSequence } from './boot/BootSequence.jsx';
 import { listClips, pickAnimation } from './lib/bootAnimations.js';
 import { personalityEnabled } from './lib/features.js';
+import { AmbientFX } from './ui/AmbientFX.jsx';
+import { Companion } from './companion/Companion.jsx';
 
 function useScale(ref) {
   useEffect(() => {
@@ -225,11 +227,13 @@ export default function App() {
         {mode === 'launchpad' && (
           <React.Fragment>
             {!t.reduceMotion && <Starfield />}
+            <AmbientFX reduceMotion={t.reduceMotion} />
             <Desktop
               kidName={t.kidName}
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
             />
+            <Companion reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
           </React.Fragment>
         )}
         {mode === 'windows' && (
