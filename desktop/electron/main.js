@@ -418,6 +418,7 @@ function registerIpc() {
   wishlist = require('./services/wishlist');
   updater = require('./services/updater');
   steamLib = require('./services/steamLibrary');
+  const winget = require('./services/winget');
 
   // Push update state to the curator window whenever it changes.
   updater.init((u) => {
@@ -511,6 +512,19 @@ function registerIpc() {
 
     // session control — kill the active edge-xcloud session (child "Spiel beenden")
     'lp:session:kill': () => launcher.killActiveSession(),
+
+    // winget package management — learning/creative app install
+    'lp:winget:check': () => winget.checkWinget(),
+    'lp:winget:status': (_e, id) => winget.getStatus(id),
+    'lp:winget:install': (_e, id) => {
+      // Start install in background; push progress events to the renderer.
+      winget.install(id, {
+        onProgress: (p) => {
+          if (win && !win.isDestroyed()) win.webContents.send('lp:event:winget-progress', p);
+        },
+      }).catch((e) => console.error('[launchpad] winget install failed:', e));
+      return { ok: true, started: true };
+    },
   };
 
   const curatorHandlers = {

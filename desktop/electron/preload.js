@@ -39,9 +39,15 @@ contextBridge.exposeInMainWorld('launchpad', {
   // session control
   killSession: () => invoke('lp:session:kill'),
 
+  // winget package management
+  wingetCheck: () => invoke('lp:winget:check'),
+  wingetStatus: (id) => invoke('lp:winget:status', id),
+  wingetInstall: (id) => invoke('lp:winget:install', id),
+
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onLockChanged: (cb) => on('lp:event:lock', cb), // payload: 'bedtime'|'timeup'|null
   onTimeWarn: (cb) => on('lp:event:timewarn', cb), // payload: { enabled, warnAt, persistFromMin, minutesLeft }
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
+  onWingetProgress: (cb) => on('lp:event:winget-progress', cb),
 });

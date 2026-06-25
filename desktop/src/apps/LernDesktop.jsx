@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { CometData as D } from '../lib/data.js';
 import { SFX } from '../lib/sfx.js';
+import { useWinget, useWingetStatus } from '../lib/useWinget.js';
 
 function KindBadge({ kind }) {
   const labels = { winget: 'App', web: 'Web', internal: 'Intern' };
@@ -15,6 +16,9 @@ function KindBadge({ kind }) {
 }
 
 function AppCard({ app, catColor }) {
+  const { install } = useWinget();
+  const { status, line } = useWingetStatus(app.wingetId || '');
+
   const handleClick = () => {
     SFX.select();
     if (app.kind === 'web' && app.url) {
@@ -23,12 +27,32 @@ function AppCard({ app, catColor }) {
         window.launchpad.openUrl(app.url);
       }
     } else if (app.kind === 'winget' && app.wingetId) {
-      // Winget apps trigger install/launch (wired in FEAT-003)
-      if (window.launchpad && window.launchpad.installApp) {
-        window.launchpad.installApp(app.wingetId);
+      if (status === 'installed') {
+        // Already installed: launch via shell (future: dedicated launcher)
+        return;
       }
+      if (status === 'installing') {
+        // Already in progress, do nothing
+        return;
+      }
+      // Trigger install
+      install(app.wingetId);
     }
     // internal apps: handled in-app (future)
+  };
+
+  const statusLabel = () => {
+    if (app.kind !== 'winget') return null;
+    switch (status) {
+      case 'installing':
+        return <span className="ld-install-status ld-install-status--installing">Wird installiert...</span>;
+      case 'installed':
+        return <span className="ld-install-status ld-install-status--installed">Installiert</span>;
+      case 'failed':
+        return <span className="ld-install-status ld-install-status--failed">Fehler</span>;
+      default:
+        return <span className="ld-install-status">Installieren</span>;
+    }
   };
 
   return (
@@ -40,9 +64,7 @@ function AppCard({ app, catColor }) {
       </div>
       <div className="ld-app-meta">
         <KindBadge kind={app.kind} />
-        {app.kind === 'winget' && (
-          <span className="ld-install-status">Bereit</span>
-        )}
+        {statusLabel()}
       </div>
       <span className="ld-app-go">{Icon.chevR()}</span>
     </button>
