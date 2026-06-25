@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Install @google/model-viewer, copy GLB/diorama/tile assets to desktop/public/, and create the 3D Habitat World component with all 6 boxes mapped to their GLB models",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Run `cd /projects/sandbox/LAUNCHPAD/desktop && npm install @google/model-viewer` to add the model-viewer web component as a dependency.",
     "Copy GLB model files from project/models/ to desktop/public/models/ so Vite serves them: kitchen.glb, office.glb, cabin.glb, stanley_office.glb, night_sky.glb, forest.glb, cat_a.glb, cat_b.glb.",
@@ -33,5 +33,5 @@
     "Verify all 6 models are mapped: grep -c 'glb' /projects/sandbox/LAUNCHPAD/desktop/src/habitat/HabitatWorld.jsx should show at least 6 matches"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing build errors in Parental.jsx (duplicate recoveryCode declaration) and WindowsDesktop.jsx (duplicate submitRecovery function) blocked the Vite build. Fixed both as part of this commit. All 85 tests pass. Build produces clean output with model-viewer bundled (1172KB main chunk includes model-viewer)."
 }
