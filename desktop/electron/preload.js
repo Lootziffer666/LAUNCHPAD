@@ -28,12 +28,12 @@ contextBridge.exposeInMainWorld('launchpad', {
   setFavorite: (id, v) => invoke('lp:games:favorite', id, v),
 
   // shell / gate
-  shellStatus: () => invoke('lp:shell:status'), // { lock: 'bedtime'|'timeup'|null, timeLeftMin }
+  shellStatus: () => invoke('lp:shell:status'), // { lock, timeLeftMin, windDown, grace }
   shellUnlock: (pin) => invoke('lp:shell:unlock', pin), // parent override; PIN re-verified in main
+  requestGrace: () => invoke('lp:shell:grace'), // kid "Noch kurz" buffer — no PIN
   verifyPin: (pin) => invoke('lp:pin:verify', pin),
   pinStatus: () => invoke('lp:pin:status'),
-  recoveryStatus: () => invoke('lp:recovery:status'),
-  resetPinWithRecovery: (code, newPin) => invoke('lp:recovery:reset', code, newPin),
+  recoverPin: (code, newPin) => invoke('lp:pin:recover', code, newPin),
   openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
 
   // session control
@@ -42,5 +42,6 @@ contextBridge.exposeInMainWorld('launchpad', {
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onLockChanged: (cb) => on('lp:event:lock', cb), // payload: 'bedtime'|'timeup'|null
+  onTimeWarn: (cb) => on('lp:event:timewarn', cb), // payload: { enabled, warnAt, persistFromMin, minutesLeft }
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
 });

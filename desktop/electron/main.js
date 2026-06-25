@@ -17,10 +17,18 @@
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.LP_DEV_URL || 'http://localhost:5173';
 const HARD_KIOSK = process.env.LP_KIOSK === '1';
+
+// Branded window/taskbar icon. On Windows the packaged .exe icon comes from
+// electron-builder (build/icon.ico); this is the in-process window icon (used
+// in dev and as a fallback). Resolve defensively — a missing file must never
+// crash window creation.
+const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.png');
+const WINDOW_ICON = fs.existsSync(ICON_PATH) ? ICON_PATH : undefined;
 
 // Usage ticker knobs (env-overridable so CI can exercise the time-limit fast).
 const USAGE_TICK_MS = parseInt(process.env.LP_USAGE_TICK_MS, 10) || 60000;
@@ -33,6 +41,10 @@ let parental;
 let launcher;
 let covers;
 let wishlist;
+let updater;
+let steamLib;
+let quitting = false; // set true on a real (parent/system) quit so close-guards stand down
+let uskPass = null; // { stop: bool } — active USK auto-approval run, if any
 
 // ── lock model (bedtime / daily time limit) with parent override ──
 // Overrides are in-memory on purpose: a reboot re-locks. The bedtime override
@@ -60,6 +72,50 @@ function emitLock(lock) {
   if (win && !win.isDestroyed()) win.webContents.send('lp:event:lock', lock);
 }
 
+// Gentle wind-down: push the live minutes-left so the renderer can show calm,
+// steady reminders (no pressure countdown). Suppressed entirely when unlimited.
+function emitTimeWarn() {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('lp:event:timewarn', parental.windDownStatus());
+}
+
+// ── registry-free autostart ──
+// Instead of HKCU\…\Run (a registry value), drop a shortcut in the per-user
+// Startup folder. Same effect (launch the cage at login), but lives entirely in
+// the user profile — zero registry. Created/removed at runtime so the parent's
+// autostart toggle still works. Best-effort + non-blocking; never crashes main.
+function psQuote(s) { return `'${String(s).replace(/'/g, "''")}'`; } // single-quoted PS literal
+
+function startupShortcutPath() {
+  const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  return path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'LAUNCHPAD.lnk');
+}
+
+function applyAutostart(enabled) {
+  if (isDev || process.platform !== 'win32') return; // dev would register the bare electron binary
+  const lnk = startupShortcutPath();
+  try {
+    if (enabled) {
+      const { execFile } = require('node:child_process');
+      const target = process.execPath; // the installed LAUNCHPAD.exe
+      const script = [
+        '$ws = New-Object -ComObject WScript.Shell;',
+        `$s = $ws.CreateShortcut(${psQuote(lnk)});`,
+        `$s.TargetPath = ${psQuote(target)};`,
+        `$s.WorkingDirectory = ${psQuote(path.dirname(target))};`,
+        '$s.Save()',
+      ].join(' ');
+      execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], (err) => {
+        if (err) console.error('[launchpad] autostart shortcut create failed:', err);
+      });
+    } else if (fs.existsSync(lnk)) {
+      fs.unlinkSync(lnk); // removing the .lnk is a plain file delete — no PowerShell needed
+    }
+  } catch (e) {
+    console.error('[launchpad] applyAutostart failed:', e);
+  }
+}
+
 // Kiosk = env override (LP_KIOSK=1) OR the parent's persisted setting; in prod
 // the child shell is fullscreen even without kiosk. registerIpc() loads the
 // parental service before any window exists, so prefs are always readable here.
@@ -79,12 +135,29 @@ function applyShellPrefs() {
     if (!prefs.kiosk && !isDev && !win.isFullScreen()) win.setFullScreen(true);
   }
   if (!isDev) {
-    // supported on Windows/macOS only; never let a platform quirk kill main
-    try {
-      app.setLoginItemSettings({ openAtLogin: prefs.autostart });
-    } catch (e) {
-      console.error('[launchpad] setLoginItemSettings failed:', e);
+    // Registry-free autostart: a shortcut in the per-user Startup folder
+    // (not the HKCU\…\Run registry value). Keeps the kiosk's "boot into the
+    // cage at login" behaviour with zero registry footprint.
+    applyAutostart(prefs.autostart);
+  }
+}
+
+// Bring the child shell to the front and re-assert its cage. Called when a
+// tracked (spawned) game exits, so a closed program lands the child back on
+// LAUNCHPAD instead of the bare Windows desktop.
+function focusShell() {
+  if (!win || win.isDestroyed()) return;
+  try {
+    if (win.isMinimized()) win.restore();
+    if (!isDev) {
+      if (shellPrefs().kiosk) win.setKiosk(true);
+      else if (!win.isFullScreen()) win.setFullScreen(true);
     }
+    win.show();
+    if (typeof win.moveTop === 'function') win.moveTop();
+    win.focus();
+  } catch (e) {
+    console.error('[launchpad] focusShell failed:', e);
   }
 }
 
@@ -104,6 +177,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0a1538',
     show: false,
+    icon: WINDOW_ICON,
     kiosk: shellPrefs().kiosk, // hard cage: LP_KIOSK=1 or the parent's setting
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -142,6 +216,7 @@ function createWindow() {
       const mod = input.control || input.meta;
       const blocked =
         k === 'f5' || k === 'f11' ||
+        (input.alt && k === 'f4') ||
         (mod && k === 'r') ||
         (mod && k === 'w') ||
         (mod && k === 'q') ||
@@ -149,6 +224,20 @@ function createWindow() {
       if (blocked) e.preventDefault();
     });
   }
+
+  // Don't let the child window be closed from under the kid. In kiosk it is
+  // hard-blocked; in a packaged non-kiosk build an accidental close relaunches
+  // the shell. A real parent-initiated quit sets `quitting` first.
+  win.on('close', (e) => {
+    if (quitting || isDev) return;
+    if (shellPrefs().kiosk) { e.preventDefault(); focusShell(); }
+  });
+  win.on('closed', () => {
+    if (quitting || isDev) { win = null; return; }
+    // Unexpected close in a packaged build → come straight back up.
+    try { app.relaunch(); } catch (err) { /* ignore */ }
+    app.exit(0);
+  });
 
   maybeCaptureForVerification();
 }
@@ -169,6 +258,7 @@ function createCuratorWindow() {
     minHeight: 600,
     backgroundColor: '#0b1430',
     show: false,
+    icon: WINDOW_ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload-curator.js'),
       contextIsolation: true,
@@ -248,6 +338,49 @@ function emitGamesChanged() {
   }
 }
 
+// ── Steam library: USK auto-approval pass ──
+// Throttled background run: read each owned Steam game's USK rating from the
+// public store endpoint and auto-approve those at/under the parent threshold,
+// so a 2000-title f2p library doesn't have to be reviewed by hand. Progress is
+// pushed to the curator; it can be stopped. Approvals are written in batches.
+function emitSteamProgress(p) {
+  if (curatorWin && !curatorWin.isDestroyed()) curatorWin.webContents.send('lp:event:steam-progress', p);
+}
+
+async function runUskAutoApprove(maxUsk, opts = {}) {
+  if (uskPass) return { ok: false, reason: 'busy' };
+  const max = parseInt(maxUsk, 10);
+  if (!Number.isFinite(max)) return { ok: false, reason: 'no_threshold' };
+  uskPass = { stop: false };
+  const delay = opts.delayMs != null ? opts.delayMs : 1500; // gentle on the public appdetails endpoint
+  const targets = registry.listGames().filter((g) =>
+    (g.source === 'Steam' || /^steam-/.test(g.id)) && g.appid
+    && (g.curation === 'new' || g.minAge == null));
+  let checked = 0;
+  let approved = 0;
+  let batch = {};
+  emitSteamProgress({ phase: 'start', total: targets.length });
+  for (const g of targets) {
+    if (uskPass.stop) break;
+    const usk = await steamLib.fetchUsk(g.appid);
+    checked++;
+    if (usk != null) {
+      batch[g.id] = { minAge: usk };
+      if (steamLib.shouldAutoApprove(usk, max)) { batch[g.id].curation = 'approved'; approved++; }
+    }
+    if (checked % 20 === 0) {
+      registry.bulkPatch(batch); batch = {}; emitGamesChanged();
+      emitSteamProgress({ phase: 'progress', checked, total: targets.length, approved });
+    }
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  if (Object.keys(batch).length) { registry.bulkPatch(batch); emitGamesChanged(); }
+  const stopped = uskPass.stop;
+  uskPass = null;
+  emitSteamProgress({ phase: 'done', checked, total: targets.length, approved, stopped });
+  return { ok: true, checked, approved, stopped };
+}
+
 // Accrue foreground time and drive the lock state. (A future pass can scope
 // usage to the child shell / active use only.)
 //
@@ -267,6 +400,8 @@ function startUsageTicker() {
       lastLock = lock;
       emitLock(lock);
     }
+    // Steady, calm wind-down signal (renderer decides how/whether to show it).
+    if (!lock) emitTimeWarn();
   }, USAGE_TICK_MS);
 }
 
@@ -281,7 +416,13 @@ function registerIpc() {
   launcher = require('./services/launcher');
   covers = require('./services/covers');
   wishlist = require('./services/wishlist');
-  const steamImport = require('./services/steamImport');
+  updater = require('./services/updater');
+  steamLib = require('./services/steamLibrary');
+
+  // Push update state to the curator window whenever it changes.
+  updater.init((u) => {
+    if (curatorWin && !curatorWin.isDestroyed()) curatorWin.webContents.send('lp:event:update', u);
+  });
 
   // after a successful mutation, let every window refetch
   const mutating = (fn) => async (...args) => {
@@ -313,13 +454,23 @@ function registerIpc() {
       });
       if (!gate.ok) return { ...gate, errorClass: launcher.classifyFailure(gate.reason) };
       if (process.env.LP_LAUNCH_DRYRUN === '1') return { ok: true, dryRun: true, plan: launcher.resolveLaunch(game) };
-      return launcher.launchGame(game);
+      return launcher.launchGame(game, {
+        onExit: () => {
+          focusShell();
+          if (win && !win.isDestroyed()) win.webContents.send('lp:event:game-closed', id);
+        },
+      });
     },
 
     // shell / gate
     // Lock state for the renderer on mount — with autostart the shell can come
     // up mid-bedtime or with the budget already spent, before any tick fires.
-    'lp:shell:status': () => ({ lock: currentLock(), timeLeftMin: parental.timeLeft() }),
+    'lp:shell:status': () => ({
+      lock: currentLock(),
+      timeLeftMin: parental.timeLeft(),
+      windDown: parental.windDownStatus(),
+      grace: parental.graceStatus(),
+    }),
     // Parent override for the lock overlays. PIN verified HERE in main; the
     // renderer's PinGate check is just UX. Sets the matching override and
     // reports the new lock state.
@@ -330,14 +481,26 @@ function registerIpc() {
       lastLock = currentLock(); // keep the ticker's edge detection in sync
       return { ok: true, lock: lastLock };
     },
-    'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
-    'lp:pin:status': () => ({ pinIsDefault: !!parental.getSettings().pinIsDefault }),
-    'lp:recovery:status': () => parental.recoveryStatus(),
-    'lp:recovery:reset': (_e, code, newPin) => {
-      const freshCode = parental.resetPinWithRecovery(code, newPin);
-      if (!freshCode) return { ok: false };
-      return { ok: true, recoveryCode: freshCode };
+    // Kid-controlled "Noch kurz" buffer: grant a few minutes to save, no PIN.
+    // Refreshes the lock state + wind-down so the overlay/banner update at once.
+    'lp:shell:grace': () => {
+      const r = parental.grantGrace();
+      if (r.ok) {
+        lastLock = currentLock();
+        emitLock(lastLock);
+        emitTimeWarn();
+      }
+      return r;
     },
+    'lp:pin:verify': (_e, pin) => parental.verifyPin(pin),
+    'lp:pin:status': () => ({
+      pinIsDefault: !!parental.getSettings().pinIsDefault,
+      hasRecovery: parental.hasRecovery(),
+    }),
+    // Forgot-PIN escape: reset the PIN with the recovery code (no device wipe).
+    // Child-accessible on purpose — the gate lives in the child shell — but it
+    // demands the high-entropy recovery code, so it is not a bypass.
+    'lp:pin:recover': (_e, code, newPin) => parental.resetPinWithRecovery(code, newPin),
     // The ONLY door from the child shell to the curator: PIN is verified in
     // main; on success the curator window opens as its own app surface.
     'lp:curator:open': (_e, pin) => {
@@ -373,7 +536,9 @@ function registerIpc() {
     'lp:deals:top': () => wishlist.topDeals({ minSavings: parental.getSettings().dealsMinSavings }),
 
     'lp:pin:set': (_e, oldP, newP) => parental.setPin(oldP, newP),
-    'lp:recovery:generate': () => parental.newRecoveryCode(),
+    // Generate/replace the parent recovery code; returns the plaintext ONCE so
+    // the curator can show it. Curator-only (sender-enforced).
+    'lp:pin:recovery-generate': () => ({ ok: true, code: parental.regenerateRecovery() }),
     'lp:parental:get': () => parental.getSettings(),
     'lp:parental:set': mutating((_e, patch) => {
       const out = parental.setSettings(patch); // age rating affects the child list
@@ -382,8 +547,33 @@ function registerIpc() {
     }),
     'lp:usage:today': () => parental.getUsageToday(),
 
-    // game import — scan local installations
-    'lp:games:scan-steam': () => steamImport.scanSteam(),
+    // internet updates (electron-updater) — parent surface
+    'lp:update:state': () => updater.getState(),
+    'lp:update:check': () => updater.check(),
+    'lp:update:install': () => updater.installNow(),
+
+    // Steam library import + USK auto-approval — parent surface
+    'lp:steam:status': () => steamLib.credsStatus(),
+    'lp:steam:set-creds': (_e, creds) => steamLib.setCreds(creds),
+    'lp:steam:import': mutating(async () => {
+      const r = await steamLib.fetchOwnedGames();
+      if (!r.ok) return r;
+      const sum = registry.importGames(r.games);
+      return { ok: true, ...sum };
+    }),
+    'lp:steam:auto-approve': (_e, maxUsk) => {
+      runUskAutoApprove(maxUsk).catch((e) => console.error('[launchpad] usk pass failed', e));
+      return { ok: true, started: true };
+    },
+    'lp:steam:auto-approve-stop': () => { if (uskPass) uskPass.stop = true; return { ok: true }; },
+
+    // Approve EVERY not-yet-approved game at once, regardless of USK rating —
+    // the parent's call always overrides the rating (USK is advice, not a gate).
+    'lp:games:approve-all': mutating(() => {
+      const updates = {};
+      for (const g of registry.listGames()) if (g.curation !== 'approved') updates[g.id] = { curation: 'approved' };
+      return { ok: true, approved: registry.bulkPatch(updates) };
+    }),
   };
 
   for (const [channel, fn] of Object.entries(childHandlers)) ipcMain.handle(channel, fn);
@@ -395,22 +585,37 @@ function registerIpc() {
   }
 }
 
-app.whenReady().then(() => {
-  if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
-  registerIpc();
-  applyShellPrefs(); // register/refresh autostart before any window exists
-  startUsageTicker();
+// ── single-instance lock ──
+// The child shell is the persistent background "desktop": exactly one instance,
+// always present and never minimized, so when a foreground game exits the OS
+// falls back to LAUNCHPAD on its own (user-directed design). A second launch
+// just refocuses the existing shell instead of stacking windows.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => { focusShell(); });
 
-  // Weekly watchlist price refresh (background, non-blocking)
-  const { maybeRefreshWatchlist } = require('./services/watchlistScheduler');
-  maybeRefreshWatchlist();
+  app.on('before-quit', () => { quitting = true; });
 
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  app.whenReady().then(() => {
+    if (!isDev) Menu.setApplicationMenu(null); // no menu-bar reload/devtools/quit in prod
+    registerIpc();
+    applyShellPrefs(); // register/refresh autostart before any window exists
+    startUsageTicker();
+
+    // Weekly watchlist price refresh (background, non-blocking)
+    const { maybeRefreshWatchlist } = require('./services/watchlistScheduler');
+    maybeRefreshWatchlist();
+
+    createWindow();
+    updater.checkOnStartup(); // silent internet update check (packaged builds only)
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}

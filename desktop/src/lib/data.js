@@ -15,7 +15,16 @@ const SOURCES = {
   Minecraft: { label: 'Minecraft', c: '#3b8526' },
   Scratch: { label: 'Scratch', c: '#e8920c' },
   LAUNCHPAD: { label: 'LAUNCHPAD', c: '#3b1d8a' },
+  Xbox: { label: 'Xbox', c: '#107c10' },
+  Epic: { label: 'Epic', c: '#2a2a2a' },
+  GOG: { label: 'GOG', c: '#86328a' },
+  Windows: { label: 'Programm', c: '#0067c0' },
+  Web: { label: 'Web', c: '#2563eb' },
 };
+
+// Resolve a source badge safely — unknown sources fall back to a neutral chip
+// instead of throwing (sources are user-editable now: Xbox/Epic/GOG/…).
+const sourceBadge = (src) => SOURCES[src] || { label: src || 'Spiel', c: '#475569' };
 
 const GAMES = [
   { id: 'minecraft', name: 'Minecraft', cat: 'Sandbox', source: 'Minecraft', installed: true, favorite: true,
@@ -79,5 +88,5 @@ const BOOKMARKS = [
   { name: 'World Atlas', c1: '#2563eb', c2: '#1e3a8a', ic: 'map' },
 ];
 
-export const CometData = { cover, SOURCES, GAMES, DIRECT, LEARN, CREATE, BOOKMARKS };
+export const CometData = { cover, SOURCES, sourceBadge, GAMES, DIRECT, LEARN, CREATE, BOOKMARKS };
 export default CometData;

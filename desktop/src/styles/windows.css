@@ -187,6 +187,26 @@
 .pin-hint { margin-top: 24px; font-size: 12.5px; color: var(--ink-mute); }
 .pin-hint b { color: var(--comet-cyan); font-weight: 700; }
 
+/* forgot-PIN / recovery */
+.pin-forgot {
+  margin-top: 18px; background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 13px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px;
+  opacity: .85; transition: opacity .12s, color .12s;
+}
+.pin-forgot:hover { opacity: 1; color: var(--comet-cyan); }
+.pin-recover { display: flex; flex-direction: column; gap: 12px; width: min(360px, 80vw); margin-top: 8px; }
+.pin-rec-input {
+  height: 48px; border-radius: 12px; padding: 0 14px; font-size: 16px; font-family: inherit;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #fff;
+  letter-spacing: .04em; text-align: center;
+}
+.pin-rec-input::placeholder { color: var(--ink-mute); letter-spacing: normal; }
+.pin-rec-input:focus { outline: none; border-color: var(--comet-cyan); box-shadow: 0 0 0 3px rgba(56,189,248,.18); }
+.pin-rec-actions { display: flex; gap: 10px; justify-content: center; }
+.pin-rec-actions .pin-key { height: 48px; width: auto; padding: 0 18px; font-size: 15px; font-weight: 700; border-radius: 12px; }
+.pin-key.go { background: linear-gradient(135deg, #2a6f8e, #1c3f6e); border-color: transparent; }
+.pin-key.go:hover { filter: brightness(1.1); background: linear-gradient(135deg, #2a6f8e, #1c3f6e); }
+
 @media (prefers-reduced-motion: reduce) {
   .windows, .win-app, .start-menu, .pin-gate { animation: none; }
 }

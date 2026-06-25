@@ -127,6 +127,18 @@ export function CurationBar({ g }) {
 
       <TagEditor g={g} />
 
+      {/* home screen — which approved games appear as tiles on the child home */}
+      <div className="curb-row">
+        <span className="curb-lbl">Startseite</span>
+        <button className={`curb-opt ${g.pinned ? 'on ok' : ''}`}
+          onClick={() => set(g, 'pinned', !g.pinned)}>
+          {g.pinned ? '📌 Auf Startseite' : 'An Startseite anheften'}
+        </button>
+        <span className="curb-hint-inline">
+          {g.pinned ? 'Reihenfolge oben unter „Startseite ordnen"' : 'Erscheint als große Kachel im Kinder-Launcher'}
+        </span>
+      </div>
+
       {/* containment — launch success ≠ safe play space */}
       <div className="curb-row">
         <span className="curb-lbl">Einzäunung</span>

@@ -8,12 +8,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { SFX } from '../lib/sfx.js';
-import { GameStore, useAllGames } from '../games/useGames.js';
+import { GameStore, useAllGames, gameCover } from '../games/useGames.js';
 import { ImpCard, CoverKeyField } from '../games/GameManager.jsx';
 import { ParentalPanel } from '../apps/Parental.jsx';
 import { CurationBar } from './CurationBar.jsx';
 import { WishlistTab, DealsTab } from './SteamTools.jsx';
-import { ImportGames } from './ImportGames.jsx';
+import { SteamImport } from './SteamImport.jsx';
 
 // Review filters — the inbox view from the plan ("Candidate Review").
 const FILTERS = [
@@ -24,6 +24,54 @@ const FILTERS = [
   { id: 'spaeter', label: 'Für später', match: (g) => g.curation === 'forLater' },
   { id: 'versteckt', label: 'Versteckt', match: (g) => g.curation === 'hidden' },
 ];
+
+// Startseite ordnen — which approved games are pinned as tiles on the child
+// home, and in what order. Reorder normalizes homeOrder to the array indices.
+function HomeArrangement() {
+  const games = useAllGames();
+  const pinned = games
+    .filter((g) => g.pinned)
+    .sort((a, b) => (Number.isFinite(a.homeOrder) ? a.homeOrder : 9) - (Number.isFinite(b.homeOrder) ? b.homeOrder : 9));
+  const move = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= pinned.length) return;
+    const arr = pinned.slice();
+    const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+    arr.forEach((g, i) => GameStore.setField(g.id, 'homeOrder', i));
+    SFX.swipe();
+  };
+  const unpin = (g) => { GameStore.setField(g.id, 'pinned', false); SFX.back(); };
+  if (!pinned.length) {
+    return (
+      <div className="cur-home">
+        <div className="cur-home-head"><b>{Icon.grid()} Startseite ordnen</b></div>
+        <div className="cur-home-empty">Noch keine Kachel angeheftet. Unten bei einem freigegebenen Spiel „An Startseite anheften".</div>
+      </div>
+    );
+  }
+  return (
+    <div className="cur-home">
+      <div className="cur-home-head">
+        <b>{Icon.grid()} Startseite ordnen</b>
+        <span>{pinned.length} {pinned.length === 1 ? 'Kachel' : 'Kacheln'} · erste = große Hauptkachel</span>
+      </div>
+      <div className="cur-home-list">
+        {pinned.map((g, i) => (
+          <div className="cur-home-row" key={g.id}>
+            <span className="cur-home-pos">{i === 0 ? '★' : i + 1}</span>
+            <span className="cur-home-cover" style={gameCover(g)}>{!g.cover && (Icon[g.emblem] ? Icon[g.emblem]() : Icon.gamepad())}</span>
+            <span className="cur-home-name">{g.name}</span>
+            <div className="cur-home-btns">
+              <button className="imp-btn ghost" disabled={i === 0} onClick={() => move(i, -1)} title="Nach oben">↑</button>
+              <button className="imp-btn ghost" disabled={i === pinned.length - 1} onClick={() => move(i, 1)} title="Nach unten">↓</button>
+              <button className="imp-btn ghost" onClick={() => unpin(g)} title="Von der Startseite nehmen">Lösen</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function LibraryTab() {
   const games = useAllGames();
@@ -68,6 +116,8 @@ function LibraryTab() {
       <CoverKeyField />
       <ImportGames />
 
+      <HomeArrangement />
+
       <div className="cur-cards">
         {shown.map((g) => (
           <ImpCard key={g.id} g={g}>
@@ -86,6 +136,7 @@ function LibraryTab() {
 // under Eltern & Sicherheit (settings.modules); library and safety are fixed.
 const TABS = [
   { id: 'library', label: 'Bibliothek & Kuration', ic: 'gamepad', fixed: true },
+  { id: 'steam', label: 'Steam-Import', ic: 'bolt', fixed: true },
   { id: 'wishlist', label: 'Wunschliste', ic: 'star' },
   { id: 'deals', label: 'Angebote', ic: 'bell' },
   { id: 'safety', label: 'Eltern & Sicherheit', ic: 'shield', fixed: true },
@@ -145,6 +196,7 @@ export default function CuratorApp() {
 
       <main className="cur-main">
         {tab === 'library' && <LibraryTab />}
+        {tab === 'steam' && <SteamImport />}
         {tab === 'wishlist' && <WishlistTab />}
         {tab === 'deals' && <DealsTab />}
         {tab === 'safety' && <ParentalPanel inline />}

@@ -36,16 +36,26 @@ contextBridge.exposeInMainWorld('launchpad', {
 
   // parental settings / PIN / usage / recovery
   setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
-  getRecoveryStatus: () => invoke('lp:recovery:status'),
-  generateRecoveryCode: () => invoke('lp:recovery:generate'),
-  resetPinWithRecovery: (code, newPin) => invoke('lp:recovery:reset', code, newPin),
+  generateRecoveryCode: () => invoke('lp:pin:recovery-generate'),
   getParentalSettings: () => invoke('lp:parental:get'),
   setParentalSettings: (patch) => invoke('lp:parental:set', patch),
   getUsageToday: () => invoke('lp:usage:today'),
 
-  // game import
-  scanSteam: () => invoke('lp:games:scan-steam'),
+  // internet updates (electron-updater)
+  updateState: () => invoke('lp:update:state'),
+  checkForUpdate: () => invoke('lp:update:check'),
+  installUpdate: () => invoke('lp:update:install'),
+
+  // Steam library import + USK auto-approval
+  steamStatus: () => invoke('lp:steam:status'),
+  setSteamCreds: (creds) => invoke('lp:steam:set-creds', creds),
+  steamImport: () => invoke('lp:steam:import'),
+  steamAutoApprove: (maxUsk) => invoke('lp:steam:auto-approve', maxUsk),
+  steamAutoApproveStop: () => invoke('lp:steam:auto-approve-stop'),
+  approveAll: () => invoke('lp:games:approve-all'),
 
   // events
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),
+  onUpdate: (cb) => on('lp:event:update', cb),
+  onSteamProgress: (cb) => on('lp:event:steam-progress', cb),
 });

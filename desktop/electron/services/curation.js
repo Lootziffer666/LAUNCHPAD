@@ -34,16 +34,33 @@ function withCurationDefaults(g) {
     ? g.surfacing
     : (g.featured ? 'featured' : 'normal');
   const containment = CONTAINMENT_LEVELS.includes(g.containment) ? g.containment : 'unknown';
+  // Home-screen pinning is a separate, parent-controlled axis: which approved
+  // games appear as big tiles on the child home, and in what order. Sensible
+  // default so a fresh install isn't empty: featured/favorite games are pinned.
+  const pinned = typeof g.pinned === 'boolean' ? g.pinned : !!(g.featured || g.favorite);
+  const homeOrder = Number.isFinite(g.homeOrder)
+    ? g.homeOrder
+    : (g.featured ? 0 : (g.favorite ? 1 : 9));
   return {
     ...g,
     curation,
     surfacing,
     containment,
+    pinned,
+    homeOrder,
     tags: Array.isArray(g.tags) ? g.tags : [],
     parentWarning: typeof g.parentWarning === 'string' && g.parentWarning.trim()
       ? g.parentWarning : null,
     featured: surfacing === 'featured', // the child UI keeps reading `featured`
   };
+}
+
+// Child home tiles: approved + pinned, ordered by homeOrder (then stable).
+function homeVisible(g) {
+  return !!g && g.curation === 'approved' && g.pinned;
+}
+function homeOrder(a, b) {
+  return (Number.isFinite(a.homeOrder) ? a.homeOrder : 9) - (Number.isFinite(b.homeOrder) ? b.homeOrder : 9);
 }
 
 function childVisible(g) {
