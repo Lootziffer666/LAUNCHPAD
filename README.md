@@ -1,403 +1,169 @@
-# LAUNCHPAD M1 Implementation
+# LAUNCHPAD
 
-**A private Android family launcher for Jake** — Fossify Launcher fork with Krypto-Cash ledger, time budgeting, parental controls, and safe content filtering.
+**Ein privater, kindersicherer Android-Family-Launcher für Jake** — ein Fork des
+Fossify Launchers mit Krypto-Cash-Zeitkonto, Zeitbudgets, Eltern-Steuerung,
+sicherem Entdecken-Modus und einer warmen, kindgerechten Oberfläche.
 
-**Status**: Production-ready M1 implementation (~18 files, 3,400+ lines of Kotlin/XML).
+> **Jake wird geliebt. Nicht optimiert.** ❤️
+
+Aus dem ursprünglichen M1-Scaffold ist eine vollständige Plattform geworden:
+ein produktiv integrierter Launcher (echte Fossify-Fork-Codebasis), eine
+Eltern-Companion-App, eine kindersichere Desktop-Shell für Windows und ein
+lokaler On-Device-KI-Assistent.
 
 ---
 
-## Quick Links
+## Aktueller Stand
 
-- **Roadmap**: [ROADMAP.md](ROADMAP.md) — konsolidierter Stand (✅ erledigt / 🔄 teilweise / 📋 geplant)
+Die einzige verlässliche, **ehrlich mit dem Code abgeglichene** Statusübersicht ist
+**[ROADMAP.md](ROADMAP.md)**. Kurzfassung:
+
+| Meilenstein | Thema | Status |
+| --- | --- | --- |
+| **M1** | Core (Ledger, Launch-Gate, PIN, Eltern-Modus, Cooldown, Entdecken) | ✅ |
+| **M2** | Core-Features (Zusagen, Doge-Coins, Cooldown-Regeln, Time-Tracking) | ✅ |
+| **M3** | Hardening (Device-Owner, Kiosk, Safe-Browsing, Allow-/Blocklist) | ✅ |
+| **M4** | Eltern-Companion-App (Pairing, LAN-Sync, Dashboard) | 🔄 funktional, UI-Politur offen |
+| **M5** | Device-Owner-Hardening (Hard-Lock, Escape-Route, Telemetrie, Multi-User) | 🔄 teilweise |
+
+Darüber hinaus sind viele Features fertig, die in keiner M1–M5-Stufe standen
+(Per-App-Tageslimit + Wochenplan, „Mehr Zeit anfragen", Tagesbericht,
+Audit-Verlauf, Impulsbremse, Setup-Wizard, verschlüsseltes Backup,
+Tamper-Erkennung, Schulmodus u. a.) — siehe ROADMAP, Abschnitt
+„Über die Roadmap hinaus gebaut".
+
+**Legende:** ✅ erledigt · 🔄 teilweise / Grundgerüst · 📋 geplant
+
+---
+
+## Schnell-Links
+
+- **Roadmap & ehrlicher Codestand**: [ROADMAP.md](ROADMAP.md)
+- **Statusbericht**: [STATUS_REPORT.md](STATUS_REPORT.md)
 - **Fern-Zugriff & Device Owner**: [docs/guides/REMOTE_AND_DEVICE_OWNER.md](docs/guides/REMOTE_AND_DEVICE_OWNER.md) — Family-Link-Hybrid, Device Owner optional
-- **Getting Started**: [docs/guides/00_INTEGRATION_QUICKSTART.md](docs/guides/00_INTEGRATION_QUICKSTART.md) (12 steps, 4-5 hours)
-- **Full Spec**: [docs/guides/15_m1_implementation_summary.md](docs/guides/15_m1_implementation_summary.md)
-- **File Index**: [docs/guides/MASTER_FILE_INDEX.txt](docs/guides/MASTER_FILE_INDEX.txt)
-- **Testing**: [docs/guides/VERIFICATION_CHECKLIST.md](docs/guides/VERIFICATION_CHECKLIST.md)
+- **Bekannte Umgehungswege**: [docs/guides/BYPASS_MATRIX.md](docs/guides/BYPASS_MATRIX.md)
+- **Device-Owner-Einrichtung**: [docs/guides/M3_DEVICE_OWNER_SETUP.md](docs/guides/M3_DEVICE_OWNER_SETUP.md)
+- **Verifikation / Tests**: [docs/guides/VERIFICATION_CHECKLIST.md](docs/guides/VERIFICATION_CHECKLIST.md)
+- **Desktop-Shell**: [desktop/README.md](desktop/README.md)
 
 ---
 
-## What's Inside
+## Teilprojekte
 
-### Subprojects
-
-| Directory | What it is |
-|-----------|------------|
-| **app/** | The Android family launcher (Fossify fork) |
-| **companion/** | Parent companion Android app (M4) |
-| **desktop/** | Kid-safe Windows desktop shell (Electron + React) — includes the Steam-family tools (wishlist, deals) in the Familienzentrale |
-
-### Implementation (`impl/`)
-
-| Directory | Contents | Purpose |
-|-----------|----------|---------|
-| **models/** | `KryptoCashModels.kt`, `NoRegressionTest.kt` | Shared module: ledger, time budget, data models + 8 unit tests |
-| **database/** | `LaunchpadEntities.kt`, `Constants.kt`, `AppsDatabase.kt` | Room entities, config keys, migration 5→6 |
-| **activities/** | `ElternModusActivity.kt`, `CooldownActivity.kt` | Parent control interface, cool-down timer screen |
-| **fragments/** | `EntdeckenFragment.kt` | Safe WebView with domain allowlist/blocklist |
-| **helpers/** | `LaunchGate.kt`, `AppWhitelistFilter.kt`, `PinGateHelper.kt` | Launch-time enforcement, whitelist filtering, PIN-gating |
-| **crypto/** | `QrPairingProtocol.kt` | RSA-2048 + AES-256-GCM pairing protocol |
-| **build/** | `gradle_setup.gradle`, `AndroidManifest_updates.xml` | Gradle monorepo config, manifest additions |
-
-### Documentation (`docs/guides/`)
-
-1. **00_INTEGRATION_QUICKSTART.md** (12 steps)
-   - Exact file paths and integration points
-   - Commands to run at each step
-   - Expected build outputs
-
-2. **15_m1_implementation_summary.md** (Full spec)
-   - Product vision & ethical principles
-   - Technical architecture
-   - M2-M5 roadmap
-   - Known limitations
-
-3. **VERIFICATION_CHECKLIST.md** (Testing guide)
-   - Post-integration checks
-   - Unit test verification
-   - Runtime behavior validation
-   - Debugging tips
-
-4. **MASTER_FILE_INDEX.txt** (Quick reference)
-   - File destinations in Fossify fork
-   - Merge strategy for conflicts
-   - Dependency list
-   - Troubleshooting
+| Verzeichnis | Was es ist |
+| --- | --- |
+| **`app/`** | Der Android-Family-Launcher — direkt in einen Fossify-Launcher-Fork (`org.fossify.home`) integriert. Hier lebt der gesamte Launcher-Code (M1–M5). |
+| **`companion/`** | Eltern-Companion-App (eigenes APK fürs Elternhandy). Eigenständiges Gradle-Projekt: `cd companion && ./gradlew assembleDebug`. |
+| **`desktop/`** | Kindersichere Windows-Desktop-Shell (Electron + React + Vite): ruhige Kind-Oberfläche plus „Familienzentrale" (Eltern-Kurator) inkl. Steam-Wunschliste/Angebote. |
+| **`jake-ki/`** | **SPACE-JAKE** — lokaler On-Device-KI-Entdecker-Assistent (llama.cpp via JNI, läuft komplett offline). Frühes, eigenständiges Android-Projekt. |
+| **`impl/`** | Historisches M1/M2-Scaffold (lose Quelldateien vor der Integration). Wird nicht mehr gebaut; nur als Referenz behalten. |
+| **`docs/guides/`** | Detail-Guides (Device-Owner-Setup, Bypass-Matrix, Verifikation, Integrations-Historie). |
 
 ---
 
-## M1 Feature Set
+## Funktionsumfang
 
-### Core System
-- ✅ **Krypto-Cash Ledger**: Immutable transaction log (EARN, SPEND, EXPIRE, CORRECTION)
-- ✅ **No-Regression Principle**: Earned time never deleted, devalued, or reverted
-- ✅ **Time Budgeting**: 120 min/week, enforced at launch-time + cool-down mechanism
-- ✅ **App Whitelist**: DEFAULT-DENY filtering (only approved apps visible)
+### Kernsystem (M1)
+- ✅ **Krypto-Cash-Ledger**: unveränderliches Transaktionsprotokoll (EARN, SPEND, EXPIRE, CORRECTION)
+- ✅ **No-Regression-Prinzip**: verdiente Zeit wird nie gelöscht, entwertet oder zurückgenommen
+- ✅ **Zeitbudget**: Wochen-Cap, durchgesetzt beim App-Start + Cooldown-Mechanismus
+- ✅ **App-Whitelist**: DEFAULT-DENY (nur freigegebene Apps sind sichtbar)
+- ✅ **Launch-Gate**: Whitelist- + Zeitbudget-Prüfung bei jedem App-Start
+- ✅ **Cooldown / Bildschirmpause**: ruhige Erholungsphase nach Zeitablauf
 
-### Parental Controls
-- ✅ **Eltern-Modus**: PIN-protected parent menu
-  - Manual time adjustment (with transaction logging)
-  - App enable/disable toggle
-  - Transaction audit trail
-  - Cool-down rule configuration
-- ✅ **PIN-Gating**: fossify-commons Security API integration
-  - Home menu protection
-  - App-icon context menu protection
-  - Parent mode 30-min timeout
+### Eltern-Steuerung (M2/M4)
+- ✅ **Eltern-Modus**: PIN-geschütztes Menü (Zeit anpassen, Apps freigeben, Audit-Trail)
+- ✅ **Zusagen** (Familien-Versprechen) mit 24-h-Auto-Freigabe
+- ✅ **Doge-Coins** (anfragebasierte Medien-Freigaben) mit Dauerbegrenzung und Muster-Analyse
+- ✅ **Cooldown-Regeln** per JSON konfigurierbar
+- ✅ **Companion-App**: Pairing/Auth (Bearer-Token), Genehmigen/Ablehnen, Zeit geben, Apps verwalten, Export/Import, Widget
+- 🔄 **Eltern-Dashboard**: Tagesbericht + Audit-Verlauf vorhanden; tiefere Analytics offen
 
-### Child Safety
-- ✅ **Cool-down Activity**: 15-min restorative phase after time expires
-  - Audiobooks, drawing apps, LEGO, reading only
-  - Countdown timer with visual progress
-  - Auto-dismiss on completion
-- ✅ **Entdecken-Modus**: Safe web browsing
-  - Domain allowlist (YouTube, Wikipedia, Khan Academy, Scratch, Codecademy, Duolingo)
-  - Hard blocklist (Twitter/X, TikTok, Instagram, Reddit, onion, pornography, gore)
-  - WebView safe defaults (JavaScript disabled, Safe Browsing enabled)
+### Kindersicherheit
+- ✅ **Entdecken-Modus**: sicheres WebView mit Domain-Allowlist + harter Blocklist
+- ✅ **Time-Tracking-Dienst**: überwacht aktive App im Hintergrund, bucht Budget ab, löst Cooldown aus
+- ✅ **PIN-Gating & Escape-Route-Sperren** (Settings, App-Info, Deinstallation PIN-geschützt)
+- ✅ **Per-App-Tageslimit + Wochenplan** (Schultag/Wochenende), **Schulmodus** (ein Tipp)
+- ✅ **Impulsbremse**, **„Mehr Zeit anfragen"** (kind-seitig)
+- 🔄 **Safe-Browsing**: WebView-Flag aktiv; volle Google-Safe-Browsing-API noch offen
 
-### Security
-- ✅ **Escape Route Blocking**:
-  - Notification shade expansion disabled
-  - Settings menu PIN-gated
-  - App info/uninstall/hide PIN-gated
-- ✅ **QR Pairing Protocol**: RSA-2048 + AES-256-GCM encryption (skeleton for M4)
-- ✅ **Database Validation**: Automatic No-Regression checks on ledger access
+### Hardening (M3/M5)
+- ✅ **Device-Owner-Registrierung** + **Lock-Task-Kiosk**
+- ✅ **Telemetrie via PACKAGE_USAGE_STATS**
+- ✅ **Verschlüsseltes Backup** (AES-256-GCM), **Tamper-/Uhr-Manipulationserkennung**
+- ✅ **QR-Pairing**: RSA-2048 + AES-256-GCM
+- 🔄 **Lückenlose Escape-Route-Sperre**: bekannte Lücken dokumentiert in [BYPASS_MATRIX.md](docs/guides/BYPASS_MATRIX.md)
+- 🔄 **Multi-User-Management**: nur Basis-Restriktionen
 
----
-
-## Technology Stack
-
-**Framework**: Fossify Launcher 6.1.6 (Kotlin, Android minSdk 26)  
-**Database**: Room (Android Architecture Components)  
-**Build**: Gradle 8.0+ with Kotlin 1.9.0+  
-**Target Device**: Poco X5 with HyperOS, Android 13+  
-
-**Dependencies**:
-- fossify:commons:6.1.6 (for PIN-gating via Security API)
-- androidx:room:2.6.1
-- androidx:lifecycle:2.7.0
-- androidx:coroutines:1.8.0
+### KI-Assistent
+- ✅ **SPACE-JAKE** (`jake-ki/`): lokaler, internetfreier Wissenschafts-/Entdecker-Assistent
+  (llama.cpp via JNI). Läuft komplett auf dem Gerät — keine Cloud, kein Server.
 
 ---
 
-## Integration Overview
+## Technologie-Stack
 
-### Before You Start
-- [ ] Fossify Launcher source code (available on GitHub)
-- [ ] fossify-commons 6.1.6 (Maven or local build)
-- [ ] Gradle 8.0+, Kotlin 1.9.0+, Android SDK 36
+**Launcher (`app/`)**
+- Basis: Fossify Launcher (Fork, `org.fossify.home`), Kotlin, Android `minSdk 26`
+- Datenbank: Room (mit Migrationen)
+- Build: Gradle (Kotlin DSL) · Produkt-Flavors `foss` / `gplay`
+- Bibliotheken: `fossify-commons` (PIN-Gating), `androidx.room`, `androidx.work`,
+  `kotlinx.coroutines`, `zxing` (QR), `lottie`
 
-### Integration Steps (12 total, 4-5 hours)
+**Companion-App (`companion/`)** — eigenständiges Android-/Gradle-Projekt
 
-1. **Fossify Baseline** (30 min) — Clone/fork Fossify Launcher, verify build
-2. **Module Setup** (20 min) — Create :shared and :companion modules
-3. **Shared Core** (20 min) — Copy models, tests, crypto protocol to :shared
-4. **Database** (45 min) — Integrate Room entities, migration, DAOs
-5. **Launch Gate** (45 min) — Whitelist filtering, time-budget enforcement
-6. **PIN-Gating** (45 min) — Menu protection, escape-route blocking
-7. **Parent Mode** (30 min) — Eltern-Modus activity and flows
-8. **Cool-down** (20 min) — Cool-down activity and timer
-9. **WebView** (30 min) — Entdecken fragment and content filtering
-10. **Branding** (20 min) — Icon, fonts, app name ("LAUNCHPAD")
-11. **Build** (15 min) — Full Gradle build, unit tests
-12. **Deploy & Test** (30 min) — APK install, smoke tests, VERIFICATION_CHECKLIST
+**Desktop-Shell (`desktop/`)** — Electron + React + Vite
 
-**→ See [docs/guides/00_INTEGRATION_QUICKSTART.md](docs/guides/00_INTEGRATION_QUICKSTART.md) for detailed step-by-step guide**
+**SPACE-JAKE (`jake-ki/`)** — Android + nativer `llama.cpp`-JNI-Layer
 
 ---
 
-## How to Use This Repository
+## Bauen & Starten
 
-### 1. Clone & Review
+### Launcher (Android)
 ```bash
-git clone https://github.com/<your-org>/launchpad-m1.git
-cd launchpad-m1
-
-# Read the integration guide
-cat docs/guides/00_INTEGRATION_QUICKSTART.md
-
-# Understand the full spec
-cat docs/guides/15_m1_implementation_summary.md
+./gradlew :app:assembleDebug      # Debug-APK
+./gradlew :app:installDebug       # auf verbundenem Gerät installieren
 ```
 
-### 2. Set Up Fossify Fork
+### Companion-App (eigenes APK)
 ```bash
-# Clone Fossify Launcher separately
-git clone https://github.com/fossifyorg/Launcher.git my-fossify-fork
-cd my-fossify-fork
-
-# Reference the MASTER_FILE_INDEX.txt for exact file destinations
+cd companion
+./gradlew assembleDebug
 ```
 
-### 3. Integrate Files
+### Desktop-Shell (Windows)
 ```bash
-# Follow 00_INTEGRATION_QUICKSTART.md steps 1-11
-# Copy files from launchpad-m1/impl/ to my-fossify-fork/ per MASTER_FILE_INDEX.txt
-
-# Build:
-./gradlew clean build
-./gradlew :shared:test  # Should see: 8 tests passed ✓
+cd desktop
+npm install
+npm run dev      # Vite-Renderer + Electron, Hot-Reload (Kind-Fenster)
+npm run build    # Produktions-Bundles (Kind + Kurator) → dist/
+npm test         # Unit-Tests (Launch-Resolver, Kurations-Modell, Wunschliste/Angebote)
 ```
-
-### 4. Verify
-```bash
-# Deploy APK
-./gradlew :app:installDebug
-
-# Run verification checks
-# (See VERIFICATION_CHECKLIST.md)
-```
+Die Familienzentrale (Eltern-Kurator) öffnet aus der Kind-Shell über die Kachel
+**Elternbereich** → PIN (Demo: `1234`). Details: [desktop/README.md](desktop/README.md).
 
 ---
 
-## File Structure
+## Ethische Grundlage
 
-```
-launchpad-m1/
-├── README.md                          (this file)
-├── docs/
-│   └── guides/
-│       ├── 00_INTEGRATION_QUICKSTART.md
-│       ├── 15_m1_implementation_summary.md
-│       ├── VERIFICATION_CHECKLIST.md
-│       └── MASTER_FILE_INDEX.txt
-└── impl/
-    ├── models/
-    │   ├── KryptoCashModels.kt        (data classes)
-    │   └── NoRegressionTest.kt         (8 unit tests)
-    ├── database/
-    │   ├── LaunchpadEntities.kt        (Room @Entity classes)
-    │   ├── Constants.kt                 (config keys)
-    │   └── AppsDatabase.kt             (migration 5→6, DAOs)
-    ├── activities/
-    │   ├── ElternModusActivity.kt      (parent control menu)
-    │   └── CooldownActivity.kt         (cool-down timer)
-    ├── fragments/
-    │   └── EntdeckenFragment.kt        (safe WebView)
-    ├── helpers/
-    │   ├── LaunchGate.kt               (time budget + whitelist enforcement)
-    │   ├── AppWhitelistFilter.kt       (app list filtering)
-    │   └── PinGateHelper.kt            (PIN verification)
-    ├── crypto/
-    │   └── QrPairingProtocol.kt        (RSA + AES-256-GCM)
-    └── build/
-        ├── gradle_setup.gradle         (Gradle templates)
-        └── AndroidManifest_updates.xml (manifest additions)
-```
+> **Jake wird geliebt. Nicht optimiert.** ❤️
+
+- **Kein Zwang**: Zeit wird nie als Strafe abgezogen — nur verdient oder läuft natürlich ab.
+- **Transparenz**: alle Transaktionen sind fürs Kind sichtbar, Entscheidungen werden erklärt.
+- **Fairness**: Werkzeuge für Gerechtigkeit, nicht für Kontrolle.
+- **Kind-Handlungsfähigkeit**: Anfragen sind echt, Zusagen sind echt, Freigaben sind real.
 
 ---
 
-## Key Decisions & Constraints
+## Lizenz
 
-### Security Model (M1)
-- **Soft-mode**: PIN-gating via fossify-commons Security API
-- **Hard enforcement**: Deferred to M5 (Device Owner + Lock-Task mode)
-- **Default-Deny**: Whitelist-based app filtering (no free internet access)
+- **LAUNCHPAD**: proprietär. Fossify-Launcher-Fork für die private Familiennutzung.
+- **Fossify Commons / Launcher**: Apache 2.0 ([fossifyorg](https://github.com/fossifyorg)).
 
-### Time Budgeting
-- **Weekly cap**: 120 minutes (configurable per family)
-- **Cool-down**: 15 minutes after expiration (low-stimulation activities only)
-- **No punishment**: Time never deducted for misbehavior; only earned or naturally expired
-- **Ledger immutability**: Transactions soft-deleted only, never modified
-
-### Content Safety
-- **Entdecken allowlist**: YouTube, Wikipedia, Khan Academy, Scratch, Codecademy, Duolingo
-- **Hard blocklist**: X/Twitter, TikTok, Instagram, Reddit, onion (.tor), pornography, gore
-- **JavaScript disabled** in WebView (M1); re-enable in M2 after Safe Browsing integration
-
-### Ethical Principles
-✨ **Jake wird geliebt. Nicht optimiert.**
-- No analytics obsession
-- Transparency: all transactions visible to child
-- Child agency: promises are genuine, approvals are real
-- Parental responsibility: tools for fairness, not coercion
+Siehe [LICENSE](LICENSE).
 
 ---
 
-## Testing
-
-### Unit Tests (8 tests, all passing)
-```bash
-./gradlew :shared:test
-```
-
-Tests cover:
-- ✓ Valid ledger acceptance
-- ✓ Balance mismatch detection
-- ✓ Negative balance rejection
-- ✓ Weekly cap enforcement
-- ✓ Immutability checks (addition, deletion, modification)
-- ✓ Correction transaction allowance
-- ✓ Empty ledger validity
-
-### Integration Tests
-See [VERIFICATION_CHECKLIST.md](docs/guides/VERIFICATION_CHECKLIST.md) for:
-- Compilation & build verification
-- Database migration testing
-- Whitelist filtering validation
-- PIN-gating behavior
-- Cool-down timer accuracy
-- WebView domain filtering
-- Runtime smoke tests
-
----
-
-## Architecture Highlights
-
-### No-Regression Enforcement
-All transactions stored immutable in Room database with balance snapshots:
-```kotlin
-data class CryptoCashTransaction(
-    val id: String,
-    val deltaMinutes: Int,      // +10 earn, -5 spend
-    val type: String,           // EARN, SPEND, EXPIRE, CORRECTION
-    val balanceAfter: Int,      // Snapshot after transaction
-    val createdAt: Long,
-    val deleted: Boolean = false // Soft-delete only
-)
-```
-
-Validation runs automatically:
-- Balance after each transaction must match running sum
-- No transaction can be negative (goes back, deleted, or modified)
-- Weekly cap enforced (max 120 min earned per week)
-
-### Launch-Time Gate
-Every app launch passes through:
-1. **Whitelist check**: Is app in allowed_apps table?
-2. **Time budget check**: Do we have time left?
-3. **Cool-down check**: Are we in restorative phase?
-4. Only if all pass → Activity.startActivity()
-
-### Multi-Module Architecture
-```
-:shared (Android Library)
-├── models/           (data classes, domain logic)
-├── crypto/           (pairing protocol)
-└── test/             (unit tests, 8 passing)
-
-:app (Android App)
-├── databases/        (Room, entities, DAOs)
-├── activities/       (launcher, parent mode, cool-down)
-├── fragments/        (safe WebView)
-├── helpers/          (gates, filters, PIN)
-└── extensions/       (MainActivity modifications)
-
-:companion (Android App, M4)
-├── (stub, full build in M4)
-```
-
----
-
-## M2-M5 Roadmap
-
-### M2 (Weeks 3-4): Core Features
-- Zusagen (family promises/commitments)
-- Doge-Coins (SOG media approvals)
-- Cool-down rules JSON import
-- Time-tracking background service
-- Minecraft integration (scope TBD)
-
-### M3 (Weeks 5-6): Hardening
-- Device Owner registration
-- Lock-Task mode for soft-lock enforcement
-- Safe Browsing API advanced integration
-- Advanced allowlist/blocklist management
-
-### M4 (Weeks 7-8): Parent Companion App
-- Full Parent Companion UI
-- QR pairing complete flow
-- LAN command sync
-- Parent dashboard (basic analytics)
-
-### M5 (Weeks 9+): Device Owner Hardening
-- Hard-lock enforcement
-- Escape route complete blocking
-- Advanced telemetry (PACKAGE_USAGE_STATS)
-- Multi-user management
-
-**Full roadmap**: [docs/guides/15_m1_implementation_summary.md](docs/guides/15_m1_implementation_summary.md)
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Build fails: "unresolved fossify-commons" | Check gradle.properties has `FOSSIFY_COMMONS_VERSION=6.1.6` |
-| No whitelisted apps in home grid | Check Room migration ran; verify allowed_apps table populated |
-| PIN always rejects | Check SecurityUtils hash implementation in PinGateHelper |
-| Cool-down doesn't trigger | Verify LaunchGate integration in Activity.launchApp() |
-| WebView shows all sites | Check EntdeckenContentFilter.shouldInterceptRequest() is called |
-| Notification shade still visible | Search MainActivity for "expandNotifications", remove call |
-
-See [docs/guides/VERIFICATION_CHECKLIST.md](docs/guides/VERIFICATION_CHECKLIST.md) for detailed debugging guide.
-
----
-
-## Contributing & Questions
-
-**Before submitting changes:**
-1. Review [docs/guides/15_m1_implementation_summary.md](docs/guides/15_m1_implementation_summary.md) for design principles
-2. Ensure No-Regression tests still pass: `./gradlew :shared:test`
-3. Run full verification checklist
-4. Keep ethical constraints in mind (Jake wird geliebt, nicht optimiert)
-
----
-
-## License
-
-**LAUNCHPAD**: Proprietary. Fossify Launcher fork for family use.  
-**Fossify Commons**: Apache 2.0 (fossifyorg/Commons)
-
----
-
-## Credits
-
-**LAUNCHPAD M1** developed for Jake's safe, fair, and transparent Android experience.
-
-**Ethical foundation**: Jake wird geliebt. Nicht optimiert. ❤️
-
----
-
-**Ready to get started?** → [docs/guides/00_INTEGRATION_QUICKSTART.md](docs/guides/00_INTEGRATION_QUICKSTART.md)
+**Loslegen?** → Stand & nächste Schritte in [ROADMAP.md](ROADMAP.md),
+Eltern-Setup-Entscheidungen in [docs/guides/REMOTE_AND_DEVICE_OWNER.md](docs/guides/REMOTE_AND_DEVICE_OWNER.md).
