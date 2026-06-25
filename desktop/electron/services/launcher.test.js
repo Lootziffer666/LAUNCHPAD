@@ -41,11 +41,23 @@ test('steam: missing appid → error', () => {
   assert.match(p.message, /AppID/i);
 });
 
-test('uri: Minecraft source defaults to minecraft://', () => {
+test('uri: Minecraft is NOT special-cased — no launch target means internal', () => {
+  // De-special-cased: a bare "Minecraft" source is a normal game (internal),
+  // not an implicit minecraft:// launch. Minecraft must carry an explicit target.
+  assert.deepEqual(resolveLaunch({ source: 'Minecraft' }), { kind: 'internal' });
+});
+
+test('uri: an explicit minecraft:// target still launches like any other uri', () => {
   assert.deepEqual(
-    resolveLaunch({ source: 'Minecraft' }),
+    resolveLaunch({ source: 'Minecraft', launch: { kind: 'uri', uri: 'minecraft://' } }),
     { kind: 'external', url: 'minecraft://' },
   );
+});
+
+test('uri: GOG Galaxy and other store schemes are allow-listed', () => {
+  for (const u of ['goggalaxy://openGameView/123', 'com.epicgames.launcher://apps/Fortnite?action=launch']) {
+    assert.equal(resolveLaunch({ launch: { kind: 'uri', uri: u } }).kind, 'external');
+  }
 });
 
 test('uri: an allow-listed scheme passes through', () => {

@@ -33,10 +33,15 @@ function ImpCover({ g }) {
 
 // How each game starts. The select maps to a canonical `launch` object that
 // electron/services/launcher.js#resolveLaunch understands, and keeps `source`
-// in sync so the badge matches. Steam needs an appid; exe a Windows path; the
-// link option is scheme-checked in main.
+// in sync so the badge matches. Minecraft is NOT special — it is just one of
+// these presets that writes an explicit launch target. Xbox/MS-Store games are
+// launched via their package family name (PFN); Epic via its launcher URL; GOG
+// titles are typically DRM-free and run straight from the .exe.
 const LAUNCH_KINDS = [
   { v: 'steam', label: 'Steam', src: 'Steam' },
+  { v: 'xbox', label: 'Xbox / MS Store', src: 'Xbox' },
+  { v: 'epic', label: 'Epic Games', src: 'Epic' },
+  { v: 'gog', label: 'GOG (DRM-frei)', src: 'GOG' },
   { v: 'minecraft', label: 'Minecraft', src: 'Minecraft' },
   { v: 'exe', label: 'Windows-Programm', src: 'Windows' },
   { v: 'uri', label: 'Web-/App-Link', src: 'Web' },
@@ -44,16 +49,32 @@ const LAUNCH_KINDS = [
 ];
 
 function launchKindOf(g) {
-  const L = g.launch;
-  if (L && L.kind === 'steam') return 'steam';
-  if (L && L.kind === 'exe') return 'exe';
-  if (L && L.kind === 'internal') return 'internal';
-  if (L && L.kind === 'uri') return L.uri === 'minecraft://' ? 'minecraft' : 'uri';
+  const L = g.launch || {};
   const s = (g.source || '').toLowerCase();
-  if (s === 'steam') return 'steam';
+  if (L.kind === 'uwp' || s === 'xbox') return 'xbox';
+  if (L.kind === 'steam' || (!L.kind && s === 'steam')) return 'steam';
+  if (L.kind === 'exe') return s === 'gog' ? 'gog' : 'exe';
+  if (!L.kind && s === 'gog') return 'gog';
+  if (L.kind === 'internal') return 'internal';
+  if (L.kind === 'uri') {
+    if (s === 'epic' || /^com\.epicgames\.launcher:/i.test(L.uri || '')) return 'epic';
+    if ((L.uri || '') === 'minecraft://' || s === 'minecraft') return 'minecraft';
+    return 'uri';
+  }
   if (s === 'minecraft') return 'minecraft';
   return 'internal';
 }
+
+// Per-kind input field config (label + which launch field it writes).
+const LAUNCH_INPUTS = {
+  steam: { field: 'appid', placeholder: 'Steam AppID (z. B. 1145360)', digits: true },
+  xbox: { field: 'pfn', placeholder: 'Paketfamilienname (z. B. Mojang.MinecraftUWP_8wekyb3d8bbwe)' },
+  epic: { field: 'uri', placeholder: 'com.epicgames.launcher://apps/NAME?action=launch' },
+  gog: { field: 'path', placeholder: 'Pfad zur .exe (DRM-frei, z. B. D:\\GOG\\Spiel\\game.exe)' },
+  minecraft: { field: 'uri', placeholder: 'minecraft:// (oder Pfad/Link)' },
+  exe: { field: 'path', placeholder: 'Pfad zur .exe (Windows)' },
+  uri: { field: 'uri', placeholder: 'Link, z. B. roblox://…' },
+};
 
 function LaunchEditor({ g }) {
   const kind = launchKindOf(g);
@@ -62,28 +83,32 @@ function LaunchEditor({ g }) {
   const changeKind = (v) => {
     const src = (LAUNCH_KINDS.find((k) => k.v === v) || {}).src;
     if (v === 'steam') write({ kind: 'steam', appid: L.appid || g.appid || '' }, src);
-    else if (v === 'minecraft') write({ kind: 'uri', uri: 'minecraft://' }, src);
+    else if (v === 'xbox') write({ kind: 'uwp', pfn: L.pfn || '' }, src);
+    else if (v === 'epic') write({ kind: 'uri', uri: /^com\.epicgames\.launcher:/i.test(L.uri || '') ? L.uri : '' }, src);
+    else if (v === 'gog') write({ kind: 'exe', path: L.path || '' }, src);
+    else if (v === 'minecraft') write({ kind: 'uri', uri: L.uri || 'minecraft://' }, src);
     else if (v === 'exe') write({ kind: 'exe', path: L.path || '' }, src);
-    else if (v === 'uri') write({ kind: 'uri', uri: (L.uri && L.uri !== 'minecraft://') ? L.uri : '' }, src);
+    else if (v === 'uri') write({ kind: 'uri', uri: (L.uri && L.uri !== 'minecraft://' && !/^com\.epicgames/i.test(L.uri)) ? L.uri : '' }, src);
     else write({ kind: 'internal' }, src);
   };
+  // The canonical launch.kind the chosen preset writes to (uwp for xbox, exe
+  // for gog, uri for epic/minecraft) — so the input edits the right field.
+  const canonical = ({ xbox: 'uwp', gog: 'exe', epic: 'uri', minecraft: 'uri' }[kind]) || kind;
+  const input = LAUNCH_INPUTS[kind];
+  const editField = (val) => {
+    const v = input.digits ? val.replace(/\D/g, '') : (input.field === 'uri' ? val.trim() : val);
+    GameStore.setField(g.id, 'launch', { ...L, kind: canonical, [input.field]: v });
+  };
+  const current = input ? (input.field === 'appid' ? (L.appid || g.appid || '') : (L[input.field] || '')) : '';
   return (
-    <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <span style={{ fontSize: 12, opacity: 0.7, minWidth: 36 }}>Start</span>
       <select className="imp-input" style={{ flex: '0 0 auto' }} value={kind} onChange={(e) => changeKind(e.target.value)}>
         {LAUNCH_KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
       </select>
-      {kind === 'steam' && (
-        <input className="imp-input" placeholder="Steam AppID (z. B. 1145360)" value={L.appid || g.appid || ''}
-          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'steam', appid: e.target.value.replace(/\D/g, '') })} />
-      )}
-      {kind === 'exe' && (
-        <input className="imp-input" placeholder="Pfad zur .exe (Windows)" value={L.path || ''}
-          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'exe', path: e.target.value })} />
-      )}
-      {kind === 'uri' && (
-        <input className="imp-input" placeholder="Link, z. B. roblox://…" value={L.uri || ''}
-          onChange={(e) => GameStore.setField(g.id, 'launch', { kind: 'uri', uri: e.target.value.trim() })} />
+      {input && (
+        <input className="imp-input" style={{ flex: '1 1 200px' }} placeholder={input.placeholder} value={current}
+          onChange={(e) => editField(e.target.value)} />
       )}
     </div>
   );

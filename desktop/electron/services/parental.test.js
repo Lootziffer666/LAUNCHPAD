@@ -4,7 +4,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isInBedtime } = require('./parental.js');
+const { isInBedtime, hashPin, verifyHash, formatRecoveryCode, generateRecoveryPlain } = require('./parental.js');
 const { classifyFailure } = require('./launcher.js');
 
 const at = (hhmm) => {
@@ -40,4 +40,37 @@ test('zero-length or missing window is disabled', () => {
 
 test('bedtime launch refusal classes as blocked (calm screen, no retry)', () => {
   assert.equal(classifyFailure('bedtime'), 'blocked');
+});
+
+// ── PIN / recovery-code crypto (pure, no store) ──
+test('hashPin + verifyHash round-trips and rejects wrong values', () => {
+  const rec = hashPin('1234');
+  assert.match(rec, /^[0-9a-f]+:[0-9a-f]+$/);
+  assert.equal(verifyHash(rec, '1234'), true);
+  assert.equal(verifyHash(rec, '1235'), false);
+  assert.equal(verifyHash(rec, ''), false);
+});
+
+test('verifyHash is defensive against malformed/empty records', () => {
+  assert.equal(verifyHash(null, 'x'), false);
+  assert.equal(verifyHash('', 'x'), false);
+  assert.equal(verifyHash('no-colon', 'x'), false);
+});
+
+test('generateRecoveryPlain produces 4 groups of 4 safe chars', () => {
+  for (let i = 0; i < 50; i++) {
+    const code = generateRecoveryPlain();
+    assert.match(code, /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    // no ambiguous characters (0/O/1/I/L excluded from the alphabet)
+    assert.equal(/[OIL]/.test(code), false);
+  }
+});
+
+test('recovery code verifies case/format-insensitively but rejects wrong codes', () => {
+  const code = generateRecoveryPlain();
+  const rec = hashPin(formatRecoveryCode(code));
+  assert.equal(verifyHash(rec, formatRecoveryCode(code)), true);
+  // lower-case + spaces instead of dashes still match after normalization
+  assert.equal(verifyHash(rec, formatRecoveryCode(code.toLowerCase().replace(/-/g, ' '))), true);
+  assert.equal(verifyHash(rec, formatRecoveryCode('WRNG-WRNG-WRNG-WRNG')), false);
 });

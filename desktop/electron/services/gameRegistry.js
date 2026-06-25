@@ -15,6 +15,7 @@ const { withCurationDefaults, childVisible, childOrder } = require('./curation')
 const SEED = [
   { id: 'minecraft', name: 'Minecraft', cat: 'Sandbox', source: 'Minecraft', installed: true, favorite: true,
     featured: true, progress: 0.0, playtime: '48 Std', stars: 5, c1: '#3b8526', c2: '#0f3d1a', emblem: 'grid',
+    launch: { kind: 'uri', uri: 'minecraft://' },
     desc: 'Bau, erkunde und überlebe in einer Welt aus Blöcken. Allein oder im Kreativmodus.' },
   { id: 'galaxy-racer', name: 'Galaxy Racer', cat: 'Rennen', source: 'Steam', installed: true, favorite: true,
     appid: '400', progress: 0.3, playtime: '9 Std', stars: 4, c1: '#a855f7', c2: '#1e1b4b', emblem: 'rocket',
@@ -135,6 +136,56 @@ function reset() {
   getStore().set('gamesCustom', []);
 }
 
+// Catalogue facts we refresh on re-import — never the parent's decisions
+// (curation/pinned/homeOrder/minAge stay put so a re-sync can't un-approve).
+const CATALOGUE_FIELDS = ['name', 'appid', 'launch', 'source', 'installed', 'playtimeMin', 'cat', 'emblem', 'c1', 'c2'];
+function pickCatalogue(e) {
+  const out = {};
+  for (const k of CATALOGUE_FIELDS) if (k in e) out[k] = e[k];
+  return out;
+}
+
+// Bulk import (e.g. a full Steam library): add new entries as customs, refresh
+// catalogue facts on existing ones, preserve parent decisions. One store write.
+function importGames(entries) {
+  const list = customs();
+  const ov = overrides();
+  const byId = new Map(list.map((c) => [c.id, c]));
+  let added = 0;
+  let updated = 0;
+  for (const e of (entries || [])) {
+    if (!e || !e.id) continue;
+    if (isSeed(e.id)) { ov[e.id] = { ...(ov[e.id] || {}), ...pickCatalogue(e) }; updated++; continue; }
+    const existing = byId.get(e.id);
+    if (existing) { Object.assign(existing, pickCatalogue(e)); updated++; } else {
+      const entry = { _custom: true, curation: 'new', surfacing: 'normal', pinned: false, ...e };
+      list.push(entry); byId.set(e.id, entry); added++;
+    }
+  }
+  getStore().set('gamesOverrides', ov);
+  getStore().set('gamesCustom', list);
+  return { added, updated, total: (entries || []).length };
+}
+
+// Apply many partial patches in a single store write (used by the USK
+// auto-approval pass). updates: { [id]: Partial<Game> }.
+function bulkPatch(updates) {
+  const ov = overrides();
+  const list = customs();
+  const byId = new Map(list.map((c) => [c.id, c]));
+  let changed = 0;
+  for (const [id, p] of Object.entries(updates || {})) {
+    if (isSeed(id)) { ov[id] = { ...(ov[id] || {}), ...p }; changed++; } else {
+      const c = byId.get(id);
+      if (c) { Object.assign(c, p); changed++; }
+    }
+  }
+  getStore().set('gamesOverrides', ov);
+  getStore().set('gamesCustom', list);
+  return changed;
+}
+
 module.exports = {
   listGames, listChildGames, getGame, setFavorite, install, setCover, upsert, remove, reset,
+  importGames, bulkPatch,
 };

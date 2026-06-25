@@ -4,6 +4,9 @@
   "private": true,
   "description": "LAUNCHPAD Desktop — a kid-safe desktop shell (Electron + React + Vite).",
   "main": "electron/main.js",
+  "author": {
+    "name": "Ink & Iron Glow"
+  },
   "license": "UNLICENSED",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron .\"",
@@ -12,25 +15,64 @@
     "preview": "vite preview",
     "test": "node --test \"electron/**/*.test.js\"",
     "pack:win": "vite build && electron-builder --win dir",
-    "dist:win": "vite build && electron-builder --win nsis"
+    "dist:win": "vite build && electron-builder --win nsis",
+    "dist:msix": "vite build && electron-builder --win appx"
   },
   "build": {
     "appId": "com.inkandironglow.launchpad",
     "productName": "LAUNCHPAD",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "electron/**/*", "!electron/**/*.test.js"],
-    "win": { "target": ["nsis"], "artifactName": "LAUNCHPAD-Setup-${version}.${ext}" },
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "!electron/**/*.test.js",
+      "build/icon.png"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Lootziffer666",
+        "repo": "LAUNCHPAD"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "LAUNCHPAD-Setup-${version}.${ext}"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "menuCategory": false,
+      "deleteAppDataOnUninstall": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "LAUNCHPAD",
       "shortcutName": "LAUNCHPAD"
+    },
+    "appx": {
+      "identityName": "InkAndIronGlow.LAUNCHPAD",
+      "publisher": "CN=Ink & Iron Glow",
+      "publisherDisplayName": "Ink & Iron Glow",
+      "applicationId": "LAUNCHPAD",
+      "backgroundColor": "#0a1538",
+      "showNameOnTiles": true,
+      "languages": ["de-DE", "en-US"]
     }
   },
   "dependencies": {
     "@fontsource/outfit": "^5.2.8",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.9",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

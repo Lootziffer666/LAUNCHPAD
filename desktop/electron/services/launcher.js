@@ -17,6 +17,7 @@
 const ALLOWED_SCHEMES = new Set([
   'steam', 'minecraft', 'com.epicgames.launcher', 'uplay',
   'origin', 'roblox', 'msstore', 'ms-windows-store',
+  'goggalaxy', 'battlenet', 'itch',
 ]);
 
 // Error classes from the original Windows launcher plan: the child sees a calm
@@ -36,11 +37,13 @@ const FAILURE_CLASS = {
 };
 const classifyFailure = (reason) => FAILURE_CLASS[reason] || 'fatal';
 
+// Launch kind comes from game.launch.kind when set, else inferred from a few
+// well-known sources. Minecraft is intentionally NOT special-cased: it is a
+// game like any other and carries its own explicit launch target (uri/uwp/exe).
 function inferKind(game) {
   if (game && game.launch && game.launch.kind) return game.launch.kind;
   const src = ((game && game.source) || '').toLowerCase();
   if (src === 'steam') return 'steam';
-  if (src === 'minecraft') return 'uri';
   return 'internal';
 }
 
@@ -64,7 +67,7 @@ function resolveLaunch(game) {
   }
 
   if (kind === 'uri') {
-    const uri = L.uri || (game.source === 'Minecraft' ? 'minecraft://' : '');
+    const uri = L.uri || '';
     if (!uri) return cfgError('Keine Start-URL hinterlegt');
     if (!ALLOWED_SCHEMES.has(schemeOf(uri))) {
       return cfgError(`Schema nicht erlaubt: ${schemeOf(uri)}`);
@@ -85,7 +88,8 @@ function resolveLaunch(game) {
   return cfgError(`Unbekannter Starttyp: ${kind}`);
 }
 
-async function launchGame(game) {
+async function launchGame(game, opts = {}) {
+  const onExit = typeof opts.onExit === 'function' ? opts.onExit : null;
   const plan = resolveLaunch(game);
   if (plan.kind === 'error') {
     return { ok: false, reason: plan.reason, errorClass: plan.errorClass || classifyFailure(plan.reason), message: plan.message };
@@ -96,7 +100,11 @@ async function launchGame(game) {
     if (plan.kind === 'external') {
       const { shell } = require('electron');
       await shell.openExternal(plan.url);
-      return { ok: true };
+      // External handlers (Steam, Epic, …) own their own process — we get no
+      // exit signal, so return-to-launcher for these relies on the game closing
+      // and the kiosk window regaining focus. Tracked launches (spawn) below do
+      // call back on exit.
+      return { ok: true, tracked: false };
     }
     if (plan.kind === 'spawn') {
       if (process.platform !== 'win32') {
@@ -109,8 +117,11 @@ async function launchGame(game) {
       child.on('error', (err) => {
         console.error(`[launchpad] spawn failed for ${plan.cmd}:`, err);
       });
+      // Bring the shell back to the front when the launched program exits, so
+      // a closed game lands the child on LAUNCHPAD — not on the bare desktop.
+      if (onExit) child.on('exit', () => { try { onExit(); } catch (e) { /* never crash main */ } });
       child.unref();
-      return { ok: true };
+      return { ok: true, tracked: true };
     }
   } catch (e) {
     // A runtime exception (Steam hiccup, slow shell) may pass on retry.
