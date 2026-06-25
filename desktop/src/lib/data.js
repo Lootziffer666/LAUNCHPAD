@@ -63,12 +63,45 @@ const DIRECT = [
   { id: 'robo-lab', name: 'Scratch', source: 'Scratch', c1: '#e8920c', c2: '#7c4a06', emblem: 'flask' },
 ];
 
-// Lernen hub
+// Lernen hub — each category carries an `apps` array of launchable learning
+// tools. `kind` tells the launcher how to open them:
+//   'winget'   → installable desktop app (wingetId used by auto-install)
+//   'web'      → opens in the safe browser / webview
+//   'internal' → handled inside LAUNCHPAD itself
 const LEARN = [
-  { title: 'Mathe', sub: 'Üben & Rätsel', c1: '#f59e0b', c2: '#b45309', ic: 'calc' },
-  { title: 'Lesen', sub: 'Geschichten & Bücher', c1: '#7c3aed', c2: '#4c1d95', ic: 'book' },
-  { title: 'Forschen', sub: 'Experimente entdecken', c1: '#16a34a', c2: '#065f46', ic: 'flask' },
-  { title: 'Weltkarte', sub: 'Länder & Kulturen', c1: '#0891b2', c2: '#0c4a6e', ic: 'map' },
+  {
+    title: 'Mathe', sub: 'Üben & Rätsel', c1: '#f59e0b', c2: '#b45309', ic: 'calc',
+    apps: [
+      { id: 'geogebra', name: 'GeoGebra', description: 'Geometrie, Algebra und mehr — visuell erkunden.', icon: 'compass', kind: 'winget', wingetId: 'GeoGebra.Classic' },
+      { id: 'khan-math', name: 'Khan Academy Mathe', description: 'Übungen und Videos zu allen Mathe-Themen.', icon: 'globe', kind: 'web', url: 'https://de.khanacademy.org/math' },
+      { id: 'math-quest', name: 'Math Quest', description: 'Rechen-Duelle gegen freundliche Monster.', icon: 'calc', kind: 'internal' },
+      { id: 'tux-math', name: 'Tux Math', description: 'Arcade-Rechenspiel mit dem Linux-Pinguin.', icon: 'bolt', kind: 'winget', wingetId: 'TuxFamily.TuxMath' },
+    ],
+  },
+  {
+    title: 'Lesen', sub: 'Geschichten & Bücher', c1: '#7c3aed', c2: '#4c1d95', ic: 'book',
+    apps: [
+      { id: 'kindle', name: 'Kindle', description: 'E-Books lesen — riesige Kinderbibliothek.', icon: 'book', kind: 'winget', wingetId: 'Amazon.Kindle' },
+      { id: 'antolin', name: 'Antolin', description: 'Lesequiz zu tausenden Buchtiteln.', icon: 'star', kind: 'web', url: 'https://antolin.westermann.de' },
+      { id: 'story-lib', name: 'Geschichten-Bibliothek', description: 'Kurzgeschichten zum Vorlesen und Selberlesen.', icon: 'heart', kind: 'web', url: 'https://www.einfachvorlesen.de' },
+    ],
+  },
+  {
+    title: 'Forschen', sub: 'Experimente entdecken', c1: '#16a34a', c2: '#065f46', ic: 'flask',
+    apps: [
+      { id: 'scratch', name: 'Scratch', description: 'Programmieren lernen mit bunten Blöcken.', icon: 'bolt', kind: 'winget', wingetId: 'MIT.Scratch.4' },
+      { id: 'stellarium', name: 'Stellarium', description: 'Den Sternenhimmel live erkunden.', icon: 'star', kind: 'winget', wingetId: 'Stellarium.Stellarium' },
+      { id: 'science-zone', name: 'Science Zone', description: 'Experimente und Erklärvideos.', icon: 'flask', kind: 'web', url: 'https://www.planet-schule.de' },
+    ],
+  },
+  {
+    title: 'Weltkarte', sub: 'Länder & Kulturen', c1: '#0891b2', c2: '#0c4a6e', ic: 'map',
+    apps: [
+      { id: 'marble', name: 'KDE Marble', description: 'Interaktiver Weltatlas zum Entdecken.', icon: 'map', kind: 'winget', wingetId: 'KDE.Marble' },
+      { id: 'seterra', name: 'Seterra', description: 'Geografie-Quiz: Länder, Hauptstädte, Flaggen.', icon: 'globe', kind: 'web', url: 'https://www.seterra.com/de' },
+      { id: 'world-atlas', name: 'World Atlas', description: 'Karten, Fakten und Kulturen der Welt.', icon: 'compass', kind: 'web', url: 'https://www.worldatlas.com' },
+    ],
+  },
 ];
 
 // Kreativ hub

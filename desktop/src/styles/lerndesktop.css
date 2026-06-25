@@ -1,0 +1,308 @@
+/* ============================================================
+   LAUNCHPAD — Lern-Desktop styles
+   Full-screen learning environment overlay with sidebar navigation.
+   ============================================================ */
+
+/* Layer & scrim */
+.ld-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ld-fade-in 0.25s ease-out;
+}
+.ld-layer--closing {
+  animation: ld-fade-out 0.25s ease-in forwards;
+}
+.ld-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 28, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+/* Container */
+.ld-container {
+  position: relative;
+  z-index: 1;
+  width: 92%;
+  max-width: 1100px;
+  height: 82%;
+  max-height: 720px;
+  border-radius: 20px;
+  background: rgba(12, 18, 48, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ld-scale-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ld-layer--closing .ld-container {
+  animation: ld-scale-out 0.25s ease-in forwards;
+}
+
+/* Header */
+.ld-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 36, 0.5);
+}
+.ld-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ld-header-icon {
+  width: 32px;
+  height: 32px;
+  color: #0d9488;
+}
+.ld-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #eaf0ff;
+}
+.ld-subtitle {
+  font-size: 13px;
+  color: #7b8db8;
+}
+.ld-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #9fb2e6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.ld-close:hover {
+  background: rgba(255, 80, 80, 0.18);
+  color: #ff6b6b;
+}
+.ld-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Body: sidebar + content */
+.ld-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Sidebar */
+.ld-sidebar {
+  width: 220px;
+  min-width: 220px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-y: auto;
+}
+
+/* Category tabs */
+.ld-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+}
+.ld-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(2px);
+}
+.ld-tab--active {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--tab-c1, #0d9488);
+  box-shadow: inset 3px 0 0 var(--tab-c1, #0d9488);
+}
+.ld-tab-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--tab-c1, #9fb2e6);
+  flex-shrink: 0;
+}
+.ld-tab-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #eaf0ff;
+}
+.ld-tab-sub {
+  display: block;
+  font-size: 11.5px;
+  color: #7b8db8;
+}
+
+/* Content area */
+.ld-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px;
+  gap: 16px;
+}
+.ld-content-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  color: #fff;
+}
+.ld-content-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ld-content-header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.ld-content-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+/* App list */
+.ld-app-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* App card */
+.ld-app-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+.ld-app-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--cat-color, rgba(255, 255, 255, 0.12));
+  transform: translateY(-1px);
+}
+.ld-app-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cat-color, #9fb2e6);
+  flex-shrink: 0;
+}
+.ld-app-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.ld-app-info {
+  flex: 1;
+  min-width: 0;
+}
+.ld-app-name {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #eaf0ff;
+}
+.ld-app-desc {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: #7b8db8;
+  line-height: 1.35;
+}
+.ld-app-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ld-app-go {
+  width: 20px;
+  height: 20px;
+  color: #4b5e8a;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.ld-app-card:hover .ld-app-go {
+  color: var(--cat-color, #9fb2e6);
+}
+
+/* Kind badges */
+.ld-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ld-badge--winget {
+  background: rgba(16, 124, 0, 0.18);
+  color: #5dd97e;
+}
+.ld-badge--web {
+  background: rgba(37, 99, 235, 0.18);
+  color: #7bb3ff;
+}
+.ld-badge--internal {
+  background: rgba(124, 58, 237, 0.18);
+  color: #b196fa;
+}
+
+/* Install status */
+.ld-install-status {
+  font-size: 10.5px;
+  color: #5b7199;
+}
+
+/* Animations */
+@keyframes ld-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ld-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ld-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ld-scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.94); }
+}
