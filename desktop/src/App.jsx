@@ -276,6 +276,8 @@ export default function App() {
             kidName={t.kidName}
             onHome={backToLaunchpad} onOpenPlay={openPlay}
             onOpenParental={openParental} onLaunchDirect={(g) => launchDirect(g)}
+            onOpenSettings={openSettings}
+            onOpenLernen={() => openApp('lernen', 'windows')}
           />
         )}
         {mode === 'controller' && (

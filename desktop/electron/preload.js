@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('launchpad', {
   wingetStatus: (id) => invoke('lp:winget:status', id),
   wingetInstall: (id) => invoke('lp:winget:install', id),
 
+  // shell utilities — open system folders and URLs
+  openFolder: (pathKey) => invoke('lp:shell:open-folder', pathKey),
+  openUrl: (url) => invoke('lp:shell:open-url', url),
+
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),
   onLockChanged: (cb) => on('lp:event:lock', cb), // payload: 'bedtime'|'timeup'|null

@@ -513,6 +513,30 @@ function registerIpc() {
     // session control — kill the active edge-xcloud session (child "Spiel beenden")
     'lp:session:kill': () => launcher.killActiveSession(),
 
+    // shell utilities — open safe system folders and URLs
+    'lp:shell:open-folder': (_e, pathKey) => {
+      const { shell } = require('electron');
+      const allowed = {
+        documents: path.join(os.homedir(), 'Documents'),
+        downloads: path.join(os.homedir(), 'Downloads'),
+        desktop: path.join(os.homedir(), 'Desktop'),
+        pictures: path.join(os.homedir(), 'Pictures'),
+        music: path.join(os.homedir(), 'Music'),
+        videos: path.join(os.homedir(), 'Videos'),
+      };
+      const target = allowed[String(pathKey).toLowerCase()];
+      if (!target) return { ok: false, reason: 'not_allowed' };
+      shell.openPath(target);
+      return { ok: true };
+    },
+    'lp:shell:open-url': (_e, url) => {
+      const { shell } = require('electron');
+      const s = String(url || '');
+      if (!s.startsWith('http://') && !s.startsWith('https://')) return { ok: false, reason: 'invalid_scheme' };
+      shell.openExternal(s);
+      return { ok: true };
+    },
+
     // winget package management — learning/creative app install
     'lp:winget:check': () => winget.checkWinget(),
     'lp:winget:status': (_e, id) => winget.getStatus(id),
