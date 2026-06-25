@@ -16,9 +16,7 @@ import { BootSequence } from './boot/BootSequence.jsx';
 import { listClips, pickAnimation } from './lib/bootAnimations.js';
 import { personalityEnabled } from './lib/features.js';
 import { AmbientFX } from './ui/AmbientFX.jsx';
-import { Companion } from './companion/Companion.jsx';
-import { Resident } from './companion/Resident.jsx';
-import { RESIDENT_CATS } from './lib/residentsConfig.js';
+import { CatsLayer } from './companion/CatsLayer.jsx';
 
 function useScale(ref) {
   useEffect(() => {
@@ -235,10 +233,7 @@ export default function App() {
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
             />
-            <Companion reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
-            {RESIDENT_CATS.map((cfg) => (
-              <Resident key={cfg.id} cfg={cfg} reduceMotion={t.reduceMotion} />
-            ))}
+            <CatsLayer reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
           </React.Fragment>
         )}
         {mode === 'windows' && (

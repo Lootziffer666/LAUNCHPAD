@@ -73,4 +73,20 @@ SFX.launch = () => {
   tone({ f0: 660, f1: 1320, dur: 0.45, type: 'sine', gain: 0.05, delay: 0.06 });
 };
 
+SFX.meow = () => {
+  if (!SFX.enabled) return;
+  // Rising + falling formant — a small cat meow
+  tone({ f0: 520, f1: 1100, dur: 0.18, type: 'sine', gain: 0.13 });
+  tone({ f0: 1100, f1: 750, dur: 0.14, type: 'sine', gain: 0.10, delay: 0.17 });
+  tone({ f0: 800, f1: 500, dur: 0.10, type: 'triangle', gain: 0.05, delay: 0.29 });
+};
+
+SFX.purr = () => {
+  if (!SFX.enabled) return;
+  // Soft low-frequency rumble with gentle tremolo
+  tone({ f0: 28, f1: 32, dur: 0.7, type: 'sawtooth', gain: 0.05 });
+  tone({ f0: 56, f1: 60, dur: 0.7, type: 'triangle', gain: 0.03, delay: 0.05 });
+  tone({ f0: 84, f1: 90, dur: 0.5, type: 'sine', gain: 0.025, delay: 0.1 });
+};
+
 export default SFX;
