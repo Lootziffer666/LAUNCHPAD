@@ -86,7 +86,7 @@ export function PinGate({ onUnlock, onCancel, sub }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [pin, mode]);
 
-  const submitRecovery = async () => {
+  const submitRecoveryReset = async () => {
     if (!window.launchpad || !window.launchpad.resetPinWithRecovery) return;
     if (String(newPin).length < 4) { setRecoveryMsg('Neue PIN braucht mind. 4 Ziffern'); return; }
     try {
@@ -119,7 +119,7 @@ export function PinGate({ onUnlock, onCancel, sub }) {
                   onChange={(e) => setRecoveryCode(e.target.value)} className="pin-recovery-input" />
                 <input type="password" inputMode="numeric" placeholder="Neue PIN (mind. 4 Ziffern)"
                   value={newPin} onChange={(e) => setNewPin(e.target.value)} className="pin-recovery-input" />
-                <button className="pin-recovery-btn" onClick={submitRecovery}>PIN zurücksetzen</button>
+                <button className="pin-recovery-btn" onClick={submitRecoveryReset}>PIN zurücksetzen</button>
               </div>
               {recoveryMsg && <div className="pin-hint" style={{ color: '#ef4444' }}>{recoveryMsg}</div>}
               <button className="pin-recovery-back" onClick={() => { setRecoveryMode(false); setRecoveryMsg(null); }}>Zurück zur PIN-Eingabe</button>

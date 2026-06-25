@@ -105,9 +105,6 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   // recovery code
   const [hasRecovery, setHasRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState(null); // shown once after generation
-
-  // Recovery code
-  const [recoveryCode, setRecoveryCode] = useState(null);
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   const [recoveryConfigured, setRecoveryConfigured] = useState(false);
 

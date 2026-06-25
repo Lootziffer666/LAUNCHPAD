@@ -12,6 +12,7 @@ import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
 import { ControllerGrid } from './shells/ControllerGrid.jsx';
 import { HabitatShell } from './habitat/HabitatShell.jsx';
+import { HabitatWorld } from './habitat/HabitatWorld.jsx';
 import { BootScreen } from './shells/BootScreen.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
@@ -94,7 +95,7 @@ export default function App() {
 
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
-  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller'
+  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller' | 'habitat'
   const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
@@ -186,10 +187,15 @@ export default function App() {
         e.preventDefault();
         setMode((m) => m === 'controller' ? 'launchpad' : 'controller');
       }
+      if (e.ctrlKey && e.key === 'h') {
+        if (app || play || gate) return;
+        e.preventDefault();
+        setMode((m) => m === 'habitat' ? 'launchpad' : 'habitat');
+      }
     };
     window.addEventListener('keydown', handleCtrlG);
     return () => window.removeEventListener('keydown', handleCtrlG);
-  }, []);
+  }, [app, play, gate]);
 
   // When a tracked (spawned) game exits, main brings the shell forward and
   // emits game-closed — drop any overlay and land back on the LAUNCHPAD home,
@@ -256,6 +262,7 @@ export default function App() {
               kidName={t.kidName}
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
+              onOpenHabitat={() => { SFX.open(); setMode('habitat'); }}
             />
             <CatsLayer reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
           </React.Fragment>
@@ -276,6 +283,9 @@ export default function App() {
               <HabitatShell onBack={backToLaunchpad} />
             </BootScreen>
           </div>
+        )}
+        {mode === 'habitat' && (
+          <HabitatWorld onBack={backToLaunchpad} />
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}

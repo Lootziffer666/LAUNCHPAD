@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Fix code quality issues from semantic review: timer race in HabitatWorld, signature mismatch for onOpenHabitat, and unconditional Ctrl+H handler",
+  "status": "completed",
+  "steps": [
+    "Fix timer race in HabitatWorld.jsx: store setTimeout IDs in refs, clear them at the top of both openBox and closeBox, and clean up on unmount with useEffect.",
+    "Fix signature mismatch: remove originFromEvent(e) argument from onOpenHabitat call in Launchpad.jsx since habitat mode does not use origin for transitions.",
+    "Fix Ctrl+H firing unconditionally: guard the handler in App.jsx with a check that app, play, and gate are not active."
+  ],
+  "acceptance_criteria": [
+    "Timer IDs are stored in refs and cleared before new timers are set in openBox/closeBox",
+    "A useEffect cleanup clears any pending timers on unmount",
+    "onOpenHabitat in Launchpad.jsx is called without arguments",
+    "Ctrl+H handler does not toggle habitat mode when app, play, or gate overlays are active",
+    "npm run build succeeds",
+    "npm test passes"
+  ],
+  "verification": [
+    "cd /projects/sandbox/LAUNCHPAD/desktop && npm run build",
+    "cd /projects/sandbox/LAUNCHPAD/desktop && npm test"
+  ],
+  "blocked_reason": null,
+  "findings": "All three review issues fixed. Build passes (2.76s). All 85 tests pass. No regressions."
+}
