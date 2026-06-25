@@ -7,7 +7,7 @@
 
    Design reference: project/LAUNCHPAD Habitat.dc.html
    ============================================================ */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // Side-effect import: registers <model-viewer> custom element.
 import '@google/model-viewer';
@@ -55,6 +55,8 @@ export function HabitatWorld({ onBack }) {
   const [active, setActive] = useState(null); // index of open box or null
   const [view, setView] = useState('home'); // 'home' | 'opening' | 'in' | 'closing'
   const [hover, setHover] = useState(null);
+  const openTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   // Grid layout constants (matching prototype)
   const W = 400, H = 248, COLW = 452, ROWH = 300;
@@ -73,18 +75,30 @@ export function HabitatWorld({ onBack }) {
   // Open a box
   const openBox = useCallback((i) => {
     if (view !== 'home') return;
+    clearTimeout(openTimerRef.current);
+    clearTimeout(closeTimerRef.current);
     setActive(i);
     setView('opening');
-    setTimeout(() => setView('in'), 980);
+    openTimerRef.current = setTimeout(() => setView('in'), 980);
   }, [view]);
 
   // Close the active box
   const closeBox = useCallback(() => {
+    clearTimeout(openTimerRef.current);
+    clearTimeout(closeTimerRef.current);
     setView('closing');
-    setTimeout(() => {
+    closeTimerRef.current = setTimeout(() => {
       setView('home');
       setActive(null);
     }, 1050);
+  }, []);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(openTimerRef.current);
+      clearTimeout(closeTimerRef.current);
+    };
   }, []);
 
   // Escape to close, or go back

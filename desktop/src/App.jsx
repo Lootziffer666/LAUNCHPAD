@@ -188,13 +188,14 @@ export default function App() {
         setMode((m) => m === 'controller' ? 'launchpad' : 'controller');
       }
       if (e.ctrlKey && e.key === 'h') {
+        if (app || play || gate) return;
         e.preventDefault();
         setMode((m) => m === 'habitat' ? 'launchpad' : 'habitat');
       }
     };
     window.addEventListener('keydown', handleCtrlG);
     return () => window.removeEventListener('keydown', handleCtrlG);
-  }, []);
+  }, [app, play, gate]);
 
   // When a tracked (spawned) game exits, main brings the shell forward and
   // emits game-closed — drop any overlay and land back on the LAUNCHPAD home,

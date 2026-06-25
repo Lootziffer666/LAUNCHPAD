@@ -115,7 +115,7 @@ export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaun
           ))}
 
           {/* utility: Habitat 3D Welt */}
-          <button className="htile glass" onClick={(e) => onOpenHabitat(originFromEvent(e))}>
+          <button className="htile glass" onClick={() => onOpenHabitat()}>
             <div className="htile-ic soft">{Icon.compass()}</div>
             <div className="htile-label sm soft">3D Welt</div>
           </button>
