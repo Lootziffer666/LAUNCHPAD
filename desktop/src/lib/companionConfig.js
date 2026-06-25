@@ -2,14 +2,14 @@
    LAUNCHPAD — companion (the wandering critter) config.
    A living creature that roams the launcher: pet it and it lies down
    purring; pester it (rapid clicks) and it scratches and bolts off,
-   sulking for a while before it wanders back. Emoji fallback now;
-   drop a real sprite sheet in `sheet` to bring your art to life.
+   sulking for a while before it wanders back.
    AuDHD-safe: reduced motion → it sits calmly and never bolts.
    ============================================================ */
+import { CAT_BROWN_SHEET } from './residentsConfig.js';
 
 export const COMPANION = {
   enabled: true,
-  fallback: '🐈', // shown until a sprite sheet is provided
+  fallback: '🐈',
   size: 92, // rendered height in stage px (stage is 1440×900)
 
   // Behaviour tuning
@@ -23,20 +23,7 @@ export const COMPANION = {
   fleeSpeed: 0.7, // px per ms while bolting
 
   // Ground band it roams within (keeps it near the "floor", away from the header)
-  ground: { xMin: 80, xMax: 1360, yMin: 560, yMax: 820 },
+  ground: { xMin: 80, xMax: 720, yMin: 600, yMax: 820 },
 
-  // --- Sprite sheet (optional) ---
-  // Drop your animation sheet under desktop/public/sprites/ and describe it here.
-  // Frames are read left→right on the given row. Example:
-  //   sheet: {
-  //     url: '/sprites/cat.png', frameW: 64, frameH: 64,
-  //     animations: {
-  //       idle:    { row: 0, frames: 4, fps: 4 },
-  //       walk:    { row: 1, frames: 6, fps: 10 },
-  //       lie:     { row: 2, frames: 4, fps: 6 },
-  //       scratch: { row: 3, frames: 6, fps: 12 },
-  //       run:     { row: 4, frames: 6, fps: 14 },
-  //     },
-  //   }
-  sheet: null,
+  sheet: CAT_BROWN_SHEET,
 };

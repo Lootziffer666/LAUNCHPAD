@@ -17,6 +17,8 @@ import { listClips, pickAnimation } from './lib/bootAnimations.js';
 import { personalityEnabled } from './lib/features.js';
 import { AmbientFX } from './ui/AmbientFX.jsx';
 import { Companion } from './companion/Companion.jsx';
+import { Resident } from './companion/Resident.jsx';
+import { RESIDENT_CATS } from './lib/residentsConfig.js';
 
 function useScale(ref) {
   useEffect(() => {
@@ -234,6 +236,9 @@ export default function App() {
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
             />
             <Companion reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
+            {RESIDENT_CATS.map((cfg) => (
+              <Resident key={cfg.id} cfg={cfg} reduceMotion={t.reduceMotion} />
+            ))}
           </React.Fragment>
         )}
         {mode === 'windows' && (
