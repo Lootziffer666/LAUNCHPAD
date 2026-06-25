@@ -80,6 +80,11 @@ function install(wingetId, opts = {}) {
     return Promise.resolve({ ok: false, error: 'no_id' });
   }
 
+  // Validate wingetId format: only alphanumeric, dots, hyphens, and underscores allowed.
+  if (!/^[A-Za-z0-9._-]+$/.test(wingetId)) {
+    return Promise.resolve({ ok: false, error: 'invalid_id_format' });
+  }
+
   // Already installing?
   const current = statusMap.get(wingetId);
   if (current && current.status === 'installing') {

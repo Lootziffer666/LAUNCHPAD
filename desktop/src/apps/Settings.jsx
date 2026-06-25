@@ -2,7 +2,7 @@
    LAUNCHPAD — Settings overlay (child-accessible)
    Theme, accent, name, sound, reduce-motion.
    ============================================================ */
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { useProfile } from '../lib/useProfile.js';
 import { SFX } from '../lib/sfx.js';
@@ -21,6 +21,27 @@ const ACCENTS = [
 export function Settings({ onClose }) {
   const [profile, setField] = useProfile();
   const [closing, setClosing] = useState(false);
+  const [localName, setLocalName] = useState(profile.kidName);
+  const debounceRef = useRef(null);
+
+  // Debounced commit: flush to profile store after 500ms idle
+  const commitName = useCallback((value) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setField('kidName', value);
+    }, 500);
+  }, [setField]);
+
+  // Commit immediately on blur
+  const handleNameBlur = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setField('kidName', localName);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
 
   const close = () => {
     setClosing(true);
@@ -48,8 +69,9 @@ export function Settings({ onClose }) {
             <input
               className="set-input"
               type="text"
-              value={profile.kidName}
-              onChange={(e) => { setField('kidName', e.target.value); }}
+              value={localName}
+              onChange={(e) => { setLocalName(e.target.value); commitName(e.target.value); }}
+              onBlur={handleNameBlur}
               placeholder="Name eingeben"
               maxLength={24}
             />

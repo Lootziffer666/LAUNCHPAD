@@ -22,13 +22,16 @@ function AppCard({ app, catColor }) {
   const handleClick = () => {
     SFX.select();
     if (app.kind === 'web' && app.url) {
-      // Web apps open in the safe browser (wired later)
+      // Web apps open in the system browser via the allowlisted openUrl IPC
       if (window.launchpad && window.launchpad.openUrl) {
         window.launchpad.openUrl(app.url);
       }
     } else if (app.kind === 'winget' && app.wingetId) {
       if (status === 'installed') {
-        // Already installed: launch via shell (future: dedicated launcher)
+        // Launch the installed app via winget launch
+        if (window.launchpad && window.launchpad.wingetLaunch) {
+          window.launchpad.wingetLaunch(app.wingetId);
+        }
         return;
       }
       if (status === 'installing') {
@@ -47,7 +50,7 @@ function AppCard({ app, catColor }) {
       case 'installing':
         return <span className="ld-install-status ld-install-status--installing">Wird installiert...</span>;
       case 'installed':
-        return <span className="ld-install-status ld-install-status--installed">Installiert</span>;
+        return <span className="ld-install-status ld-install-status--installed">Starten</span>;
       case 'failed':
         return <span className="ld-install-status ld-install-status--failed">Fehler</span>;
       default:

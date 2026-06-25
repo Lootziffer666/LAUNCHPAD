@@ -55,11 +55,28 @@ function ensureEventListener() {
 
 /**
  * Hook: returns the install status for a specific wingetId.
+ * On first mount, hydrates the status from the main process via wingetStatus IPC.
  * @param {string} wingetId
  * @returns {{ status: string, line: string }}
  */
 export function useWingetStatus(wingetId) {
   useEffect(() => { ensureEventListener(); }, []);
+
+  // Hydrate status from the main process on mount (picks up apps installed in prior sessions)
+  useEffect(() => {
+    if (!wingetId) return;
+    // Only hydrate if we have no known status yet
+    const existing = store.state[wingetId];
+    if (existing && existing.status !== 'not_installed') return;
+    if (typeof window === 'undefined' || !window.launchpad || !window.launchpad.wingetStatus) return;
+    window.launchpad.wingetStatus(wingetId).then((result) => {
+      // The main process returns the string status from the in-memory map.
+      // If it reports 'installed', update our local store.
+      if (result === 'installed') {
+        store.update(wingetId, 'installed', '');
+      }
+    }).catch(() => { /* ignore hydration errors */ });
+  }, [wingetId]);
 
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const entry = snapshot[wingetId];

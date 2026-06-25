@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('launchpad', {
   wingetCheck: () => invoke('lp:winget:check'),
   wingetStatus: (id) => invoke('lp:winget:status', id),
   wingetInstall: (id) => invoke('lp:winget:install', id),
+  wingetLaunch: (id) => invoke('lp:winget:launch', id),
 
   // shell utilities — open system folders and URLs
   openFolder: (pathKey) => invoke('lp:shell:open-folder', pathKey),
