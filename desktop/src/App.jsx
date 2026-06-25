@@ -10,15 +10,16 @@ import { GameStore } from './games/useGames.js';
 import { SFX } from './lib/sfx.js';
 import { Desktop } from './shells/Launchpad.jsx';
 import { WindowsDesktop, PinGate } from './shells/WindowsDesktop.jsx';
+import { ControllerGrid } from './shells/ControllerGrid.jsx';
+import { HabitatShell } from './habitat/HabitatShell.jsx';
+import { BootScreen } from './shells/BootScreen.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
 import { BootSequence } from './boot/BootSequence.jsx';
 import { listClips, pickAnimation } from './lib/bootAnimations.js';
 import { personalityEnabled } from './lib/features.js';
 import { AmbientFX } from './ui/AmbientFX.jsx';
-import { Companion } from './companion/Companion.jsx';
-import { Resident } from './companion/Resident.jsx';
-import { RESIDENT_CATS } from './lib/residentsConfig.js';
+import { CatsLayer } from './companion/CatsLayer.jsx';
 
 function useScale(ref) {
   useEffect(() => {
@@ -93,7 +94,8 @@ export default function App() {
 
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
-  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows'
+  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller'
+  const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
   // Games load over IPC (async). Hold the shells until the first load lands so
@@ -177,6 +179,18 @@ export default function App() {
     } catch (e) { /* keep the lock */ }
   };
 
+  // Ctrl+G toggles controller grid mode
+  useEffect(() => {
+    const handleCtrlG = (e) => {
+      if (e.ctrlKey && e.key === 'g') {
+        e.preventDefault();
+        setMode((m) => m === 'controller' ? 'launchpad' : 'controller');
+      }
+    };
+    window.addEventListener('keydown', handleCtrlG);
+    return () => window.removeEventListener('keydown', handleCtrlG);
+  }, []);
+
   // When a tracked (spawned) game exits, main brings the shell forward and
   // emits game-closed — drop any overlay and land back on the LAUNCHPAD home,
   // so a finished game always ends in the launcher, never on a bare desktop.
@@ -209,7 +223,15 @@ export default function App() {
     if (target === 'windows') setMode('windows');
     else if (window.launchpad && window.launchpad.openCurator) window.launchpad.openCurator(pin);
   };
-  const backToLaunchpad = () => { SFX.back(); setMode('launchpad'); };
+  const backToLaunchpad = () => {
+    SFX.back();
+    if (mode === 'controller') {
+      setControllerFading(true);
+      setTimeout(() => { setControllerFading(false); setMode('launchpad'); }, 400);
+    } else {
+      setMode('launchpad');
+    }
+  };
 
   // v1 ships clean: a brief plain splash until the catalogue loads. The boot
   // meta-game only runs once the personality layer is switched on by an update.
@@ -235,10 +257,7 @@ export default function App() {
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
             />
-            <Companion reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
-            {RESIDENT_CATS.map((cfg) => (
-              <Resident key={cfg.id} cfg={cfg} reduceMotion={t.reduceMotion} />
-            ))}
+            <CatsLayer reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
           </React.Fragment>
         )}
         {mode === 'windows' && (
@@ -247,6 +266,16 @@ export default function App() {
             onHome={backToLaunchpad} onOpenPlay={openPlay}
             onOpenParental={openParental} onLaunchDirect={(g) => launchDirect(g)}
           />
+        )}
+        {mode === 'controller' && (
+          <div style={{
+            opacity: controllerFading ? 0 : 1,
+            transition: 'opacity 400ms ease-out',
+          }}>
+            <BootScreen>
+              <HabitatShell onBack={backToLaunchpad} />
+            </BootScreen>
+          </div>
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}

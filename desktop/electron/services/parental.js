@@ -73,10 +73,17 @@ function verifyPin(pin) {
 
 function setPin(oldPin, newPin) {
   ensureSeeded();
-  if (!verifyPin(oldPin)) return false;
-  if (!newPin || String(newPin).length < 4) return false;
+  if (!verifyPin(oldPin)) return { ok: false };
+  if (!newPin || String(newPin).length < 4) return { ok: false };
+  const wasDefault = !!raw().pinIsDefault;
   save({ pinHash: hashPin(newPin), pinIsDefault: false });
-  return true;
+  // On first real PIN change, auto-generate the recovery code so the parent
+  // can write it down. Subsequent changes do not rotate it automatically.
+  if (wasDefault) {
+    const code = regenerateRecovery();
+    return { ok: true, recoveryCode: code };
+  }
+  return { ok: true };
 }
 
 // ── PIN recovery (forgot-PIN escape that doesn't wipe the device) ──

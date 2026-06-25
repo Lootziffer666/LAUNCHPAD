@@ -33,8 +33,11 @@ contextBridge.exposeInMainWorld('launchpad', {
   requestGrace: () => invoke('lp:shell:grace'), // kid "Noch kurz" buffer — no PIN
   verifyPin: (pin) => invoke('lp:pin:verify', pin),
   pinStatus: () => invoke('lp:pin:status'),
-  recoverPin: (code, newPin) => invoke('lp:pin:recover', code, newPin), // forgot-PIN reset via recovery code
+  recoverPin: (code, newPin) => invoke('lp:pin:recover', code, newPin),
   openCurator: (pin) => invoke('lp:curator:open', pin), // PIN re-verified in main
+
+  // session control
+  killSession: () => invoke('lp:session:kill'),
 
   // events
   onGameClosed: (cb) => on('lp:event:game-closed', cb),

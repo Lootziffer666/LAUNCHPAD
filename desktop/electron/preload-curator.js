@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('launchpad', {
   refreshWishlistPrices: () => invoke('lp:wishlist:prices'),
   topDeals: () => invoke('lp:deals:top'),
 
-  // parental settings / PIN / usage
+  // parental settings / PIN / usage / recovery
   setPin: (oldP, newP) => invoke('lp:pin:set', oldP, newP),
   generateRecoveryCode: () => invoke('lp:pin:recovery-generate'),
   getParentalSettings: () => invoke('lp:parental:get'),
@@ -52,7 +52,7 @@ contextBridge.exposeInMainWorld('launchpad', {
   steamImport: () => invoke('lp:steam:import'),
   steamAutoApprove: (maxUsk) => invoke('lp:steam:auto-approve', maxUsk),
   steamAutoApproveStop: () => invoke('lp:steam:auto-approve-stop'),
-  approveAll: () => invoke('lp:games:approve-all'), // approve everything, ignore USK
+  approveAll: () => invoke('lp:games:approve-all'),
 
   // events
   onGamesChanged: (cb) => on('lp:event:games-changed', cb),

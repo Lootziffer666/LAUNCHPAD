@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.app.AlertDialog
 import android.provider.Settings
 import android.text.InputType
 import android.widget.Button
@@ -158,10 +159,46 @@ class SetupActivity : AppCompatActivity() {
             p1.length < 4 -> { toast("PIN muss mindestens 4 Ziffern haben"); false }
             p1 != p2 -> { toast("PINs stimmen nicht überein"); false }
             else -> {
-                PinGateHelper(this).setPinCode(p1)
+                val helper = PinGateHelper(this)
+                helper.setPinCode(p1)
+                val recoveryCode = helper.setRecoveryCode()
+                showRecoveryCodeDialog(recoveryCode)
                 true
             }
         }
+    }
+
+    private fun showRecoveryCodeDialog(code: String) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+            addView(android.widget.TextView(this@SetupActivity).apply {
+                text = "Falls du deinen PIN vergisst, kannst du ihn mit diesem Code zurücksetzen:"
+                textSize = 14f
+                setTextColor(android.graphics.Color.parseColor("#333333"))
+                setPadding(0, 0, 0, 24)
+            })
+            addView(android.widget.TextView(this@SetupActivity).apply {
+                text = code
+                textSize = 28f
+                setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                setTextColor(android.graphics.Color.parseColor("#FF6B35"))
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 8, 0, 24)
+            })
+            addView(android.widget.TextView(this@SetupActivity).apply {
+                text = "Bitte notiere diesen Code an einem sicheren Ort. " +
+                    "Er wird nur dieses eine Mal angezeigt und kann nicht wiederhergestellt werden."
+                textSize = 13f
+                setTextColor(android.graphics.Color.parseColor("#666666"))
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Wiederherstellungscode")
+            .setView(box)
+            .setPositiveButton("Verstanden, Code notiert") { _, _ -> }
+            .setCancelable(false)
+            .show()
     }
 
     // ─── Step 3: Balance ──────────────────────────────────────────────────────

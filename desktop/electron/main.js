@@ -508,6 +508,9 @@ function registerIpc() {
       createCuratorWindow();
       return { ok: true };
     },
+
+    // session control — kill the active edge-xcloud session (child "Spiel beenden")
+    'lp:session:kill': () => launcher.killActiveSession(),
   };
 
   const curatorHandlers = {
@@ -600,6 +603,11 @@ if (!gotSingleInstanceLock) {
     registerIpc();
     applyShellPrefs(); // register/refresh autostart before any window exists
     startUsageTicker();
+
+    // Weekly watchlist price refresh (background, non-blocking)
+    const { maybeRefreshWatchlist } = require('./services/watchlistScheduler');
+    maybeRefreshWatchlist();
+
     createWindow();
     updater.checkOnStartup(); // silent internet update check (packaged builds only)
     app.on('activate', () => {

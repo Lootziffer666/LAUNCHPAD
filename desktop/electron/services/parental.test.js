@@ -1,6 +1,7 @@
 // Tests for the bedtime window logic (pure part of parental.js) and its
 // failure classification. The store-backed parts (PIN, usage) need a running
 // electron app and stay out of unit scope, like the rest of the suite.
+// Exception: recovery code generation is pure crypto with no store dependency.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

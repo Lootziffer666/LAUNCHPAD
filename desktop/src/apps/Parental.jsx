@@ -106,11 +106,16 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const [hasRecovery, setHasRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState(null); // shown once after generation
 
+  // Recovery code
+  const [recoveryCode, setRecoveryCode] = useState(null);
+  const [recoveryVisible, setRecoveryVisible] = useState(false);
+  const [recoveryConfigured, setRecoveryConfigured] = useState(false);
+
   useEffect(() => {
     let alive = true;
     if (!api) return undefined;
-    Promise.all([api.getParentalSettings(), api.getUsageToday()])
-      .then(([s, u]) => {
+    Promise.all([api.getParentalSettings(), api.getUsageToday(), api.getRecoveryStatus && api.getRecoveryStatus()])
+      .then(([s, u, rs]) => {
         if (!alive) return;
         if (s) {
           setLimit(s.dailyLimitMin ?? 90);
@@ -125,6 +130,7 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
           setHasRecovery(!!s.hasRecovery);
         }
         if (u) setUsed(u.usedMin || 0);
+        if (rs) setRecoveryConfigured(!!rs.configured);
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -157,10 +163,18 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
   const changePin = async () => {
     if (!api) { setPinMsg('Nicht verfügbar'); return; }
     if (String(pinNew).length < 4) { setPinMsg('Neue PIN braucht mind. 4 Ziffern'); SFX.back(); return; }
-    let ok = false;
-    try { ok = await api.setPin(pinOld, pinNew); } catch (e) { ok = false; }
-    if (ok) { setPinOld(''); setPinNew(''); SFX.select(); setPinMsg('PIN geändert ✓'); }
-    else { SFX.back(); setPinMsg('Alte PIN stimmt nicht'); }
+    let result = false;
+    try { result = await api.setPin(pinOld, pinNew); } catch (e) { result = false; }
+    // setPin always returns { ok: boolean, recoveryCode?: string } or false on exception
+    const ok = result && result.ok;
+    if (ok) {
+      setPinOld(''); setPinNew(''); SFX.select(); setPinMsg('PIN geändert \u2713');
+      if (result && result.recoveryCode) {
+        setRecoveryCode(result.recoveryCode);
+        setRecoveryVisible(true);
+        setRecoveryConfigured(true);
+      }
+    } else { SFX.back(); setPinMsg('Alte PIN stimmt nicht'); }
     setTimeout(() => setPinMsg(null), 2600);
   };
 
@@ -344,6 +358,28 @@ export function ParentalPanel({ kidName = 'Jake', onClose = () => {}, inline = f
                 </div>
               )}
             </div>
+          </div>
+
+          {/* recovery code */}
+          <div className="par-card span2">
+            <h3>{Icon.shield()} Wiederherstellungscode</h3>
+            <p className="desc">
+              Falls du deine PIN vergisst, kannst du sie mit diesem Code zurücksetzen.
+              {recoveryConfigured ? ' Ein Code ist hinterlegt.' : ' Noch kein Code vorhanden.'}
+            </p>
+            {recoveryVisible && recoveryCode && (
+              <div className="par-recovery-display">
+                <code className="recovery-code">{recoveryCode}</code>
+                <p className="desc" style={{ marginTop: 8, color: '#f59e0b' }}>
+                  Schreib diesen Code auf und bewahre ihn sicher auf! Er wird nur einmal angezeigt.
+                </p>
+              </div>
+            )}
+            {!recoveryVisible && (
+              <button className="par-btn" onClick={showRecoveryCode}>
+                {recoveryConfigured ? 'Neuen Code generieren' : 'Code generieren'}
+              </button>
+            )}
           </div>
 
           {/* weekly activity */}

@@ -86,6 +86,60 @@ export function PinGate({ onUnlock, onCancel, sub }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [pin, mode]);
 
+  const submitRecovery = async () => {
+    if (!window.launchpad || !window.launchpad.resetPinWithRecovery) return;
+    if (String(newPin).length < 4) { setRecoveryMsg('Neue PIN braucht mind. 4 Ziffern'); return; }
+    try {
+      const result = await window.launchpad.resetPinWithRecovery(recoveryCode, newPin);
+      if (result && result.ok) {
+        setRecoverySuccess(result.recoveryCode);
+        setRecoveryMsg(null);
+        SFX.launch();
+      } else {
+        setRecoveryMsg('Wiederherstellungscode ist falsch');
+        SFX.back();
+      }
+    } catch (e) {
+      setRecoveryMsg('Fehler bei der Wiederherstellung');
+      SFX.back();
+    }
+  };
+
+  if (recoveryMode) {
+    return (
+      <div className="pin-gate">
+        <div className="pin-card">
+          <div className="pin-av">{Icon.shield()}</div>
+          <div className="pin-title">PIN zurücksetzen</div>
+          {!recoverySuccess ? (
+            <>
+              <div className="pin-sub">Wiederherstellungscode und neue PIN eingeben</div>
+              <div className="pin-recovery-form">
+                <input type="text" placeholder="XXXX-XXXX-XXXX" value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)} className="pin-recovery-input" />
+                <input type="password" inputMode="numeric" placeholder="Neue PIN (mind. 4 Ziffern)"
+                  value={newPin} onChange={(e) => setNewPin(e.target.value)} className="pin-recovery-input" />
+                <button className="pin-recovery-btn" onClick={submitRecovery}>PIN zurücksetzen</button>
+              </div>
+              {recoveryMsg && <div className="pin-hint" style={{ color: '#ef4444' }}>{recoveryMsg}</div>}
+              <button className="pin-recovery-back" onClick={() => { setRecoveryMode(false); setRecoveryMsg(null); }}>Zurück zur PIN-Eingabe</button>
+            </>
+          ) : (
+            <>
+              <div className="pin-sub" style={{ color: '#22c55e' }}>PIN erfolgreich zurückgesetzt!</div>
+              <div className="pin-recovery-form">
+                <p className="pin-hint">Neuer Wiederherstellungscode:</p>
+                <code className="pin-recovery-code">{recoverySuccess}</code>
+                <p className="pin-hint" style={{ color: '#f59e0b' }}>Schreib diesen Code auf! Er wird nur einmal angezeigt.</p>
+                <button className="pin-recovery-btn" onClick={() => { setRecoveryMode(false); setRecoverySuccess(null); }}>Weiter</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pin-gate">
       <div className="pin-card">

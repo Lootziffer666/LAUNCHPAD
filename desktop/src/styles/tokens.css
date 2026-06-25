@@ -1,0 +1,58 @@
+/* ============================================================
+   LAUNCHPAD — Controller-First Design Tokens
+   ============================================================
+   Warm, calm, living-room palette.
+   Inspired by Animal Crossing aesthetics: soft, inviting, safe.
+   Designed for couch-distance readability (2-3 meters).
+   ============================================================ */
+
+:root {
+  /* ---- Colors ---- */
+
+  /* Warm-white background — like a sunlit reading nook */
+  --color-bg:        #faf6f0;
+
+  /* Surface cards/panels — slightly warmer than bg */
+  --color-surface:   #f0ebe3;
+
+  /* Readable text — warm charcoal, never pure black */
+  --color-text:      #3d3530;
+
+  /* Secondary/muted text */
+  --color-muted:     #8a7e74;
+
+  /* Focus ring — warm amber glow, unmissable from across the room */
+  --color-focus:     #e8952f;
+
+  /* Approved/unlocked — soft sage green */
+  --color-approved:  #4caf6a;
+
+  /* Blocked/locked — warm terracotta red */
+  --color-blocked:   #d45a4a;
+
+  /* ---- Spacing (generous for big targets) ---- */
+  --space-xs:  8px;
+  --space-sm:  16px;
+  --space-md:  24px;
+  --space-lg:  40px;
+  --space-xl:  64px;
+
+  /* ---- Border Radius ---- */
+  --radius-sm:  8px;
+  --radius-md:  16px;
+  --radius-lg:  24px;
+
+  /* ---- Typography ---- */
+  /* Display: big, friendly, warm — for titles */
+  --font-display: "Outfit", "Nunito", "Segoe UI", system-ui, sans-serif;
+
+  /* Body: clean, legible at distance */
+  --font-body:    "Outfit", "Nunito", "Segoe UI", system-ui, sans-serif;
+
+  /* ---- Motion ---- */
+  /* Fast transitions for immediate feedback */
+  --motion-fast:  150ms ease-out;
+
+  /* Soft animations for calm, breathing movement */
+  --motion-soft:  400ms cubic-bezier(0.25, 1, 0.5, 1);
+}

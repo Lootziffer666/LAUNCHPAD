@@ -114,6 +114,7 @@ function LibraryTab() {
       )}
 
       <CoverKeyField />
+      <ImportGames />
 
       <HomeArrangement />
 
@@ -163,6 +164,8 @@ export default function CuratorApp() {
     if (!tabs.some((t) => t.id === tab)) setTab('library');
   }, [modules]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const unreviewedCount = games.filter((g) => g.curation === 'new' || g.curation === 'viewed' || g.curation === 'undecided').length;
+
   return (
     <div className="cur-app">
       <header className="cur-head">
@@ -175,6 +178,11 @@ export default function CuratorApp() {
               Der Kinder-Launcher zeigt nur Freigegebenes.
             </div>
           </div>
+          {unreviewedCount > 0 && (
+            <div className="cur-unreviewed-badge" onClick={() => { setTab('library'); SFX.swipe(); }}>
+              {unreviewedCount} ungeprüft
+            </div>
+          )}
         </div>
         <nav className="cur-tabs">
           {tabs.map((t) => (

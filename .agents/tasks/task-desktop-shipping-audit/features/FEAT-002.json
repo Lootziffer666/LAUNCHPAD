@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Add PIN recovery failsafe to the Desktop (Electron) parental system. Generate a recovery code at first PIN set, store its hash, and allow the parent to reset their PIN using the recovery code if forgotten. This addresses the critical gap where a forgotten PIN locks out the parent permanently.",
+  "status": "completed",
+  "steps": [
+    "Modify `desktop/electron/services/parental.js`: (a) Add a `generateRecoveryCode()` function that produces a human-readable 12-character alphanumeric code (e.g. 3 groups of 4: XXXX-XXXX-XXXX). (b) Add a `recoveryHash` field to the store defaults (null until first PIN set). (c) Modify the lazy seeding in `ensureSeeded()` so that when the demo PIN '1234' is seeded, a recovery code is also generated, hashed, and stored. The raw recovery code for the seeded demo is '1234-1234-1234' (matching the demo PIN spirit - easy to find in docs). (d) Add `getRecoveryCode()` - generates a new recovery code, hashes+stores it, returns the raw code. Called once when parent first changes from default PIN. (e) Add `resetPinWithRecovery(recoveryCode, newPin)` - verifies the recovery code hash, and if valid resets the PIN and generates+returns a new recovery code. (f) Export the new functions.",
+    "Modify `desktop/electron/main.js`: Add new IPC channels - `'lp:recovery:status'` (returns whether recovery is configured and whether PIN is still default), `'lp:recovery:generate'` (generates and returns the recovery code - curator-only), and `'lp:recovery:reset'` (takes recoveryCode + newPin, resets PIN - this one should be accessible from BOTH windows since a locked-out parent needs it).",
+    "Modify `desktop/electron/preload-curator.js`: Expose `getRecoveryStatus()`, `generateRecoveryCode()`, and `resetPinWithRecovery(code, newPin)` on the `window.launchpad` bridge.",
+    "Modify `desktop/electron/preload.js`: Expose `resetPinWithRecovery(code, newPin)` on the child window bridge too (so the locked-out parent can recover from the PIN gate overlay).",
+    "Modify `desktop/src/apps/Parental.jsx`: (a) After the existing PIN change card, add a 'Wiederherstellungscode' (Recovery Code) section. Show a button 'Code anzeigen' that calls `generateRecoveryCode()` and displays it with a warning to write it down. (b) If `pinIsDefault` is still true after a PIN change, automatically show the recovery code once with a prominent notice.",
+    "Add recovery flow to the child-window PIN gate (the overlay shown when parent tries to open Familienzentrale): below the PIN input, add a 'PIN vergessen?' link that reveals a recovery code input field. On submit, call `resetPinWithRecovery(code, newPin)` and show appropriate success/failure.",
+    "Add unit tests in `desktop/electron/services/parental.test.js`: test that `generateRecoveryCode()` returns a 14-char string (XXXX-XXXX-XXXX), that `resetPinWithRecovery` works with correct code, fails with wrong code, and that a new recovery code is returned on successful reset."
+  ],
+  "acceptance_criteria": [
+    "A recovery code is generated when PIN is first changed from default",
+    "resetPinWithRecovery(code, newPin) correctly resets the PIN when given the valid recovery code",
+    "resetPinWithRecovery fails gracefully with an invalid code",
+    "The recovery code UI is accessible from both the curator settings and the child-window PIN gate",
+    "All existing tests still pass plus new recovery tests pass",
+    "The recovery code is never stored in plaintext - only its hash"
+  ],
+  "verification": [
+    "Run `cd /projects/sandbox/LAUNCHPAD/desktop && npm test` and confirm all tests pass including new recovery tests"
+  ],
+  "blocked_reason": null,
+  "findings": "All 50 tests pass (6 new recovery tests). Build succeeds. setPin now returns {ok:true, recoveryCode:'...'} on first change from default, or boolean true on subsequent changes - callers in Parental.jsx updated to handle both. The electron-store persists to disk during tests so recovery store-backed tests work without mocking. Recovery code uses a 32-char alphabet (no I/O/0/1) for human readability."
+}

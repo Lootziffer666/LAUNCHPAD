@@ -14,6 +14,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test \"electron/**/*.test.js\"",
+    "generate-icon": "node scripts/generate-icon.js",
+    "validate-catalog": "node scripts/validate-catalog.js",
     "pack:win": "vite build && electron-builder --win dir",
     "dist:win": "vite build && electron-builder --win nsis",
     "dist:msix": "vite build && electron-builder --win appx"
@@ -21,15 +23,15 @@
   "build": {
     "appId": "com.inkandironglow.launchpad",
     "productName": "LAUNCHPAD",
+    "icon": "build-resources/icon.png",
     "directories": {
-      "output": "release",
-      "buildResources": "build"
+      "buildResources": "build-resources",
+      "output": "release"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "!electron/**/*.test.js",
-      "build/icon.png"
+      "!electron/**/*.test.js"
     ],
     "publish": [
       {
@@ -42,7 +44,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.ico",
+      "icon": "build-resources/icon.ico",
       "artifactName": "LAUNCHPAD-Setup-${version}.${ext}"
     },
     "nsis": {
@@ -78,9 +80,11 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
+    "ajv": "^8.20.0",
     "concurrently": "^9.0.0",
     "electron": "^31.0.0",
     "electron-builder": "^26.15.2",
+    "sharp": "^0.35.1",
     "vite": "^5.3.0",
     "wait-on": "^7.2.0"
   },

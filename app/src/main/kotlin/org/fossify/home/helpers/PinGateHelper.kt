@@ -187,5 +187,100 @@ class PinGateHelper(
 
     companion object {
         private const val SALT_KEY = "parent_lock_salt"
+        private const val RECOVERY_HASH_KEY = "parent_recovery_hash"
+        private const val RECOVERY_SALT_KEY = "parent_recovery_salt"
+    }
+
+    // ─── Recovery code support ────────────────────────────────────────────────
+    // NOTE: No automated test coverage exists for the recovery flow (generateRecoveryCode,
+    // setRecoveryCode, resetPinWithRecovery, hasRecoveryCode, changePin). The workspace
+    // lacks a Robolectric or instrumented test framework. A future effort should add parity
+    // with the desktop test suite (6 tests covering code format, uniqueness, correct/wrong
+    // code reset, short PIN rejection, and status reporting).
+
+    /**
+     * Generate a 12-character alphanumeric recovery code formatted as XXXX-XXXX-XXXX.
+     * The alphabet MUST remain exactly 32 characters so that `byte % 32` (used for
+     * index selection via SecureRandom) produces uniform distribution without modulo
+     * bias (256 / 32 = 8, divides evenly).
+     */
+    fun generateRecoveryCode(): String {
+        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no 0/O/1/I to avoid confusion
+        require(chars.length == 32) { "Recovery alphabet must be exactly 32 chars to avoid modulo bias" }
+        val random = SecureRandom()
+        val code = StringBuilder(12)
+        repeat(12) { code.append(chars[random.nextInt(chars.length)]) }
+        return "${code.substring(0, 4)}-${code.substring(4, 8)}-${code.substring(8, 12)}"
+    }
+
+    /**
+     * Generate, hash, and store a recovery code. Returns the raw code for display to the parent.
+     */
+    fun setRecoveryCode(): String {
+        val code = generateRecoveryCode()
+        val salt = generateSalt()
+        val hash = hashPin(code.replace("-", ""), salt)
+        prefs.edit()
+            .putString(RECOVERY_HASH_KEY, hash)
+            .putString(RECOVERY_SALT_KEY, salt)
+            .apply()
+        Log.d(tag, "Recovery code set")
+        return code
+    }
+
+    /**
+     * Returns true if a recovery code hash has been stored previously.
+     */
+    fun hasRecoveryCode(): Boolean =
+        prefs.contains(RECOVERY_HASH_KEY) && prefs.getString(RECOVERY_HASH_KEY, "").orEmpty().isNotEmpty()
+
+    /**
+     * Verify the recovery code and, if valid, reset the PIN to [newPin] and generate a fresh
+     * recovery code. Returns the new recovery code on success, or null on mismatch.
+     *
+     * Respects lockout state: if the device is currently locked out (from failed PIN attempts),
+     * recovery is also blocked to prevent an attacker from pivoting to brute-force the
+     * recovery code while the PIN path is locked.
+     */
+    fun resetPinWithRecovery(recoveryCode: String, newPin: String): String? {
+        // Check lockout before attempting verification to prevent bypass.
+        if (isLockedOut()) return null
+
+        val storedHash = prefs.getString(RECOVERY_HASH_KEY, "").orEmpty()
+        val salt = prefs.getString(RECOVERY_SALT_KEY, "").orEmpty()
+        if (storedHash.isEmpty() || salt.isEmpty()) return null
+
+        val inputNormalized = recoveryCode.replace("-", "").uppercase()
+        if (!constantTimeEquals(hashPin(inputNormalized, salt), storedHash)) {
+            // Increment shared fail counter so recovery attempts contribute to lockout.
+            val newCount = prefs.getInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0) + 1
+            val lockoutMs = lockoutDurationMs(newCount)
+            val now = System.currentTimeMillis()
+            val newLockedUntil = if (lockoutMs > 0L) now + lockoutMs else 0L
+            prefs.edit()
+                .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, newCount)
+                .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, newLockedUntil)
+                .apply()
+            return null
+        }
+
+        // Valid recovery code -- reset everything.
+        setPinCode(newPin)
+        // Clear lockout state.
+        prefs.edit()
+            .putInt(LaunchpadPrefs.PREF_PIN_FAIL_COUNT, 0)
+            .putLong(LaunchpadPrefs.PREF_PIN_LOCKED_UNTIL, 0L)
+            .apply()
+        // Generate a fresh recovery code.
+        return setRecoveryCode()
+    }
+
+    /**
+     * Change PIN by verifying the old PIN first. Returns true on success, false if old PIN wrong.
+     */
+    fun changePin(oldPin: String, newPin: String): Boolean {
+        val result = verifyPin(oldPin)
+        if (result !is VerifyResult.Success) return false
+        return setPinCode(newPin)
     }
 }
