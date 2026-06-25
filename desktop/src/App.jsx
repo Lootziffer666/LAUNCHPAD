@@ -16,6 +16,7 @@ import { HabitatWorld } from './habitat/HabitatWorld.jsx';
 import { BootScreen } from './shells/BootScreen.jsx';
 import { PlayOverlay } from './play/PlayLibrary.jsx';
 import { AppShell } from './apps/AppShell.jsx';
+import { Settings } from './apps/Settings.jsx';
 import { BootSequence } from './boot/BootSequence.jsx';
 import { listClips, pickAnimation } from './lib/bootAnimations.js';
 import { personalityEnabled } from './lib/features.js';
@@ -95,6 +96,7 @@ export default function App() {
 
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
+  const [settings, setSettings] = useState(false); // settings overlay open
   const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller' | 'habitat'
   const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
@@ -219,6 +221,7 @@ export default function App() {
 
   const openApp = (id, origin) => { SFX.open(); setApp({ id, origin }); };
   const openPlay = (origin, initialGame) => { SFX.launch(); setPlay({ origin, initialGame: initialGame || null }); };
+  const openSettings = () => { SFX.open(); setSettings(true); };
   // "Elternbereich" → PIN gate → main opens the separate curator window.
   const openParental = () => { SFX.open(); setGate({ target: 'curator' }); };
   const launchDirect = (game, origin) => openPlay(origin, game);
@@ -263,6 +266,7 @@ export default function App() {
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
               onOpenHabitat={() => { SFX.open(); setMode('habitat'); }}
+              onOpenSettings={openSettings}
             />
             <CatsLayer reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
           </React.Fragment>
@@ -289,6 +293,7 @@ export default function App() {
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}
+        {settings && <Settings onClose={() => setSettings(false)} />}
         {play && <PlayOverlay kidName={t.kidName} origin={play.origin} initialGame={play.initialGame}
           onExit={() => setPlay(null)} />}
         {gate && (

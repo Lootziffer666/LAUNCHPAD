@@ -22,6 +22,7 @@ import './styles/apps.css';
 import './styles/launcher.css';
 import './styles/windows.css';
 import './styles/habitat-world.css';
+import './styles/settings.css';
 
 // Registers the <image-slot> custom element (side-effect import).
 import './ui/image-slot.js';

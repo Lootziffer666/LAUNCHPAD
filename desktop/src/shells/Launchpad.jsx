@@ -21,7 +21,7 @@ function originFromEvent(e) {
   return { x: Math.max(0, Math.min(100, (cx / r.width) * 100)), y: Math.max(0, Math.min(100, (cy / r.height) * 100)) };
 }
 
-export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaunchDirect, onOpenWindows, onOpenHabitat }) {
+export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaunchDirect, onOpenWindows, onOpenHabitat, onOpenSettings }) {
   const games = useGames();
   const installedCount = games.filter((g) => g.installed).length;
   const favs = games.filter((g) => g.favorite && g.installed).slice(0, 3);
@@ -125,6 +125,12 @@ export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaun
             <div className="win-lock">{Icon.lock()}</div>
             <div className="htile-ic soft">{Icon.grid()}</div>
             <div className="htile-label sm soft">Windows-Desktop</div>
+          </button>
+
+          {/* Einstellungen */}
+          <button className="htile glass" onClick={onOpenSettings}>
+            <div className="htile-ic soft">{Icon.gear()}</div>
+            <div className="htile-label sm soft">Einstellungen</div>
           </button>
 
           {/* Elternbereich */}

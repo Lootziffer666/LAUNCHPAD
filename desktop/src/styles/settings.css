@@ -1,0 +1,243 @@
+/* ============================================================
+   LAUNCHPAD — Settings overlay (child shell)
+   ============================================================ */
+
+/* layer + scrim */
+.set-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.set-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 10, 30, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+/* window */
+.set-window {
+  position: relative;
+  width: 520px;
+  max-height: 80%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: var(--bg-base);
+  border: 1px solid var(--bg-tile-glass-border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: set-in 0.3s var(--ease-metro) both;
+  overflow: hidden;
+}
+.set-window.closing {
+  animation: set-out 0.22s ease-in both;
+}
+
+@keyframes set-in {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes set-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.94) translateY(12px); }
+}
+[data-reduce] .set-window { animation: none; }
+[data-reduce] .set-window.closing { animation: none; opacity: 0; }
+
+/* header */
+.set-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(139, 92, 246, 0.08));
+  border-bottom: 1px solid var(--bg-tile-glass-border);
+}
+.set-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.set-sub {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.set-ic {
+  width: 36px;
+  height: 36px;
+  color: var(--comet-cyan);
+}
+.set-close {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s;
+}
+.set-close:hover { background: rgba(255, 255, 255, 0.15); }
+.set-close svg { width: 18px; height: 18px; }
+
+/* body scrollable area */
+.set-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* cards */
+.set-card {
+  background: var(--bg-tile-glass);
+  border: 1px solid var(--bg-tile-glass-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.set-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+}
+.set-card h3 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--comet-cyan);
+}
+
+/* name input */
+.set-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--bg-tile-glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.set-input:focus {
+  border-color: var(--comet-cyan);
+}
+
+/* theme selector */
+.set-themes {
+  display: flex;
+  gap: 10px;
+}
+.set-theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.set-theme-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.set-theme-btn.active {
+  border-color: var(--comet-cyan);
+  background: rgba(255, 255, 255, 0.08);
+}
+.set-theme-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tc);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* accent color swatches */
+.set-accents {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.set-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.set-swatch:hover {
+  transform: scale(1.12);
+}
+.set-swatch.active {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 12px currentColor;
+}
+
+/* row layout for toggles */
+.set-card.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.set-card.set-row h3 { display: none; }
+.set-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.set-row-ic {
+  width: 24px;
+  height: 24px;
+  color: var(--comet-cyan);
+}
+.set-row-ic svg { width: 100%; height: 100%; }
+
+/* toggle switch (same as parental but self-contained) */
+.set-layer .p-toggle {
+  width: 50px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.2s;
+}
+.set-layer .p-toggle.on {
+  background: var(--t-green);
+}
+.set-layer .p-toggle i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+}
+.set-layer .p-toggle.on i {
+  left: 25px;
+}
