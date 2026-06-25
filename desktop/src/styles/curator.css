@@ -7,7 +7,8 @@
 body.curator {
   margin: 0; min-height: 100vh; overflow-y: auto;
   background:
-    radial-gradient(1200px 500px at 80% -10%, var(--bg-glow-b), transparent 70%),
+    radial-gradient(1200px 800px at 18% -10%, var(--bg-glow-a), transparent 55%),
+    radial-gradient(1000px 700px at 95% 110%, var(--bg-glow-b), transparent 55%),
     var(--bg-base);
   color: var(--ink); font-family: var(--font);
 }
@@ -18,7 +19,8 @@ body.curator {
 .cur-head {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
   flex-wrap: wrap; padding: 26px 0 18px;
-  border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 22px;
+  border-bottom: 1px solid rgba(56,189,248,.2); margin-bottom: 22px;
+  box-shadow: 0 1px 12px rgba(56,189,248,.08);
 }
 .cur-brand { display: flex; align-items: center; gap: 16px; }
 .cur-brand .lp-mark {
@@ -30,6 +32,15 @@ body.curator {
 .cur-title { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
 .cur-title em { font-style: normal; letter-spacing: 0; font-weight: 600; color: var(--comet-cyan); margin-left: 8px; }
 .cur-sub { font-size: 13px; color: var(--ink-mute); margin-top: 3px; max-width: 560px; }
+
+.cur-unreviewed-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(139,92,246,.18); border: 1px solid rgba(139,92,246,.45);
+  color: #d6c6ff; font-size: 12.5px; font-weight: 700;
+  transition: background .15s;
+}
+.cur-unreviewed-badge:hover { background: rgba(139,92,246,.28); }
 
 .cur-tabs { display: flex; gap: 8px; }
 .cur-tab {
@@ -199,9 +210,9 @@ body.curator {
 .cur-steam-row .imp-input { flex: 1 1 auto; }
 .cur-steam-prog { display: flex; flex-direction: column; gap: 6px; }
 .cur-steam-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.10); overflow: hidden; }
-.cur-steam-bar i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #2a6f8e); transition: width .3s ease; }
+.cur-steam-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--comet-cyan), var(--comet-violet)); transition: width .3s ease; }
 .cur-steam-msg { margin-top: 10px; color: #9fe6c0; }
 .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; opacity: .85; }
 .par-btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,.18); }
-.par-btn.primary { background: linear-gradient(135deg, #2a6f8e, #1c3f6e); border-color: transparent; color: #eaf0ff; }
+.par-btn.primary { background: var(--comet-cyan); border-color: transparent; color: #062033; }
 .par-btn:disabled { opacity: .45; cursor: not-allowed; }

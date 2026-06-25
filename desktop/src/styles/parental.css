@@ -16,7 +16,7 @@
 
 .par-head {
   flex: none; display: flex; align-items: center; gap: 16px; padding: 22px 30px;
-  background: linear-gradient(120deg, #0d9488, #0c4a6e);
+  background: linear-gradient(120deg, var(--comet-cyan), var(--comet-violet));
 }
 .par-head .p-ic { width: 38px; height: 38px; color: #fff; }
 .par-head h2 { margin: 0; font-size: 23px; font-weight: 800; }
@@ -35,7 +35,7 @@
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-content: start; }
 
 .par-card {
-  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+  background: var(--bg-tile-glass); border: 1px solid var(--bg-tile-glass-border);
   border-radius: 16px; padding: 22px;
 }
 .par-card.span2 { grid-column: span 2; }
@@ -73,7 +73,7 @@
 .par-row .r-meta { flex: 1; } .par-row .r-meta b { font-size: 15px; font-weight: 700; display: block; }
 .par-row .r-meta span { font-size: 12px; color: var(--ink-mute); }
 .p-toggle { width: 50px; height: 28px; border-radius: 999px; background: rgba(255,255,255,.18); position: relative; cursor: pointer; flex: none; transition: background .2s; }
-.p-toggle.on { background: var(--t-green); }
+.p-toggle.on { background: var(--comet-cyan); }
 .p-toggle i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .2s; }
 .p-toggle.on i { left: 25px; }
 
