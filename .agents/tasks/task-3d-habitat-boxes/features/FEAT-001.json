@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Install @google/model-viewer, copy GLB/diorama/tile assets to desktop/public/, and create the 3D Habitat World component with all 6 boxes mapped to their GLB models",
+  "status": "in_progress",
+  "steps": [
+    "Run `cd /projects/sandbox/LAUNCHPAD/desktop && npm install @google/model-viewer` to add the model-viewer web component as a dependency.",
+    "Copy GLB model files from project/models/ to desktop/public/models/ so Vite serves them: kitchen.glb, office.glb, cabin.glb, stanley_office.glb, night_sky.glb, forest.glb, cat_a.glb, cat_b.glb.",
+    "Copy diorama background images from project/dioramas/ to desktop/public/dioramas/: spielen.jpg, musik.jpg, geschichten.jpg, kreativ.jpg, entdecken.jpg, lernen.jpg.",
+    "Copy tile door images from project/tiles/ to desktop/public/tiles/: play.png, apps.png, library.png, create.png, watch.png, explore.png.",
+    "Create a new component at desktop/src/habitat/HabitatWorld.jsx that implements the 6-box 3D tile UI from the prototype. The component should: (a) import and register @google/model-viewer (side-effect import of the module), (b) define the MODELS mapping with all 6 boxes matching the prototype exactly: play->kitchen.glb (orbit: 180deg 74deg 68%), apps->office.glb (orbit: 190deg 72deg 65%), library->cabin.glb (orbit: 180deg 68deg 70%), create->stanley_office.glb (orbit: 190deg 72deg 60%), watch->night_sky.glb (orbit: 180deg 75deg 72%), explore->forest.glb (orbit: 185deg 70deg 72%), (c) define the DATA array with all 6 boxes: play (label: Play, tag: 8 Spiele bereit, accent: #6ea8ff, scene: dioramas/spielen.jpg), apps (label: Apps, tag: Alle Programme, accent: #57e0d8, scene: dioramas/musik.jpg), library (label: Library, tag: Buecher & Hoerspiele, accent: #c9a6ff, scene: dioramas/geschichten.jpg), create (label: Create, tag: Malen Musik & Code, accent: #5fe6b0, scene: dioramas/kreativ.jpg), watch (label: Watch, tag: Filme & Serien, accent: #7fb0ff, scene: dioramas/entdecken.jpg), explore (label: Explore, tag: Entdecke neue Orte, accent: #b79cff, scene: dioramas/lernen.jpg), (d) render a 3x2 grid of tile 'boxes' with door-open animation revealing the model-viewer interior, following the prototype's design: perspective-based 3D layout, door panels with tile images, interior with <model-viewer> showing the GLB when opened, (e) include an interior panel showing the box's title/icon/apps when open, (f) handle open/close with click + Escape key, (g) export as default and named export.",
+    "Create desktop/src/styles/habitat-world.css with styles for the 3D world component: .habitat-world (perspective container), .hw-box (individual tile box with 3D transform), .hw-door (the door panel with open animation), .hw-interior (revealed scene with model-viewer), atmosphere effects (particles, rays). Follow the prototype's visual design: dark space background with radial gradients, soft glow effects, 3D perspective at 1500px. Keep it performant for Electron.",
+    "Import the new habitat-world.css in desktop/src/main.jsx alongside the other style imports.",
+    "Add a new route/mode in desktop/src/App.jsx: add 'habitat' to the mode options. When mode === 'habitat', render <HabitatWorld />. Add a keyboard shortcut (Ctrl+H) to toggle habitat mode, similar to the existing Ctrl+G for controller mode. Import HabitatWorld from './habitat/HabitatWorld.jsx'.",
+    "Add a tile/button on the Desktop (Launchpad.jsx) home screen that navigates to the Habitat World view, so users can access it. Add a glass-style tile similar to the Windows-Desktop tile with an appropriate icon and label (e.g. 'Habitat' or '3D Welt')."
+  ],
+  "acceptance_criteria": [
+    "npm run build succeeds without errors after @google/model-viewer is installed",
+    "All 6 GLB models are accessible at /models/*.glb from the Vite dev server",
+    "All 6 diorama images are accessible at /dioramas/*.jpg from the Vite dev server",
+    "All 6 tile images are accessible at /tiles/*.png from the Vite dev server",
+    "HabitatWorld.jsx renders 6 boxes in a 3x2 grid with correct labels, tags, and accent colors",
+    "Each box's MODELS mapping matches the prototype: play->kitchen, apps->office, library->cabin, create->stanley_office, watch->night_sky, explore->forest",
+    "Clicking a box opens it, revealing a <model-viewer> element with the correct GLB src and camera-orbit",
+    "Pressing Escape or clicking a back button closes the open box",
+    "The component is accessible from App.jsx via mode switching (Ctrl+H or home tile click)",
+    "npm test passes without regressions"
+  ],
+  "verification": [
+    "cd /projects/sandbox/LAUNCHPAD/desktop && npm install && npm run build",
+    "cd /projects/sandbox/LAUNCHPAD/desktop && npm test",
+    "Verify the built output references model-viewer and the GLB files: grep -r 'model-viewer' /projects/sandbox/LAUNCHPAD/desktop/src/habitat/HabitatWorld.jsx",
+    "Verify all 6 models are mapped: grep -c 'glb' /projects/sandbox/LAUNCHPAD/desktop/src/habitat/HabitatWorld.jsx should show at least 6 matches"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

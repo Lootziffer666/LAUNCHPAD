@@ -21,7 +21,7 @@ function originFromEvent(e) {
   return { x: Math.max(0, Math.min(100, (cx / r.width) * 100)), y: Math.max(0, Math.min(100, (cy / r.height) * 100)) };
 }
 
-export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaunchDirect, onOpenWindows }) {
+export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaunchDirect, onOpenWindows, onOpenHabitat }) {
   const games = useGames();
   const installedCount = games.filter((g) => g.installed).length;
   const favs = games.filter((g) => g.favorite && g.installed).slice(0, 3);
@@ -113,6 +113,12 @@ export function Desktop({ kidName, onOpenApp, onOpenPlay, onOpenParental, onLaun
               </div>
             </button>
           ))}
+
+          {/* utility: Habitat 3D Welt */}
+          <button className="htile glass" onClick={(e) => onOpenHabitat(originFromEvent(e))}>
+            <div className="htile-ic soft">{Icon.compass()}</div>
+            <div className="htile-label sm soft">3D Welt</div>
+          </button>
 
           {/* utility: Windows-Desktop (gated) */}
           <button className="htile glass" onClick={(e) => onOpenWindows(originFromEvent(e))}>

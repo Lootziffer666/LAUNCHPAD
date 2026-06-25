@@ -1,0 +1,7 @@
+{
+  "task_id": "task-3d-habitat-boxes",
+  "task_description": "Integrate @google/model-viewer into the LAUNCHPAD desktop Electron+React app and create the 3D Habitat World component with all 6 boxes (play, apps, library, create, watch, explore) mapped to their respective GLB models, following the prototype design in project/LAUNCHPAD Habitat.dc.html.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
