@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#04060f;overflow:hidden;font-family:"Outfit","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  *{box-sizing:border-box;}
+  @keyframes ffFloat{0%{transform:translate(0,0) scale(1);opacity:0}12%{opacity:1}88%{opacity:.7}100%{transform:translate(var(--dx),var(--dy)) scale(.4);opacity:0}}
+  @keyframes sdTwinkle{0%,100%{opacity:.1;transform:scale(.6)}50%{opacity:.9;transform:scale(1.1)}}
+  @keyframes critBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes eyeBlink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+  @keyframes heartRise{0%{opacity:0;transform:translate(-50%,0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-90px) scale(1.2)}}
+  @keyframes scrimIn{from{opacity:0}to{opacity:1}}
+  @keyframes titleIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes flashAnim{0%{opacity:0}14%{opacity:.7}100%{opacity:0}}
+  @keyframes bubbleUp{0%{transform:translateY(0) scale(1);opacity:0}15%{opacity:.7}100%{transform:translateY(-180px) scale(.5);opacity:0}}
+  @keyframes haloPulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.95;transform:scale(1.08)}}
+  @keyframes bob{0%,100%{transform:translateY(-8px)}50%{transform:translateY(10px)}}
+  @keyframes fogDrift{0%{transform:translateX(-6%)}50%{transform:translateX(6%)}100%{transform:translateX(-6%)}}
+</style>
+</helmet>
+<div class="stage-wrap" style="position:fixed;inset:0;overflow:hidden;background:radial-gradient(1300px 1000px at 50% 8%, #122152 0%, transparent 60%),radial-gradient(1100px 900px at 50% 120%, #1a1245 0%, transparent 60%),#070b1c;">
+  <div class="stage-scale" style="width:1440px;height:900px;">
+    <div class="stage" style="position:relative;width:1440px;height:900px;overflow:hidden;perspective:1500px;perspective-origin:50% 45%;">
+
+      <div class="atmo" style="position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden;">
+        <div style="position:absolute;left:20%;top:-10%;width:60%;height:70%;background:radial-gradient(closest-side, rgba(70,120,230,.22), transparent 70%);filter:blur(50px);"></div>
+        <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 46%, transparent 52%, rgba(2,4,12,.72) 100%);"></div>
+        {{ particles }}
+      </div>
+
+      <header style="position:absolute;left:0;right:0;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:28px 48px;transition:opacity .4s;{{ chromeStyle }}">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(140deg,#6ea8ff,#8b5cf6);display:grid;place-items:center;font-weight:800;font-size:22px;color:#06203a;border:2px solid rgba(255,255,255,.35);box-shadow:0 6px 20px rgba(70,120,230,.4);">{{ initial }}</div>
+          <div>
+            <div style="font-size:24px;font-weight:700;color:#fff;line-height:1;">{{ kidName }}</div>
+            <div style="font-size:14px;font-weight:500;color:#9fb0d8;margin-top:3px;">Willkommen zurück</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;color:#cdd8f2;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a6 6 0 0 1 8 0M12 18.5h.01"></path></svg>
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">{{ clock }}</span>
+        </div>
+      </header>
+
+      <div class="world" style="{{ worldStyle }}">
+        <sc-for list="{{ boxes }}" as="b" hint-placeholder-count="6">
+          <div class="boxwrap" style="{{ b.wrapStyle }}">
+            <div class="box" style="{{ b.boxStyle }}">
+
+              <div class="bw" style="{{ b.bwStyle }}">
+                <div style="position:absolute;inset:0;background-image:url('{{ b.scene }}');background-size:cover;background-position:center;"></div>
+                <div style="position:absolute;inset:0;background:radial-gradient(130% 110% at 50% 30%, transparent 40%, rgba(3,6,16,.7) 100%);"></div>
+                <div class="bw-rays" style="position:absolute;inset:0;overflow:hidden;">{{ b.rays }}</div>
+                <div style="position:absolute;left:34px;top:30px;z-index:3;display:flex;align-items:center;gap:14px;animation:titleIn .6s both;">
+                  <div style="width:48px;height:48px;color:#fff;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));">{{ b.icon }}</div>
+                  <div>
+                    <div style="font-size:34px;font-weight:800;color:#fff;line-height:.95;text-shadow:0 3px 16px rgba(0,0,0,.6);">{{ b.label }}</div>
+                    <div style="font-size:14px;font-weight:600;color:#cdd8f2;margin-top:3px;text-shadow:0 2px 8px rgba(0,0,0,.7);">{{ b.tag }}</div>
+                  </div>
+                </div>
+                <div style="position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(transparent, rgba(4,7,18,.82));"></div>
+                <sc-if value="{{ b.roomCat }}" hint-placeholder-val="{{ false }}">{{ b.roomCatEl }}</sc-if>
+                <div class="bw-apps" style="{{ b.appsRowStyle }}">
+                  <sc-for list="{{ b.apps }}" as="a" hint-placeholder-count="6">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:96px;">
+                      <div style="width:74px;height:74px;border-radius:18px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 10px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2);">{{ a.glyph }}</div>
+                      <div style="font-size:13px;font-weight:700;color:#fff;text-align:center;line-height:1;">{{ a.name }}</div>
+                      <div style="font-size:11px;font-weight:500;color:#aebbdd;text-align:center;line-height:1;">{{ a.sub }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div class="rim" style="{{ b.rimStyle }}"></div>
+
+              <button class="door" style="{{ b.doorStyle }}" onClick="{{ b.open }}" onMouseEnter="{{ b.enter }}" onMouseLeave="{{ b.leave }}">
+                <div class="door-face" style="{{ b.doorFaceStyle }}">
+                  <div style="position:absolute;inset:0;background-image:url('{{ b.tile }}');background-size:cover;background-position:center;"></div>
+                  <div style="position:absolute;inset:0;border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.07);pointer-events:none;"></div>
+                  <div class="door-glow" style="{{ b.doorGlow }}"></div>
+                </div>
+                <div class="door-inner" style="{{ b.doorInnerStyle }}"><div style="{{ b.doorInnerHinge }}"></div></div>
+              </button>
+            </div>
+          </div>
+        </sc-for>
+
+        <div class="cat-world" style="{{ catWorldStyle }}">{{ cats }}</div>
+      </div>
+
+      <div class="fx" style="position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;{{ fxStyle }}">{{ frontFx }}</div>
+
+      <!-- real WebGL displacement diorama (Play slice) -->
+      <sc-if value="{{ show3d }}" hint-placeholder-val="{{ false }}">
+      <div class="d3" style="position:absolute;inset:0;z-index:35;background:radial-gradient(120% 100% at 50% 30%, #0e1c3e, #060a18 75%);opacity:1;">
+          <model-viewer src="models/kitchen.glb" loading="eager" reveal="auto" camera-controls disable-zoom interaction-prompt="none" auto-rotate rotation-per-second="12deg" exposure="1.05" shadow-intensity="0.85" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" min-camera-orbit="auto auto auto" max-camera-orbit="auto auto auto" field-of-view="auto" style="width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
+        <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 18%, rgba(120,170,255,.1), transparent 55%);mix-blend-mode:screen;"></div>
+        <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 120% at 50% 46%, transparent 52%, rgba(2,4,12,.7) 100%);"></div>
+        <div class="d3-rays" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">{{ interiorRays }}</div>
+        <button class="exit-orb" onClick="{{ back }}" title="Zurück zur Welt" style="position:absolute;left:40px;top:38px;z-index:8;width:62px;height:62px;border-radius:50%;border:1px solid rgba(180,210,255,.5);background:radial-gradient(circle at 38% 32%, rgba(150,200,255,.45), rgba(20,32,64,.55) 70%);box-shadow:0 0 26px rgba(120,180,255,.55), inset 0 1px 0 rgba(255,255,255,.4);backdrop-filter:blur(8px);cursor:pointer;display:grid;place-items:center;animation:haloPulse 4s ease-in-out infinite;" style-hover="transform:scale(1.08);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#eaf3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"></path></svg>
+        </button>
+        <div class="d3-panel" style="{{ d3PanelStyle }}">
+          <div style="position:absolute;left:50%;top:50%;width:420px;height:420px;transform:translate(-50%,-50%);background:radial-gradient(closest-side, rgba(110,168,255,.45), transparent 70%);filter:blur(26px);animation:haloPulse 6s ease-in-out infinite;pointer-events:none;"></div>
+          <div style="position:relative;width:460px;border-radius:24px;padding:24px;background:linear-gradient(160deg, rgba(20,28,52,.66), rgba(10,14,30,.74));border:1px solid rgba(255,255,255,.18);box-shadow:0 50px 110px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.22);backdrop-filter:blur(20px) saturate(1.2);animation:bob 7s ease-in-out infinite;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+              <div style="width:52px;height:52px;border-radius:15px;display:grid;place-items:center;color:#fff;background:linear-gradient(150deg,#6ea8ff,#16245e);box-shadow:0 12px 28px rgba(110,168,255,.45);">{{ d3Icon }}</div>
+              <div><div style="font-size:23px;font-weight:800;color:#fff;">Spielewelt</div><div style="font-size:13px;font-weight:600;color:#aeb9dd;margin-top:2px;">Zuletzt gespielt · Minecraft</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+              <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+                  <div style="width:62px;height:62px;border-radius:16px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 10px 22px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2);">{{ a.glyph }}</div>
+                  <div style="font-size:12px;font-weight:700;color:#fff;text-align:center;line-height:1;">{{ a.name }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{ back }}" style="margin-top:20px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:13px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:#06203a;background:#6ea8ff;box-shadow:0 14px 32px rgba(110,168,255,.45);">Bibliothek öffnen</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+
+      <div style="position:absolute;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:22px 48px;transition:opacity .4s;{{ chromeStyle }}">
+        <div style="display:flex;align-items:center;gap:10px;color:#9fb0d8;font-size:14px;font-weight:600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4v8M7 6a8 8 0 1 0 10 0"></path></svg> Herunterfahren
+        </div>
+        <div style="display:flex;align-items:center;gap:34px;color:#9fb0d8;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7fb0ff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5"></path></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;padding:11px 20px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#cdd8f2;font-size:14px;font-weight:700;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg> Eltern
+        </div>
+      </div>
+
+      <div class="flash" style="position:absolute;inset:0;z-index:80;pointer-events:none;background:radial-gradient(circle at 50% 50%, #fff, rgba(255,255,255,.2) 55%, transparent 78%);opacity:0;{{ flashStyle }}"></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;kidName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Jake&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;lush&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { view:'home', active:null, hover:null, now:new Date(), flash:0, tick:0 };
+
+  W=400; H=248; D=70; COLW=452; ROWH=300; CAMZ=1380;
+  pos(i){ const col=i%3, row=(i/3|0); return { col, row, x:(col-1)*this.COLW, y:row*this.ROWH-150, z:(col===1?0:30), ry:(1-col)*6 }; }
+
+  RECTS=(()=>{ const r={}; const xs=[0,155,308,462,616,771,925,1079,1233,1387];
+    [['F01','F02','F03','F04','F05','F06','F07','F08','F09','F10'],['F11','F12','F13','F14','F15','F16','F17','F18','F19','F20'],['F21','F22','F23','F24','F25']]
+    .forEach((row,ri)=>row.forEach((id,ci)=>{ r[id]={x:xs[ci],y:ri*185,w:(ci===1||ci===5||ci===8)?148:149,h:153}; })); return r; })();
+  // ONE walk loop, ONE stand pose, ONE sit pose — identical for both cats.
+  ANIM={ walk:{frames:['F01','F02','F03','F05','F07'],fps:9}, stand:{frames:['F01'],fps:1}, sit:{frames:['F09'],fps:1}, run:{frames:['F02','F03','F05','F07'],fps:13} };
+  sheet(url){ return { url, sheetW:1536, sheetH:523, frameRects:this.RECTS, animations:this.ANIM }; }
+  get reduce(){ return !!this.props.reduceMotion; }
+
+  componentDidMount(){
+    // platforms: tops of the 6 tiles (2 levels) + the floor
+    this.SEGS=[
+      {id:'t0',level:0,col:0,y:176,x0:78,x1:458},{id:'t1',level:0,col:1,y:176,x0:530,x1:910},{id:'t2',level:0,col:2,y:176,x0:982,x1:1362},
+      {id:'b0',level:1,col:0,y:476,x0:78,x1:458},{id:'b1',level:1,col:1,y:476,x0:530,x1:910},{id:'b2',level:1,col:2,y:476,x0:982,x1:1362},
+      {id:'floor',level:2,col:null,y:838,x0:90,x1:1350},
+    ];
+    this.cats=[
+      { id:'brown', sheet:this.sheet('sprites/cat_brown.png'), seg:'b0', x:268, y:476, dir:1, face:1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:200, roomDir:1, speed:5.0, size:120 },
+      { id:'blue',  sheet:this.sheet('sprites/cat_blue.png'),  seg:'t2', x:1120, y:176, dir:-1, face:-1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:160, roomDir:-1, speed:4.2, size:120 },
+    ];
+    this._timers=[]; this.TICK=60;
+    this.loop=setInterval(()=>this.stepAll(), this.TICK);
+    this.clockTimer=setInterval(()=>this.setState({now:new Date()}),20000);
+    this.fit=()=>{ const el=document.querySelector('.stage-scale'); if(el){ const s=Math.min(window.innerWidth/1440, window.innerHeight/900); el.style.position='absolute'; el.style.left='50%'; el.style.top='50%'; el.style.transformOrigin='center center'; el.style.transform=`translate(-50%,-50%) scale(${s})`; } };
+    this.fit(); window.addEventListener('resize', this.fit);
+    this.onKey=(e)=>{ if(e.key==='Escape' && this.state.view==='in') this.close(); };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentDidUpdate(){ const d=document.querySelector('.d3'); if(d){ [d, ...d.querySelectorAll('*')].forEach(el=>{ el.getAnimations&&el.getAnimations().forEach(a=>{ try{ const t=a.effect&&a.effect.getTiming&&a.effect.getTiming(); if(!t||t.iterations!==Infinity) a.finish(); }catch(e){} }); }); } }
+  componentWillUnmount(){ clearInterval(this.loop); clearInterval(this.clockTimer); (this._timers||[]).forEach(clearTimeout); window.removeEventListener('resize', this.fit); window.removeEventListener('keydown', this.onKey); }
+  after(fn,ms){ const id=setTimeout(fn,ms); this._timers.push(id); return id; }
+
+  // ---- platformer cats ----
+  seg(id){ return this.SEGS.find(s=>s.id===id); }
+  segNeighbor(id,dir){ const s=this.seg(id); if(!s||s.level>=2) return null; return this.SEGS.find(x=>x.level===s.level&&x.col===s.col+dir)||null; }
+  segBelow(id){ const s=this.seg(id); if(s.level===0) return this.SEGS.find(x=>x.level===1&&x.col===s.col); if(s.level===1) return this.seg('floor'); return null; }
+  tileTopSeg(i){ return i<3?'t'+i:'b'+(i-3); }
+  segAbove(c){ const s=this.seg(c.seg);
+    if(s.level===0) return null;
+    if(s.level===1) return this.SEGS.find(x=>x.level===0&&x.col===s.col)||null;
+    let best=null,bd=1e9; this.SEGS.filter(x=>x.level===1).forEach(x=>{ const cx=(x.x0+x.x1)/2, d=Math.abs(cx-c.x); if(d<bd){bd=d;best=x;} }); return best;
+  }
+  jumpTo(c,t,dir){ if(!t) return; c.mode='jump'; c.air=0; c.x0=c.x; c.y0=c.y; c.target=t.id;
+    const lower = t.y > c.y0+4;
+    let lx;
+    if(lower){ lx = c.x; }
+    else if(t.id===c.seg){ lx = c.x; }
+    else { lx = dir>0? t.x0+34 : t.x1-34; }
+    c.x1=Math.max(t.x0+30,Math.min(t.x1-30, isFinite(lx)?lx:(t.x0+t.x1)/2));
+    c.y1=t.y; const rise=c.y0-c.y1; c.arc=Math.max(98, (rise>0?rise:0)+98);
+    c.dir = (c.x1>c.x0+2)?1:(c.x1<c.x0-2?-1:dir); c.face=c.dir;
+  }
+  nearGap(c){ const gaps=[{a:458,b:530,mid:494},{a:910,b:982,mid:946}]; let best=gaps[0],bd=1e9; gaps.forEach(g=>{const d=Math.abs(g.mid-c.x); if(d<bd){bd=d;best=g;}}); return best; }
+  wallSeg(wallX,y){ return this.SEGS.find(s=>s.level<2 && Math.abs(s.y-y)<48 && (Math.abs(s.x0-wallX)<12||Math.abs(s.x1-wallX)<12)); }
+  startClimb(c){ const g=this.nearGap(c); const fromLeft=Math.abs(c.x-g.a)<=Math.abs(c.x-g.b); c.wallFrom=fromLeft?g.a:g.b; c.wallTo=fromLeft?g.b:g.a; c.climbTarget=176; c.mode='wall'; this.wallKick(c); }
+  wallKick(c){ c.air=0; c.x0=c.x; c.y0=c.y; const rise=(c.y0-c.climbTarget)>320?150:Math.max(92,(c.y0-c.climbTarget)/2); c.y1=Math.max(c.climbTarget, c.y0-rise); c.x1=c.wallTo; c.arc=64; c.face=c.x1>=c.x0?1:-1; c.dir=c.face; const t=c.wallFrom; c.wallFrom=c.wallTo; c.wallTo=t; }
+  enterRoom(c,i){ c.inRoom=i; c.roomX=120+Math.random()*160; c.roomDir=Math.random()<0.5?1:-1; c.mode='walk'; }
+  arrive(c,dirEnd){
+    const r=Math.random();
+    if(r<0.12){ c.mode='sit'; c.pauseT=1600+Math.random()*2400; c.dir=Math.random()<0.5?1:-1; c.face=c.dir; return; }
+    const nb=this.segNeighbor(c.seg,dirEnd);
+    const up=this.segAbove(c);
+    const bel=this.segBelow(c.seg);
+    if(nb && r<0.5){ this.jumpTo(c,nb,dirEnd); return; }
+    if(up && r<0.76){ this.startClimb(c); return; }
+    if(bel && r<0.93){ this.jumpTo(c,bel,dirEnd); return; }
+    c.dir=-dirEnd; c.mode='pause'; c.pauseT=240+Math.random()*380; c.face=c.dir;
+  }
+  step(c){
+    if(this.reduce){ c.mode='sit'; return; }
+    if(c.inRoom!=null){ c.roomX+=c.roomDir*c.speed*0.7; if(c.roomX>=338){c.roomX=338;c.roomDir=-1;} if(c.roomX<=62){c.roomX=62;c.roomDir=1;} c.face=c.roomDir; c.mode='walk'; return; }
+    if(c.mode==='walk'){
+      const s=this.seg(c.seg); c.y=s.y; c.x+=c.dir*c.speed; c.face=c.dir;
+      const r=Math.random();
+      if(r<0.004){ c.mode=r<0.002?'sit':'pause'; c.pauseT=900+Math.random()*2200; return; }
+      if(r<0.010){ if(this.segAbove(c)){ this.startClimb(c); return; } }
+      if(c.dir>0 && c.x>=s.x1){ c.x=s.x1; this.arrive(c,1); }
+      else if(c.dir<0 && c.x<=s.x0){ c.x=s.x0; this.arrive(c,-1); }
+    } else if(c.mode==='pause'||c.mode==='sit'){
+      c.pauseT-=this.TICK; if(c.pauseT<=0) c.mode='walk';
+    } else if(c.mode==='jump'||c.mode==='fall'){
+      c.air+=this.TICK/540; const a=Math.min(1,c.air);
+      c.x=c.x0+(c.x1-c.x0)*a;
+      c.y=c.y0+(c.y1-c.y0)*a - c.arc*4*a*(1-a);
+      if(a>=1){ c.seg=c.target; c.mode='walk'; c.y=this.seg(c.seg).y; }
+    } else if(c.mode==='wall'){
+      c.air+=this.TICK/300; const a=Math.min(1,c.air);
+      c.x=c.x0+(c.x1-c.x0)*a;
+      c.y=c.y0+(c.y1-c.y0)*a - c.arc*4*a*(1-a);
+      if(a>=1){ c.x=c.x1; c.y=c.y1;
+        if(c.y1<=c.climbTarget+12){ const seg=this.wallSeg(c.x1,c.y1); if(seg){ c.seg=seg.id; c.mode='walk'; c.y=seg.y; c.x=Math.max(seg.x0+24,Math.min(seg.x1-24,c.x1)); } else { c.mode='walk'; } }
+        else { this.wallKick(c); }
+      }
+    }
+  }
+  stepAll(){ if(!this.cats) return; this.cats.forEach(c=>{ this.step(c); c.frame++; }); this.setState(s=>({tick:s.tick+1})); }
+  catClick(c){ if(this.state.view!=='home'||c.inRoom!=null) return; c.mode='sit'; c.pauseT=2600; c.hearts++; this.forceUpdate(); }
+
+  // art faces LEFT by default -> flip so the cat faces its travel direction
+  spr(c,anim,size){ const sh=c.sheet; const a=sh.animations[anim]||sh.animations.stand; const id=a.frames[c.frame%a.frames.length]; const r=sh.frameRects[id]||sh.frameRects.F01; const sc=size/r.h;
+    return React.createElement('span',{ style:{ display:'block', width:Math.round(r.w*sc), height:Math.round(r.h*sc), backgroundImage:`url(${sh.url})`, backgroundSize:`${sh.sheetW*sc}px ${sh.sheetH*sc}px`, backgroundPosition:`${-r.x*sc}px ${-r.y*sc}px`, backgroundRepeat:'no-repeat', transform:`scaleX(${-c.face})`, transformOrigin:'center bottom', imageRendering:'pixelated', filter:'drop-shadow(0 0 12px rgba(150,200,255,.4)) drop-shadow(0 9px 7px rgba(0,0,0,.45))' } });
+  }
+  renderCats(){ if(!this.cats) return null;
+    const air=(c)=>c.mode==='jump'||c.mode==='fall'||c.mode==='wall';
+    return this.cats.map(c=>{ if(c.inRoom!=null) return null;
+      const anim = c.mode==='sit'?'sit' : (c.mode==='pause'?'stand' : (air(c)?'run':'walk'));
+      return React.createElement('div',{ key:c.id, style:{ position:'absolute', left:0, top:0, transform:`translate3d(${c.x}px,${c.y}px,0)`, willChange:'transform' } },
+        !air(c) && React.createElement('div',{ style:{ position:'absolute', left:'50%', bottom:'-5px', width:'82px', height:'17px', transform:'translateX(-50%)', background:'radial-gradient(closest-side, rgba(0,0,0,.5), transparent 75%)', filter:'blur(2px)' } }),
+        React.createElement('div',{ style:{ position:'absolute', left:'50%', top:'-86px', width:'130px', height:'130px', transform:'translateX(-50%)', background:'radial-gradient(closest-side, rgba(150,200,255,.2), transparent 70%)', filter:'blur(6px)', pointerEvents:'none' } }),
+        React.createElement('button',{ onClick:(e)=>{ e.stopPropagation(); this.catClick(c); }, style:{ position:'relative', background:'none', border:'none', padding:0, cursor:'pointer', pointerEvents:'auto', transform:'translate(-50%,-100%)' }, title:'Hallo!' }, this.spr(c,anim,c.size)),
+        c.mode==='sit' && c.hearts>0 && React.createElement('span',{ key:c.hearts, style:{ position:'absolute', left:0, top:'-120px', fontSize:'30px', animation:'heartRise 1.4s ease-out forwards' } }, c.id==='brown'?'💜':'💙')
+      );
+    });
+  }
+  renderRoomCat(i){ const c=this.cats&&this.cats.find(x=>x.inRoom===i); if(!c) return null;
+    return React.createElement('div',{ style:{ position:'absolute', left:`${c.roomX}px`, bottom:'6px', zIndex:2, transform:'translateX(-50%)' } }, this.spr(c,'walk',74));
+  }
+
+  buildFrontFX(){ const out=[]; const reduce=this.reduce; const lush=this.props.lush!==false;
+    const rays = reduce?0:(lush?6:4);
+    for(let i=0;i<rays;i++){ const left=8+i*15+this.rand(-3,3); out.push(React.createElement('div',{key:'gr'+i, style:{ position:'absolute', left:left+'%', top:'-20%', width:this.rand(70,150)+'px', height:'150%', transformOrigin:'top center', transform:`rotate(${this.rand(-7,7).toFixed(1)}deg)`, background:'linear-gradient(180deg, rgba(180,210,255,.4), rgba(150,190,255,.07) 50%, transparent 75%)', filter:'blur(10px)', mixBlendMode:'screen', animation:reduce?'none':`fogDrift ${this.rand(9,14).toFixed(1)}s ease-in-out ${this.rand(0,5).toFixed(1)}s infinite` } })); }
+    if(!reduce){ const cols=['rgba(110,168,255,.18)','rgba(140,90,255,.16)','rgba(95,230,176,.14)']; for(let i=0;i<5;i++){ out.push(React.createElement('div',{key:'bl'+i, style:{ position:'absolute', left:this.rand(5,90)+'%', top:this.rand(8,80)+'%', width:this.rand(180,340)+'px', height:this.rand(180,340)+'px', borderRadius:'50%', background:`radial-gradient(closest-side, ${cols[i%3]}, transparent 70%)`, filter:'blur(20px)', mixBlendMode:'screen', animation:`haloPulse ${this.rand(6,10).toFixed(1)}s ease-in-out ${this.rand(0,4).toFixed(1)}s infinite` } })); } }
+    const ffN = reduce?0:(lush?32:18);
+    for(let i=0;i<ffN;i++){ const s=this.rand(3,7); const warm=i%3===0; out.push(React.createElement('i',{key:'ff'+i, style:{ position:'absolute', left:this.rand(2,98)+'%', top:this.rand(12,94)+'%', width:s+'px', height:s+'px', borderRadius:'50%', background:warm?'radial-gradient(circle,#fff6d2,#ffcf6b 55%,transparent)':'radial-gradient(circle,#dff2ff,#74b8ff 55%,transparent)', boxShadow:warm?'0 0 14px 3px rgba(255,200,110,.6)':'0 0 14px 3px rgba(120,185,255,.6)', '--dx':this.rand(-60,60)+'px','--dy':this.rand(-170,-60)+'px', animation:`ffFloat ${this.rand(8,15).toFixed(1)}s ease-in-out ${this.rand(0,7).toFixed(1)}s infinite` } })); }
+    const sp = reduce?14:48; for(let i=0;i<sp;i++){ const s=this.rand(1,2.6); out.push(React.createElement('i',{key:'sp'+i, style:{ position:'absolute', left:this.rand(0,100)+'%', top:this.rand(0,100)+'%', width:s+'px', height:s+'px', borderRadius:'50%', background:'#fff', boxShadow:'0 0 4px #fff', opacity:.6, animation:reduce?'none':`sdTwinkle ${this.rand(3,7).toFixed(1)}s ease-in-out ${this.rand(0,5).toFixed(1)}s infinite` } })); }
+    if(!reduce){ for(let i=0;i<4;i++){ out.push(React.createElement('div',{key:'fg'+i, style:{ position:'absolute', left:this.rand(-10,70)+'%', top:this.rand(55,90)+'%', width:this.rand(320,560)+'px', height:this.rand(160,260)+'px', borderRadius:'50%', background:'radial-gradient(closest-side, rgba(150,180,240,.16), transparent 70%)', filter:'blur(26px)', animation:`fogDrift ${this.rand(26,40).toFixed(1)}s ease-in-out ${this.rand(0,8).toFixed(1)}s infinite` } })); } }
+    return out;
+  }
+
+  rand(a,b){ return a+Math.random()*(b-a); }
+  buildParticles(){ const out=[]; const lush=this.props.lush!==false; const reduce=this.reduce;
+    const ffN=reduce?0:(lush?30:18);
+    for(let i=0;i<ffN;i++){ const s=this.rand(2,5); out.push(React.createElement('i',{key:'ff'+i, style:{ position:'absolute', left:this.rand(2,98)+'%', top:this.rand(20,96)+'%', width:s+'px', height:s+'px', borderRadius:'50%', background:i%3?'radial-gradient(circle,#cdecff,#6ea8ff 60%,transparent)':'radial-gradient(circle,#fff2c0,#ffcf6b 60%,transparent)', boxShadow:'0 0 10px 2px rgba(120,180,255,.5)', '--dx':this.rand(-50,50)+'px','--dy':this.rand(-150,-50)+'px', animation:`ffFloat ${this.rand(9,17).toFixed(1)}s ease-in-out ${this.rand(0,8).toFixed(1)}s infinite` } })); }
+    const sdN=reduce?12:(lush?46:28);
+    for(let i=0;i<sdN;i++){ const s=this.rand(1,2.4); out.push(React.createElement('i',{key:'sd'+i, style:{ position:'absolute', left:this.rand(0,100)+'%', top:this.rand(0,100)+'%', width:s+'px', height:s+'px', borderRadius:'50%', background:'#fff', opacity:.5, animation:reduce?'none':`sdTwinkle ${this.rand(3,7).toFixed(1)}s ease-in-out ${this.rand(0,5).toFixed(1)}s infinite` } })); }
+    const crit=[{l:'5%'},{l:'15%'},{l:'85%'},{l:'94%'}];
+    crit.forEach((p,i)=>{ const eye='#bde7ff'; out.push(React.createElement('div',{key:'cr'+i, style:{ position:'absolute', left:p.l, bottom:this.rand(2,7)+'%', width:'46px', height:'40px', animation:reduce?'none':`critBob ${this.rand(3,5).toFixed(1)}s ease-in-out ${this.rand(0,3).toFixed(1)}s infinite` } },
+      React.createElement('div',{ style:{ position:'absolute', inset:0, borderRadius:'50% 50% 46% 46%', background:'radial-gradient(circle at 50% 30%, #2a3454, #0c1330 75%)', boxShadow:'0 6px 16px rgba(0,0,0,.5)' } }),
+      React.createElement('span',{ style:{ position:'absolute', left:'13px', top:'15px', width:'7px', height:'9px', borderRadius:'50%', background:eye, boxShadow:`0 0 8px ${eye}`, animation:reduce?'none':`eyeBlink ${this.rand(4,7).toFixed(1)}s ease-in-out infinite` } }),
+      React.createElement('span',{ style:{ position:'absolute', right:'13px', top:'15px', width:'7px', height:'9px', borderRadius:'50%', background:eye, boxShadow:`0 0 8px ${eye}`, animation:reduce?'none':`eyeBlink ${this.rand(4,7).toFixed(1)}s ease-in-out infinite` } })
+    )); });
+    return out;
+  }
+  buildRays(){ const out=[]; for(let i=0;i<5;i++){ out.push(React.createElement('div',{key:'r'+i, style:{ position:'absolute', left:(8+i*20)+'%', top:'-30%', width:this.rand(40,90)+'px', height:'160%', transformOrigin:'top center', transform:`rotate(${this.rand(-5,5).toFixed(1)}deg)`, background:'linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,.04) 55%, transparent)', filter:'blur(7px)', mixBlendMode:'screen' } })); } return out; }
+
+  ic(name,size=46){ const M={
+      play:['M8 5l11 7-11 7z|fill'], grid:['M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+      book:['M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z','M4 20.5A2.5 2.5 0 0 0 6.5 23H19'],
+      pencil:['M5 19l-1 1 1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z','M14 7l3 3'], tv:['M3 6h18v12H3z','M8 21h8M8 3l4 3 4-3'],
+      people:['M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zM2.5 20a6.5 6.5 0 0 1 13 0','M16.5 11a3 3 0 1 0-2-5.2','M21.5 20a6 6 0 0 0-7-5.9'],
+      globe:['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z','M2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20'],
+      stars:['M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z','M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z'],
+      leaf:['M4 20c0-9 7-15 16-15 0 9-6 16-16 15z','M9 15c2-3 5-5 8-6'],
+      plus:['M12 5v14M5 12h14'], rocket:['M5 15c-1 3-1 5-1 5s2 0 5-1','M14 4c4 0 6 2 6 6 0 5-5 9-9 11-2-1-4-3-5-5C7 9 11 4 14 4z','M14.5 9.5h.01'],
+      cube:['M12 2l9 5v10l-9 5-9-5V7z','M12 22V12M21 7l-9 5M3 7l9 5'],
+    };
+    const defs=M[name]||[]; const paths=defs.map((d,i)=>{ const fill=d.endsWith('|fill'); const dd=fill?d.slice(0,-5):d; return React.createElement('path',{key:i,d:dd, ...(fill?{fill:'currentColor',stroke:'none'}:{})}); });
+    return React.createElement('svg',{ width:size, height:size, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round', style:{display:'block',width:'100%',height:'100%'} }, paths);
+  }
+
+  open(i,e){
+    const topId=this.tileTopSeg(i);
+    if(this.cats) this.cats.forEach(c=>{ if(c.inRoom!=null) return;
+      if(c.seg===topId && (c.mode==='walk'||c.mode==='pause'||c.mode==='sit')){ const bel=this.segBelow(topId)||this.seg('floor'); this.jumpTo(c,bel,c.dir||1); }
+      else if(c.seg==='floor'){ const ts=this.seg(topId); if(ts && c.x>=ts.x0 && c.x<=ts.x1) this.enterRoom(c,i); }
+    });
+    this.setState({ flash:this.state.flash+1, active:i, view:'opening' });
+    this.after(()=>this.setState({ view:'in' }), 980);
+  }
+  close(){ const a=this.state.active;
+    if(this.cats) this.cats.forEach(c=>{ if(c.inRoom!=null){ c.inRoom=null; c.seg='floor'; const f=this.seg('floor'); const cx=720+(a!=null?this.pos(a).x:0); c.x=Math.max(f.x0+40,Math.min(f.x1-40,cx)); c.y=f.y; c.mode='walk'; } });
+    this.setState({ view:'closing' }); this.after(()=>this.setState({ view:'home', active:null }), 1050);
+  }
+
+  DATA(){ const ic=(n)=>this.ic(n); const app=(name,sub,glyph,bg)=>({name,sub,glyph:this.ic(glyph,34),bg});
+    return [
+      { key:'play', label:'Play', tag:'8 Spiele bereit', icon:ic('play'), scene:'dioramas/spielen.jpg', grad:'linear-gradient(150deg,#2f4ea3,#16245e)', gradSoft:'linear-gradient(150deg, rgba(110,168,255,.28), transparent 60%)', ac:'#6ea8ff', rich:false,
+        apps:[app('Minecraft','Sandbox','cube','linear-gradient(150deg,#3b8526,#0f3d1a)'),app('Galaxy Racer','Rennen','rocket','linear-gradient(150deg,#a855f7,#1e1b4b)'),app('Pixel Pirates','Abenteuer','globe','linear-gradient(150deg,#0ea5e9,#0c2f6b)'),app('Robo Lab','Logik','grid','linear-gradient(150deg,#f43f5e,#5b1418)')] },
+      { key:'apps', label:'Apps', tag:'Alle Programme', icon:ic('grid'), scene:'dioramas/musik.jpg', grad:'linear-gradient(150deg,#1d7e84,#0c3a44)', gradSoft:'linear-gradient(150deg, rgba(87,224,216,.26), transparent 60%)', ac:'#57e0d8', rich:false,
+        apps:[app('Rechner','Werkzeug','grid','linear-gradient(150deg,#0891b2,#0c4a6e)'),app('Notizen','Schreiben','book','linear-gradient(150deg,#7c3aed,#4c1d95)'),app('Kamera','Foto','globe','linear-gradient(150deg,#16a34a,#065f46)'),app('Karte','Orte','globe','linear-gradient(150deg,#2563eb,#1e3a8a)')] },
+      { key:'library', label:'Library', tag:'Bücher & Hörspiele', icon:ic('book'), scene:'dioramas/geschichten.jpg', grad:'linear-gradient(150deg,#6b46b0,#34215f)', gradSoft:'linear-gradient(150deg, rgba(201,166,255,.28), transparent 60%)', ac:'#c9a6ff', rich:false,
+        apps:[app('Gute-Nacht','Hörspiel','book','linear-gradient(150deg,#ffd166,#7c4a06)'),app('Märchen','Klassiker','book','linear-gradient(150deg,#db2777,#831843)'),app('Abenteuer','Vorlesen','book','linear-gradient(150deg,#ea6418,#7c2d12)'),app('Erstleser','Selbst lesen','book','linear-gradient(150deg,#0891b2,#0c4a6e)')] },
+      { key:'create', label:'Create', tag:'Malen, Musik & Code', icon:ic('pencil'), scene:'dioramas/kreativ.jpg', grad:'linear-gradient(150deg,#1f8f6e,#0d4a44)', gradSoft:'linear-gradient(150deg, rgba(95,230,176,.26), transparent 60%)', ac:'#5fe6b0', rich:false,
+        apps:[app('Zeichnen','Malen','pencil','linear-gradient(150deg,#db2777,#831843)'),app('Musik','Beats','stars','linear-gradient(150deg,#6d28d9,#2e1065)'),app('Coden','Blöcke','grid','linear-gradient(150deg,#ea6418,#7c2d12)'),app('Video','Clips','tv','linear-gradient(150deg,#0d9488,#134e4a)')] },
+      { key:'watch', label:'Watch', tag:'Filme & Serien', icon:ic('tv'), scene:'dioramas/entdecken.jpg', grad:'linear-gradient(150deg,#2b4a93,#152a5e)', gradSoft:'linear-gradient(150deg, rgba(127,176,255,.26), transparent 60%)', ac:'#7fb0ff', rich:false,
+        apps:[app('Zeichentrick','Serie','tv','linear-gradient(150deg,#2563eb,#1e3a8a)'),app('Natur','Doku','leaf','linear-gradient(150deg,#16a34a,#065f46)'),app('Kino','Film','tv','linear-gradient(150deg,#7c3aed,#4c1d95)'),app('Lieder','Musik','stars','linear-gradient(150deg,#0891b2,#0c4a6e)')] },
+      { key:'explore', label:'Explore', tag:'Entdecke neue Orte und Ideen', icon:ic('people'), scene:'dioramas/lernen.jpg', grad:'linear-gradient(150deg,#4a3aa0,#241a5e)', gradSoft:'linear-gradient(150deg, rgba(183,156,255,.28), transparent 60%)', ac:'#b79cff', rich:true,
+        apps:[app('Google Earth','Earth','globe','linear-gradient(150deg,#2f6fe0,#123a86)'),app('Stellarium','Star Map','stars','linear-gradient(150deg,#3b2d6e,#15103a)'),app('NASA Place','Space','rocket','linear-gradient(150deg,#d33b3b,#5b1418)'),app('Seek','Nature','leaf','linear-gradient(150deg,#2fae5a,#0c4a2a)'),app('Merlin','Birds','globe','linear-gradient(150deg,#1b2838,#0a141e)'),app('Kiwix','Knowledge','book','linear-gradient(150deg,#2563eb,#1e3a8a)'),app('Mehr','','plus','linear-gradient(150deg,#3a4a78,#1a2440)')] },
+    ];
+  }
+
+  renderVals(){
+    const { view, active } = this.state;
+    if(!this._particles) this._particles=this.buildParticles();
+    if(!this._rays) this._rays=this.buildRays();
+    const inside = view!=='home';
+
+    const boxes=this.DATA().map((d,i)=>{
+      const p=this.pos(i); const isActive=active===i; const hov=this.state.hover===i;
+      const doorOpen = isActive && (view==='opening'||view==='in');
+      let dHinge, dOpen;
+      if(p.col===0){ dHinge='0% 50%'; dOpen='rotateY(-118deg)'; }
+      else if(p.col===2){ dHinge='100% 50%'; dOpen='rotateY(118deg)'; }
+      else if(p.row===0){ dHinge='50% 0%'; dOpen='rotateX(118deg)'; }
+      else { dHinge='50% 100%'; dOpen='rotateX(-118deg)'; }
+      const dim = (view==='in' && active!=null && !isActive);
+      const richApps = d.rich ? d.apps : d.apps.slice(0,4);
+      return { ...d, apps:richApps,
+        open:(e)=>this.open(i,e), enter:()=>this.setState({hover:i}), leave:()=>this.setState({hover:null}),
+        rays: d.rich ? this._rays : null,
+        roomCat: (this.cats && this.cats.some(c=>c.inRoom===i)), roomCatEl: this.renderRoomCat(i),
+        wrapStyle:{ position:'absolute', left:'50%', top:'50%', width:0, height:0, transformStyle:'preserve-3d', transform:`translate3d(${p.x}px,${p.y}px,${p.z}px) rotateY(${p.ry}deg)`, opacity: dim?0:1, transition:'opacity .6s ease', pointerEvents: inside?'none':'auto' },
+        boxStyle:{ position:'absolute', left:`${-this.W/2}px`, top:`${-this.H/2}px`, width:`${this.W}px`, height:`${this.H}px`, transformStyle:'preserve-3d', transform: hov&&!inside?'translateZ(26px)':'translateZ(0)', transition:'transform .35s cubic-bezier(.4,1.2,.5,1)' },
+        bwStyle:{ position:'absolute', inset:'14px', borderRadius:'10px', overflow:'hidden', transform:`translateZ(${-this.D}px)`, background:'#070d1e', boxShadow:'inset 0 0 60px rgba(0,0,0,.7)' },
+        appsRowStyle:{ position:'absolute', left:0, right:0, bottom:'44px', zIndex:3, display:'flex', justifyContent:'center', gap: d.rich?'14px':'18px', padding:'0 28px', flexWrap:'nowrap', animation:'scrimIn .6s .15s both' },
+        rimStyle:{ position:'absolute', inset:'-2px', borderRadius:'22px', border:'2px solid rgba(255,255,255,.08)', boxShadow:'inset 0 0 0 6px rgba(6,10,24,.6), inset 0 0 40px rgba(0,0,0,.6)', transform:'translateZ(0px)', pointerEvents:'none' },
+        doorStyle:{ position:'absolute', inset:'-4px', padding:0, border:'none', background:'none', cursor: inside?'default':'pointer', transformStyle:'preserve-3d', transformOrigin:dHinge, transform:`translateZ(3px) ${doorOpen?dOpen:'rotateY(0deg)'}`, transition:'transform .58s cubic-bezier(.5,.05,.2,1)', fontFamily:'inherit', zIndex:6 },
+        tile:`tiles/${d.key}.png`,
+        tintGrad:`linear-gradient(90deg, ${d.ac} 26%, transparent 72%)`,
+        doorFaceStyle:{ position:'absolute', inset:0, borderRadius:'20px', overflow:'hidden', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', background:`linear-gradient(150deg, color-mix(in srgb, ${d.ac} 80%, #1b2746), color-mix(in srgb, ${d.ac} 44%, #0c1326))`, boxShadow: hov&&!inside?'0 30px 60px rgba(0,0,0,.5)':'0 14px 36px rgba(0,0,0,.4)' },
+        doorInnerStyle:{ position:'absolute', inset:0, borderRadius:'20px', transform:'rotateY(180deg)', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', background:'linear-gradient(150deg,#1b2440,#0c1224)', boxShadow:'inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 60px rgba(0,0,0,.5)' },
+        doorInnerHinge:{ position:'absolute', left:'14px', top:'50%', width:'8px', height:'78px', transform:'translateY(-50%)', borderRadius:'5px', background:'linear-gradient(180deg,#33406a,#1a2240)', boxShadow:'0 2px 6px rgba(0,0,0,.5)' },
+        doorGlow:{ position:'absolute', inset:0, borderRadius:'20px', background:`radial-gradient(120% 80% at 50% 30%, ${d.ac}, transparent 60%)`, mixBlendMode:'screen', opacity: hov&&!inside?0.5:0.16, transition:'opacity .4s', pointerEvents:'none' },
+      };
+    });
+
+    let worldTransform='translateZ(0px) rotateX(3deg)';
+    if(view==='in' && active!=null){ const p=this.pos(active);
+      worldTransform=`translateZ(${this.CAMZ}px) rotateX(0deg) rotateY(${-p.ry}deg) translateX(${-p.x}px) translateY(${-p.y}px) translateZ(${-p.z}px)`;
+    }
+    const worldStyle={ position:'absolute', inset:0, zIndex:5, transformStyle:'preserve-3d', transformOrigin:'50% 50%', transform:worldTransform, transition:'transform 1.05s cubic-bezier(.6,.02,.25,1)' };
+
+    const playIdx = this.DATA().findIndex(d=>d.key==='play');
+    const playActive = active===playIdx;
+    const show3d = playActive && (view==='opening'||view==='in');
+    const d3Apps = this.DATA()[playIdx].apps.slice(0,4);
+    return {
+      view, particles:this._particles, cats:this.renderCats(), boxes, worldStyle,
+      frontFx: this._frontFx||(this._frontFx=this.buildFrontFX()),
+      fxStyle: inside?'opacity:0;transition:opacity .4s;':'opacity:1;transition:opacity .5s;',
+      catWorldStyle:{ position:'absolute', left:0, top:0, width:'1440px', height:'900px', transformStyle:'preserve-3d', transform:'translateZ(30px)', opacity: view==='home'?1:0, transition:'opacity .35s' },
+      clock:this.state.now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
+      kidName:this.props.kidName??'Jake', initial:(this.props.kidName??'Jake').slice(0,1).toUpperCase(),
+      chromeStyle: inside?'opacity:0;pointer-events:none;':'opacity:1;',
+      backStyle:{ position:'absolute', left:'42px', top:'34px', zIndex:30, display: inside?'inline-flex':'none', alignItems:'center', gap:'8px', padding:'12px 22px', borderRadius:'999px', background:'rgba(8,12,26,.5)', border:'1px solid rgba(255,255,255,.2)', color:'#fff', fontFamily:'inherit', fontWeight:700, fontSize:'15px', cursor:'pointer', backdropFilter:'blur(10px)', opacity: view==='in'?1:0, transition:'opacity .4s .3s' },
+      back:()=>this.close(),
+      show3d, d3Src:'dioramas/spielen.jpg', d3Active: view==='in'?'true':'false',
+      d3Model:'models/kitchen.glb', mvOrbit: view==='in'?'180deg 74deg 68%':'160deg 80deg 95%', mvFov: view==='in'?'34deg':'40deg',
+      d3Apps, d3Icon:this.ic('play',26), interiorRays:this._rays,
+      d3Style:{ position:'absolute', inset:0, zIndex:35, opacity: show3d?1:0, pointerEvents: show3d?'auto':'none', transition:'opacity .55s ease', background: show3d?'#060a18':'transparent' },
+      d3PanelStyle:{ position:'absolute', right:'70px', top:'50%', transform:'translateY(-50%)', zIndex:5, opacity: view==='in'?1:0, transition:'opacity .5s .35s' },
+      flashStyle: this.state.flash?'animation:flashAnim .6s ease forwards;':'',
+    };
+  }
+}
+</script>
+</body>
+</html>
