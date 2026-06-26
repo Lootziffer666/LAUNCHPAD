@@ -27,6 +27,8 @@
   @keyframes haloPulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.95;transform:scale(1.08)}}
   @keyframes bob{0%,100%{transform:translateY(-8px)}50%{transform:translateY(10px)}}
   @keyframes fogDrift{0%{transform:translateX(-6%)}50%{transform:translateX(6%)}100%{transform:translateX(-6%)}}
+  @keyframes portalIn{from{clip-path:circle(0% at var(--px,50%) var(--py,50%))}to{clip-path:circle(150% at var(--px,50%) var(--py,50%))}}
+  @keyframes portalOut{from{clip-path:circle(150% at var(--px,50%) var(--py,50%))}to{clip-path:circle(0% at var(--px,50%) var(--py,50%))}}
 </style>
 </helmet>
 <div class="stage-wrap" style="position:fixed;inset:0;overflow:hidden;background:radial-gradient(1300px 1000px at 50% 8%, #122152 0%, transparent 60%),radial-gradient(1100px 900px at 50% 120%, #1a1245 0%, transparent 60%),#070b1c;">
@@ -103,8 +105,8 @@
 
       <!-- 3D diorama layer — active for all 6 tiles via model-viewer -->
       <sc-if value="{{ show3d }}" hint-placeholder-val="{{ false }}">
-      <div class="d3" style="position:absolute;inset:0;z-index:35;background:radial-gradient(120% 100% at 50% 30%, #0e1c3e, #060a18 75%);opacity:1;">
-          <model-viewer src="{{ d3Model }}" loading="eager" reveal="auto" camera-controls disable-zoom interaction-prompt="none" auto-rotate rotation-per-second="12deg" exposure="1.05" shadow-intensity="0.85" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" min-camera-orbit="auto auto auto" max-camera-orbit="auto auto auto" field-of-view="auto" style="width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
+      <div class="d3" style="{{ d3Style }}">
+          <model-viewer src="{{ d3Model }}" loading="eager" reveal="auto" camera-controls interaction-prompt="none" exposure="1.1" shadow-intensity="0.7" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" field-of-view="{{ mvFov }}" min-field-of-view="40deg" max-field-of-view="100deg" style="width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
         <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 18%, rgba(120,170,255,.1), transparent 55%);mix-blend-mode:screen;"></div>
         <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 120% at 50% 46%, transparent 52%, rgba(2,4,12,.7) 100%);"></div>
         <div class="d3-rays" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">{{ interiorRays }}</div>
@@ -317,6 +319,9 @@ class Component extends DCLogic {
       if(c.seg===topId && (c.mode==='walk'||c.mode==='pause'||c.mode==='sit')){ const bel=this.segBelow(topId)||this.seg('floor'); this.jumpTo(c,bel,c.dir||1); }
       else if(c.seg==='floor'){ const ts=this.seg(topId); if(ts && c.x>=ts.x0 && c.x<=ts.x1) this.enterRoom(c,i); }
     });
+    const col=i%3, row=i/3|0;
+    this._portalPx = ['19%','50%','81%'][col];
+    this._portalPy = ['35%','65%'][row];
     clearTimeout(this._closeTimer);
     this.setState({ flash:this.state.flash+1, active:i, view:'opening' });
     this.after(()=>this.setState({ view:'in' }), 980);
@@ -418,10 +423,10 @@ class Component extends DCLogic {
       chromeStyle: inside?'opacity:0;pointer-events:none;':'opacity:1;',
       backStyle:{ position:'absolute', left:'42px', top:'34px', zIndex:30, display: inside?'inline-flex':'none', alignItems:'center', gap:'8px', padding:'12px 22px', borderRadius:'999px', background:'rgba(8,12,26,.5)', border:'1px solid rgba(255,255,255,.2)', color:'#fff', fontFamily:'inherit', fontWeight:700, fontSize:'15px', cursor:'pointer', backdropFilter:'blur(10px)', opacity: view==='in'?1:0, transition:'opacity .4s .3s' },
       back:()=>this.close(),
-      show3d, d3Model, mvOrbit, mvFov: view==='in'?'34deg':'40deg',
+      show3d, d3Model, mvOrbit, mvFov: view==='opening'?'60deg':'70deg',
       d3Apps, d3Icon, d3IconBg, d3Ac, d3Title, d3Sub, d3BtnLabel, interiorRays:this._rays,
-      d3Style:{ position:'absolute', inset:0, zIndex:35, opacity: show3d?1:0, pointerEvents: show3d?'auto':'none', transition:'opacity .55s ease', background: show3d?'#060a18':'transparent' },
-      d3PanelStyle:{ position:'absolute', right:'70px', top:'50%', transform:'translateY(-50%)', zIndex:5, opacity: view==='in'?1:0, transition:'opacity .5s .35s' },
+      d3Style:{ position:'absolute', inset:0, zIndex:35, pointerEvents:'auto', background:'radial-gradient(130% 110% at 50% 25%, #0b1630, #04060f 70%)', '--px':this._portalPx||'50%', '--py':this._portalPy||'50%', animation: view==='opening'?'portalIn 0.9s cubic-bezier(.2,0,.05,1) both':undefined },
+      d3PanelStyle:{ position:'absolute', right:'70px', top:'50%', transform:'translateY(-50%)', zIndex:5, opacity: view==='in'?1:0, transition:'opacity .5s .45s' },
       flashStyle: this.state.flash?'animation:flashAnim .6s ease forwards;':'',
     };
   }
