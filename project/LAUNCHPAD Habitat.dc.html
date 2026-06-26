@@ -317,12 +317,15 @@ class Component extends DCLogic {
       if(c.seg===topId && (c.mode==='walk'||c.mode==='pause'||c.mode==='sit')){ const bel=this.segBelow(topId)||this.seg('floor'); this.jumpTo(c,bel,c.dir||1); }
       else if(c.seg==='floor'){ const ts=this.seg(topId); if(ts && c.x>=ts.x0 && c.x<=ts.x1) this.enterRoom(c,i); }
     });
+    clearTimeout(this._closeTimer);
     this.setState({ flash:this.state.flash+1, active:i, view:'opening' });
     this.after(()=>this.setState({ view:'in' }), 980);
   }
   close(){ const a=this.state.active;
     if(this.cats) this.cats.forEach(c=>{ if(c.inRoom!=null){ c.inRoom=null; c.seg='floor'; const f=this.seg('floor'); const cx=720+(a!=null?this.pos(a).x:0); c.x=Math.max(f.x0+40,Math.min(f.x1-40,cx)); c.y=f.y; c.mode='walk'; } });
-    this.setState({ view:'closing' }); this.after(()=>this.setState({ view:'home', active:null }), 1050);
+    this.setState({ view:'closing' });
+    clearTimeout(this._closeTimer);
+    this._closeTimer = setTimeout(()=>this.setState({ view:'home', active:null }), 1050);
   }
 
   DATA(){ const ic=(n)=>this.ic(n); const app=(name,sub,glyph,bg)=>({name,sub,glyph:this.ic(glyph,34),bg});
@@ -409,7 +412,7 @@ class Component extends DCLogic {
       view, particles:this._particles, cats:this.renderCats(), boxes, worldStyle,
       frontFx: this._frontFx||(this._frontFx=this.buildFrontFX()),
       fxStyle: inside?'opacity:0;transition:opacity .4s;':'opacity:1;transition:opacity .5s;',
-      catWorldStyle:{ position:'absolute', left:0, top:0, width:'1440px', height:'900px', transformStyle:'preserve-3d', transform:'translateZ(30px)', opacity: view==='home'?1:0, transition:'opacity .35s' },
+      catWorldStyle:{ position:'absolute', left:0, top:0, width:'1440px', height:'900px', transformStyle:'preserve-3d', transform:'translateZ(30px)', opacity: view==='home'?1:0, transition:'opacity .35s', pointerEvents:'none' },
       clock:this.state.now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
       kidName:this.props.kidName??'Jake', initial:(this.props.kidName??'Jake').slice(0,1).toUpperCase(),
       chromeStyle: inside?'opacity:0;pointer-events:none;':'opacity:1;',
