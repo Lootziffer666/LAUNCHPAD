@@ -7,7 +7,7 @@
      groom, belly, hiss, scared, tile_rest, cat_meet, flee, pet)
    • Z-layer switching: stalk = behind tiles (z-index 0), all
      others = above tiles (z-index 6)
-   • Cursor chasing: fast cursor within 170 px → chase_cursor
+   • Cursor chasing: very fast cursor within 100 px → chase_cursor
    • Cat-cat proximity: cats within 115 px → cat_meet
    • Click-to-pet → belly_up + purr + heart; 3 rapid clicks (if
      canFlee) → hiss → flee off-screen → sulk → return
@@ -227,7 +227,7 @@ export function CatNPC({
       const cur = cursorRef.current;
       const oth = otherCatRef.current;
       const next = nextState(newState, {
-        cursorFast:    cursorVelRef.current > 10,
+        cursorFast:    cursorVelRef.current > 20,
         cursorDist:    cur ? Math.hypot(cur.x - p.x, cur.y - p.y) : 9999,
         otherCatDist:  oth ? Math.hypot(oth.x - p.x, oth.y - p.y) : 9999,
         interruptible: def.interruptible,
@@ -255,7 +255,7 @@ export function CatNPC({
     const p    = posRef.current;
     const dist = Math.hypot(cursorPos.x - p.x, cursorPos.y - p.y);
     const def  = STATE_DEF[stateRef.current] || {};
-    if (def.interruptible && cursorVelRef.current > 12 && dist < 170) {
+    if (def.interruptible && cursorVelRef.current > 22 && dist < 100) {
       lastCursorInterrupt.current = now;
       enterState('chase_cursor');
     }
