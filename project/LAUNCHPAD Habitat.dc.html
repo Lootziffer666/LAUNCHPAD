@@ -169,8 +169,8 @@ class Component extends DCLogic {
       {id:'floor',level:2,col:null,y:838,x0:90,x1:1350},
     ];
     this.cats=[
-      { id:'brown', model:'models/cat_a.glb', seg:'b0', x:268, y:476, dir:1, face:1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:200, roomDir:1, speed:5.0, size:120 },
-      { id:'blue',  model:'models/cat_b.glb', seg:'t2', x:1120, y:176, dir:-1, face:-1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:160, roomDir:-1, speed:4.2, size:120 },
+      { id:'brown', model:'models/animated_cat_a.glb', seg:'b0', x:268, y:476, dir:1, face:1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:200, roomDir:1, speed:5.0, size:120 },
+      { id:'blue',  model:'models/animated_cat_b.glb', seg:'t2', x:1120, y:176, dir:-1, face:-1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:160, roomDir:-1, speed:4.2, size:120 },
     ];
     this._timers=[]; this.TICK=60;
     this.loop=setInterval(()=>this.stepAll(), this.TICK);
@@ -251,7 +251,7 @@ class Component extends DCLogic {
   catClick(c){ if(this.state.view!=='home'||c.inRoom!=null) return; c.mode='sit'; c.pauseT=2600; c.hearts++; this.forceUpdate(); }
 
   catEl(c,anim,size){
-    return React.createElement('model-viewer',{ src:c.model, loading:'eager', 'interaction-prompt':'none', 'disable-zoom':'', 'camera-orbit':'90deg 80deg 105%', orientation:`-90deg ${c.face>0?'0deg':'180deg'} 0deg`, 'environment-image':'neutral', exposure:'1.4', style:{ width:size+'px', height:size+'px', backgroundColor:'transparent', '--poster-color':'transparent', display:'block', filter:'drop-shadow(0 4px 12px rgba(0,0,0,.6))' } });
+    return React.createElement('model-viewer',{ src:c.model, 'animation-name':'Take 001', autoplay:'', loading:'eager', 'interaction-prompt':'none', 'disable-zoom':'', 'camera-orbit':'90deg 80deg 105%', orientation:`0deg ${c.face>0?'0deg':'180deg'} 0deg`, 'environment-image':'neutral', exposure:'1.4', style:{ width:size+'px', height:size+'px', backgroundColor:'transparent', '--poster-color':'transparent', display:'block', filter:'drop-shadow(0 4px 12px rgba(0,0,0,.6))' } });
   }
   renderCats(){ if(!this.cats) return null;
     const air=(c)=>c.mode==='jump'||c.mode==='fall'||c.mode==='wall';
