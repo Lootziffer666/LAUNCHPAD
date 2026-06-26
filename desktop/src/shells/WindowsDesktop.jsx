@@ -239,7 +239,19 @@ function StartMenu({ kidName, onClose, onHome, onAction }) {
 
 /* ---------------- generic app window ---------------- */
 function FilesWindow({ onClose }) {
-  const folders = ['Dokumente', 'Bilder', 'Downloads', 'Spiele', 'Musik', 'Videos', 'Schule', 'Projekte'];
+  const folders = [
+    { label: 'Dokumente', key: 'documents' },
+    { label: 'Bilder', key: 'pictures' },
+    { label: 'Downloads', key: 'downloads' },
+    { label: 'Musik', key: 'music' },
+    { label: 'Videos', key: 'videos' },
+    { label: 'Desktop', key: 'desktop' },
+  ];
+  const openFolder = (key) => {
+    if (window.launchpad && window.launchpad.openFolder) {
+      window.launchpad.openFolder(key);
+    }
+  };
   return (
     <div className="win-app">
       <div className="win-app-bar">
@@ -258,7 +270,9 @@ function FilesWindow({ onClose }) {
         <div className="win-main">
           <div className="win-folder-grid">
             {folders.map((f) => (
-              <div key={f} className="win-folder"><div className="ff"></div><span>{f}</span></div>
+              <div key={f.key} className="win-folder" onClick={() => openFolder(f.key)} style={{ cursor: 'pointer' }}>
+                <div className="ff"></div><span>{f.label}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -268,7 +282,7 @@ function FilesWindow({ onClose }) {
 }
 
 /* ---------------- Windows desktop ---------------- */
-export function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, onLaunchDirect }) {
+export function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, onLaunchDirect, onOpenSettings, onOpenLernen }) {
   const games = useGames();
   const [now, setNow] = useState(new Date());
   const [start, setStart] = useState(false);
@@ -281,10 +295,34 @@ export function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, on
 
   const mc = games.find((g) => g.id === 'minecraft') || games[0];
 
+  const openBrowser = () => {
+    if (window.launchpad && window.launchpad.openUrl) {
+      window.launchpad.openUrl('https://www.google.com');
+    }
+  };
+
+  const openDocuments = () => {
+    if (window.launchpad && window.launchpad.openFolder) {
+      window.launchpad.openFolder('documents');
+    }
+  };
+
+  const openMusic = () => {
+    if (window.launchpad && window.launchpad.openUrl) {
+      window.launchpad.openUrl('https://music.youtube.com');
+    }
+  };
+
+  const openCalc = () => {
+    if (window.launchpad && window.launchpad.openUrl) {
+      window.launchpad.openUrl('https://www.desmos.com/scientific');
+    }
+  };
+
   const desktopIcons = [
     { id: 'home', label: 'LAUNCHPAD', home: true, onOpen: onHome },
     { id: 'play', label: 'Spiele', ic: 'gamepad', c: '#6d28d9', onOpen: () => onOpenPlay() },
-    { id: 'files', label: 'Dateien', ic: 'grid', c: '#0891b2', onOpen: () => setFilesOpen(true) },
+    { id: 'files', label: 'Dateien', ic: 'grid', c: '#0891b2', onOpen: () => openDocuments() },
     { id: 'parental', label: 'Eltern', ic: 'shield', c: '#0d9488', onOpen: onOpenParental },
     { id: 'mc', label: mc.name, cover: mc, src: 'Minecraft', onOpen: () => onLaunchDirect(mc) },
     { id: 'recycle', label: 'Papierkorb', ic: 'close', c: '#475569', onOpen: () => {} },
@@ -292,10 +330,14 @@ export function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, on
 
   const startAction = (id) => {
     setStart(false);
-    if (id === 'play' || id === 'store') onOpenPlay();
+    if (id === 'play') onOpenPlay();
     else if (id === 'parental') onOpenParental();
-    else if (id === 'files') setFilesOpen(true);
-    else if (id === 'web') onOpenPlay(); // routed; real app maps to browser
+    else if (id === 'files') openDocuments();
+    else if (id === 'web') openBrowser();
+    else if (id === 'settings' && onOpenSettings) onOpenSettings();
+    else if (id === 'store' && onOpenLernen) onOpenLernen();
+    else if (id === 'music') openMusic();
+    else if (id === 'calc') openCalc();
   };
 
   return (
@@ -335,7 +377,7 @@ export function WindowsDesktop({ kidName, onHome, onOpenPlay, onOpenParental, on
         <div className="tb-pins">
           <button className="tb-pin" onClick={() => onOpenPlay()} title="Spiele"><div className="pi" style={{ background: '#6d28d9' }}>{Icon.gamepad()}</div></button>
           <button className="tb-pin run" onClick={() => setFilesOpen(true)} title="Dateien"><div className="pi" style={{ background: '#0891b2' }}>{Icon.grid()}</div></button>
-          <button className="tb-pin" onClick={() => onOpenPlay()} title="Browser"><div className="pi" style={{ background: '#2563eb' }}>{Icon.globe()}</div></button>
+          <button className="tb-pin" onClick={openBrowser} title="Browser"><div className="pi" style={{ background: '#2563eb' }}>{Icon.globe()}</div></button>
           <button className="tb-pin" onClick={onOpenParental} title="Eltern"><div className="pi" style={{ background: '#0d9488' }}>{Icon.shield()}</div></button>
         </div>
 

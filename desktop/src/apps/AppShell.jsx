@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Icon } from '../ui/icons.jsx';
 import { CometData as D } from '../lib/data.js';
 import { SFX } from '../lib/sfx.js';
+import { LernDesktop } from './LernDesktop.jsx';
 
 function HubGrid({ items }) {
   return (
@@ -55,6 +56,12 @@ const APPS = {
 export function AppShell({ app, origin, onClose }) {
   const [closing, setClosing] = useState(false);
   const close = () => { setClosing(true); SFX.close(); setTimeout(onClose, 250); };
+
+  // Lernen opens its own full-screen environment
+  if (app.id === 'lernen') {
+    return <LernDesktop onClose={onClose} />;
+  }
+
   const zx = origin ? `${origin.x}%` : '50%';
   const zy = origin ? `${origin.y}%` : '50%';
   const meta = APPS[app.id];

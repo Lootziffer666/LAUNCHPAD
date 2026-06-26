@@ -418,6 +418,7 @@ function registerIpc() {
   wishlist = require('./services/wishlist');
   updater = require('./services/updater');
   steamLib = require('./services/steamLibrary');
+  const winget = require('./services/winget');
 
   // Push update state to the curator window whenever it changes.
   updater.init((u) => {
@@ -511,6 +512,98 @@ function registerIpc() {
 
     // session control — kill the active edge-xcloud session (child "Spiel beenden")
     'lp:session:kill': () => launcher.killActiveSession(),
+
+    // shell utilities — open safe system folders and URLs
+    'lp:shell:open-folder': (_e, pathKey) => {
+      const { shell } = require('electron');
+      const allowed = {
+        documents: path.join(os.homedir(), 'Documents'),
+        downloads: path.join(os.homedir(), 'Downloads'),
+        desktop: path.join(os.homedir(), 'Desktop'),
+        pictures: path.join(os.homedir(), 'Pictures'),
+        music: path.join(os.homedir(), 'Music'),
+        videos: path.join(os.homedir(), 'Videos'),
+      };
+      const target = allowed[String(pathKey).toLowerCase()];
+      if (!target) return { ok: false, reason: 'not_allowed' };
+      shell.openPath(target);
+      return { ok: true };
+    },
+    'lp:shell:open-url': (_e, url) => {
+      const { shell } = require('electron');
+      const s = String(url || '');
+      if (!s.startsWith('http://') && !s.startsWith('https://')) return { ok: false, reason: 'invalid_scheme' };
+      // Domain allowlist: only open URLs whose hostname matches a known-safe domain.
+      const ALLOWED_DOMAINS = [
+        'google.com', 'wikipedia.org', 'khanacademy.org', 'de.khanacademy.org',
+        'scratch.mit.edu', 'geogebra.org',
+        'antolin.westermann.de', 'www.einfachvorlesen.de',
+        'www.planet-schule.de', 'www.seterra.com', 'www.worldatlas.com',
+        'music.youtube.com', 'www.desmos.com', 'desmos.com',
+      ];
+      let hostname;
+      try { hostname = new URL(s).hostname; } catch { return { ok: false, reason: 'invalid_url' }; }
+      const domainMatch = ALLOWED_DOMAINS.some((d) => hostname === d || hostname.endsWith('.' + d));
+      if (!domainMatch) return { ok: false, reason: 'domain_not_allowed' };
+      shell.openExternal(s);
+      return { ok: true };
+    },
+
+    // winget package management — learning/creative app install
+    'lp:winget:check': () => winget.checkWinget(),
+    'lp:winget:status': async (_e, id) => {
+      // First check the in-memory map
+      const memStatus = winget.getStatus(id);
+      if (memStatus !== 'not_installed') return memStatus;
+      // If not in memory, check actual system state (persists across restarts)
+      const check = await winget.isInstalled(id);
+      if (check.installed) {
+        winget.setStatus(id, 'installed');
+        return 'installed';
+      }
+      return 'not_installed';
+    },
+    'lp:winget:launch': (_e, id) => {
+      // Allowlist: only IDs from the predefined LEARN app entries are permitted.
+      const ALLOWED_WINGET_IDS = new Set([
+        'GeoGebra.Classic',
+        'TuxFamily.TuxMath',
+        'Amazon.Kindle',
+        'MIT.Scratch.4',
+        'Stellarium.Stellarium',
+        'KDE.Marble',
+      ]);
+      if (!ALLOWED_WINGET_IDS.has(id)) {
+        return { ok: false, reason: 'id_not_allowed' };
+      }
+      if (process.platform !== 'win32') return { ok: false, reason: 'not_windows' };
+      const { execFile } = require('node:child_process');
+      execFile('winget', ['launch', '--id', id, '--accept-source-agreements'], { timeout: 15000 }, (err) => {
+        if (err) console.error('[launchpad] winget launch failed:', err.message);
+      });
+      return { ok: true };
+    },
+    'lp:winget:install': (_e, id) => {
+      // Allowlist: only IDs from the predefined LEARN app entries are permitted.
+      const ALLOWED_WINGET_IDS = new Set([
+        'GeoGebra.Classic',
+        'TuxFamily.TuxMath',
+        'Amazon.Kindle',
+        'MIT.Scratch.4',
+        'Stellarium.Stellarium',
+        'KDE.Marble',
+      ]);
+      if (!ALLOWED_WINGET_IDS.has(id)) {
+        return { ok: false, reason: 'id_not_allowed' };
+      }
+      // Start install in background; push progress events to the renderer.
+      winget.install(id, {
+        onProgress: (p) => {
+          if (win && !win.isDestroyed()) win.webContents.send('lp:event:winget-progress', p);
+        },
+      }).catch((e) => console.error('[launchpad] winget install failed:', e));
+      return { ok: true, started: true };
+    },
   };
 
   const curatorHandlers = {
