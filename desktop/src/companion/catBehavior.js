@@ -54,15 +54,15 @@ export const STATE_DEF = {
   },
   sit: {
     anim: 'sit_calm',   zLayer: 'above',
-    minMs: 1800, maxMs: 5500, moves: null,             interruptible: true,
+    minMs: 5000, maxMs: 15000, moves: null,            interruptible: true,
   },
   ignore: {
     anim: 'sit_back',   zLayer: 'above',
-    minMs: 1800, maxMs: 4500, moves: null,             interruptible: false,
+    minMs: 4000, maxMs: 12000, moves: null,            interruptible: false,
   },
   walk: {
     anim: 'walk_normal', zLayer: 'above',
-    minMs: 1200, maxMs: 3800, moves: 'wander',         interruptible: true,
+    minMs: 1200, maxMs: 3200, moves: 'wander',         interruptible: true,
   },
   stalk: {
     anim: 'stalk_low',  zLayer: 'below', // sneaks behind tiles
@@ -82,11 +82,11 @@ export const STATE_DEF = {
   },
   doze: {
     anim: 'rest_idle',  zLayer: 'above',
-    minMs: 2800, maxMs: 7500, moves: null,             interruptible: true,
+    minMs: 8000, maxMs: 20000, moves: null,            interruptible: true,
   },
   sleep: {
     anim: 'sleep_curl', zLayer: 'above',
-    minMs: 5000, maxMs: 14000, moves: null,            interruptible: false,
+    minMs: 15000, maxMs: 45000, moves: null,           interruptible: false,
   },
   stretch: {
     anim: 'stretch',    zLayer: 'above',
@@ -102,11 +102,11 @@ export const STATE_DEF = {
   },
   groom: {
     anim: 'groom',      zLayer: 'above',
-    minMs: 2000, maxMs: 4800, moves: null,             interruptible: true,
+    minMs: 4000, maxMs: 12000, moves: null,            interruptible: true,
   },
   belly: {
     anim: 'belly_up',   zLayer: 'above',
-    minMs: 1800, maxMs: 4500, moves: null,             interruptible: true,
+    minMs: 5000, maxMs: 14000, moves: null,            interruptible: true,
   },
   hiss: {
     anim: 'hiss_warn',  zLayer: 'above',
@@ -118,7 +118,7 @@ export const STATE_DEF = {
   },
   tile_rest: {
     anim: 'rest_idle',  zLayer: 'above', // ON TOP of a tile
-    minMs: 3500, maxMs: 9000, moves: 'tile',           interruptible: false,
+    minMs: 6000, maxMs: 18000, moves: 'tile',          interruptible: false,
   },
   cat_meet: {
     anim: 'idle_alert', zLayer: 'above',
@@ -152,30 +152,30 @@ export function pickWeighted(pairs) {
 // ── Transition tables ──────────────────────────────────────────
 // prettier-ignore
 export const TRANSITIONS = {
-  idle:         [['walk',18],['sit',16],['alert',11],['stalk',7],['groom',10],['beg',4],['wave',3],['proud',5],['tile_rest',5],['idle',21]],
-  alert:        [['idle',17],['walk',19],['stalk',14],['sit',17],['proud',8],['groom',9],['idle',16]],
-  proud:        [['idle',28],['wave',13],['beg',9],['walk',21],['sit',15],['groom',14]],
-  sit:          [['idle',13],['walk',11],['doze',20],['groom',24],['beg',8],['ignore',7],['alert',10],['wave',7]],
-  ignore:       [['idle',30],['walk',28],['sit',22],['groom',20]],
-  walk:         [['idle',22],['sit',17],['alert',10],['groom',10],['stalk',8],['belly',5],['tile_rest',7],['walk',21]],
-  stalk:        [['pounce',36],['idle',22],['walk',20],['groom',12],['alert',10]],
-  chase_cursor: [['pounce',28],['play',24],['idle',28],['stalk',20]],
-  pounce:       [['play',40],['belly',22],['idle',26],['groom',12]],
-  play:         [['idle',26],['groom',21],['belly',16],['pounce',14],['stalk',11],['sit',12]],
-  doze:         [['sleep',34],['groom',20],['idle',17],['stretch',16],['sit',13]],
-  sleep:        [['sleep',24],['stretch',40],['doze',22],['sit',14]],
-  stretch:      [['idle',40],['walk',28],['groom',20],['sit',12]],
-  beg:          [['wave',28],['idle',24],['walk',24],['sit',24]],
-  wave:         [['idle',34],['walk',24],['beg',18],['groom',24]],
-  groom:        [['idle',27],['sit',23],['doze',20],['walk',16],['belly',14]],
-  belly:        [['groom',26],['play',19],['idle',30],['stretch',14],['sit',11]],
-  hiss:         [['ignore',28],['scared',22],['idle',28],['walk',22]],
-  scared:       [['idle',28],['walk',28],['hiss',12],['ignore',22],['sit',10]],
-  tile_rest:    [['idle',28],['walk',28],['groom',24],['doze',20]],
-  cat_meet:     [['hiss',18],['play',20],['ignore',22],['groom',18],['idle',22]],
+  idle:         [['sit',28],['groom',22],['doze',14],['walk',8],['alert',6],['belly',8],['tile_rest',7],['stalk',3],['idle',4]],
+  alert:        [['sit',28],['groom',22],['idle',20],['walk',10],['stalk',8],['doze',12]],
+  proud:        [['sit',30],['groom',24],['idle',20],['wave',8],['doze',10],['walk',8]],
+  sit:          [['doze',28],['groom',26],['ignore',10],['belly',12],['idle',8],['walk',6],['beg',5],['wave',5]],
+  ignore:       [['sit',30],['groom',28],['doze',22],['idle',20]],
+  walk:         [['sit',30],['groom',20],['idle',18],['doze',12],['belly',8],['tile_rest',7],['walk',5]],
+  stalk:        [['pounce',30],['sit',25],['idle',20],['groom',15],['alert',10]],
+  chase_cursor: [['pounce',24],['sit',28],['idle',28],['groom',20]],
+  pounce:       [['sit',30],['belly',24],['groom',22],['idle',24]],
+  play:         [['sit',28],['groom',24],['belly',20],['idle',18],['doze',10]],
+  doze:         [['sleep',40],['doze',20],['groom',16],['sit',14],['stretch',10]],
+  sleep:        [['sleep',36],['doze',28],['stretch',20],['sit',16]],
+  stretch:      [['sit',32],['groom',26],['idle',22],['walk',10],['doze',10]],
+  beg:          [['sit',30],['groom',26],['idle',22],['wave',22]],
+  wave:         [['sit',30],['groom',26],['idle',24],['beg',10],['doze',10]],
+  groom:        [['sit',26],['doze',24],['belly',18],['idle',16],['groom',10],['walk',6]],
+  belly:        [['groom',28],['doze',22],['sit',20],['idle',16],['stretch',14]],
+  hiss:         [['ignore',30],['sit',26],['scared',22],['idle',22]],
+  scared:       [['sit',30],['idle',26],['ignore',22],['walk',12],['hiss',10]],
+  tile_rest:    [['doze',28],['groom',24],['sit',24],['idle',14],['walk',10]],
+  cat_meet:     [['ignore',26],['sit',24],['groom',20],['hiss',16],['idle',14]],
   flee:         [['away',100]],
   away:         [['idle',100]], // return handled by timer
-  pet:          [['belly',28],['groom',28],['idle',22],['sit',22]],
+  pet:          [['belly',30],['groom',28],['sit',24],['idle',18]],
 };
 
 // ── States that trigger meow sounds ───────────────────────────
@@ -191,7 +191,7 @@ export const BUBBLE_TEXT = {
 export function nextState(current, { cursorFast, cursorDist, otherCatDist, interruptible, canFlee }) {
   // Context-driven interrupts (only if state is interruptible)
   if (interruptible) {
-    if (cursorFast && cursorDist < 170) return S.CHASE_CURSOR;
+    if (cursorFast && cursorDist < 100) return S.CHASE_CURSOR;
     if (otherCatDist < 115)            return S.CAT_MEET;
   }
   // 3-click flee interrupt is handled in the component directly.

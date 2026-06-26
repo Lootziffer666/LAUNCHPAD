@@ -21,10 +21,10 @@ export const BOOT_MANIFEST = [];
 // Built-in CSS fallbacks (no video files needed). Same contract: the normals
 // share one length, the gag is the long one.
 export const FALLBACK_CLIPS = [
-  { id: 'rocket', kind: 'css', variant: 'rocket', durationMs: 7000, caption: 'LAUNCHPAD' },
-  { id: 'warp', kind: 'css', variant: 'warp', durationMs: 7000, caption: 'LAUNCHPAD' },
-  { id: 'daddy', kind: 'css', variant: 'daddy', durationMs: 7000, caption: 'Daddy war hier 💜', warm: true },
-  { id: 'controller', kind: 'css', variant: 'controller', durationMs: 20000, gag: true, caption: 'Bitte Controller einstecken …' },
+  { id: 'rocket', kind: 'css', variant: 'rocket', durationMs: 3500, caption: 'LAUNCHPAD' },
+  { id: 'warp', kind: 'css', variant: 'warp', durationMs: 3500, caption: 'LAUNCHPAD' },
+  { id: 'daddy', kind: 'css', variant: 'daddy', durationMs: 3500, caption: 'Daddy war hier 💜', warm: true },
+  { id: 'controller', kind: 'css', variant: 'controller', durationMs: 3500, caption: 'Bitte Controller einstecken …' },
 ];
 
 export function listClips({ manifest = BOOT_MANIFEST, fallback = FALLBACK_CLIPS } = {}) {

@@ -73,6 +73,23 @@ SFX.launch = () => {
   tone({ f0: 660, f1: 1320, dur: 0.45, type: 'sine', gain: 0.05, delay: 0.06 });
 };
 
+SFX.doorOpen = () => {
+  if (!SFX.enabled) return;
+  // Dramatic ascending 3-tone chord like a magical portal opening
+  tone({ f0: 330, f1: 660, dur: 0.28, type: 'sine', gain: 0.12 });
+  tone({ f0: 440, f1: 880, dur: 0.26, type: 'sine', gain: 0.10, delay: 0.08 });
+  tone({ f0: 550, f1: 1100, dur: 0.30, type: 'triangle', gain: 0.08, delay: 0.16 });
+  whoosh({ dur: 0.4, gain: 0.05 });
+};
+
+SFX.magic = () => {
+  if (!SFX.enabled) return;
+  // Short sparkle/chime for hover effects
+  tone({ f0: 1200, f1: 1800, dur: 0.06, type: 'sine', gain: 0.06 });
+  tone({ f0: 1600, f1: 2400, dur: 0.05, type: 'sine', gain: 0.04, delay: 0.03 });
+  tone({ f0: 2000, f1: 2800, dur: 0.04, type: 'triangle', gain: 0.03, delay: 0.06 });
+};
+
 SFX.meow = () => {
   if (!SFX.enabled) return;
   // Rising + falling formant — a small cat meow

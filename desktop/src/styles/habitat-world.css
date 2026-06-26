@@ -23,19 +23,49 @@
   50% { transform: translateX(6%); }
   100% { transform: translateX(-6%); }
 }
+@keyframes hw-nebulaPulse {
+  0% { opacity: .18; transform: scale(1) rotate(0deg); }
+  33% { opacity: .32; transform: scale(1.05) rotate(1deg); }
+  66% { opacity: .22; transform: scale(0.97) rotate(-1deg); }
+  100% { opacity: .18; transform: scale(1) rotate(0deg); }
+}
+@keyframes hw-moteFloat {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-120px) translateX(30px) scale(0.4); opacity: 0; }
+}
+@keyframes hw-catFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes hw-shimmer {
+  0% { left: -50%; }
+  100% { left: 150%; }
+}
+
+@keyframes hw-enter {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
 
 /* --- root container --- */
 .habitat-world {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: radial-gradient(1300px 1000px at 50% 8%, #122152 0%, transparent 60%),
-              radial-gradient(1100px 900px at 50% 120%, #1a1245 0%, transparent 60%),
-              #070b1c;
+  background: radial-gradient(1400px 1100px at 50% 5%, #0e1a4a 0%, transparent 55%),
+              radial-gradient(1200px 900px at 30% 60%, #1a0d3d 0%, transparent 50%),
+              radial-gradient(1100px 900px at 70% 80%, #0d1638 0%, transparent 55%),
+              radial-gradient(900px 700px at 50% 120%, #22104a 0%, transparent 60%),
+              #050810;
   perspective: 1500px;
   perspective-origin: 50% 45%;
   font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+.habitat-world.entering {
+  animation: hw-enter 600ms ease-out forwards;
 }
 
 /* --- atmosphere --- */
@@ -48,10 +78,11 @@
 }
 .hw-atmo-glow {
   position: absolute;
-  left: 20%; top: -10%;
-  width: 60%; height: 70%;
-  background: radial-gradient(closest-side, rgba(70,120,230,.22), transparent 70%);
-  filter: blur(50px);
+  left: 10%; top: -15%;
+  width: 80%; height: 80%;
+  background: radial-gradient(closest-side, rgba(90,60,200,.25), rgba(70,120,230,.18) 40%, transparent 70%);
+  filter: blur(60px);
+  animation: hw-nebulaPulse 12s ease-in-out infinite;
 }
 .hw-atmo-vignette {
   position: absolute;
@@ -205,6 +236,73 @@
   border-radius: 5px;
   background: linear-gradient(180deg, #33406a, #1a2240);
   box-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+
+/* --- door hover enhancement --- */
+.hw-door:hover .hw-door-face {
+  transform: scale(1.02);
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.hw-door:hover .hw-door-glow {
+  opacity: 0.6 !important;
+  filter: blur(2px);
+}
+.hw-door::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.hw-door:hover::after {
+  opacity: 1;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.12) 45%, rgba(255,255,255,.02) 55%, transparent 70%);
+  animation: hw-shimmer 1.8s ease-in-out infinite;
+}
+
+/* --- cat model-viewer mascots --- */
+.hw-cat-model {
+  position: absolute;
+  z-index: 6;
+  width: 100px;
+  height: 100px;
+  pointer-events: none;
+  animation: hw-catFloat 4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 16px rgba(110, 160, 255, .4));
+}
+.hw-cat-model model-viewer {
+  width: 100%;
+  height: 100%;
+  display: block;
+  --poster-color: transparent;
+}
+.hw-cat-model--left {
+  left: 4%;
+  bottom: 8%;
+  animation-delay: 0s;
+}
+.hw-cat-model--right {
+  right: 4%;
+  bottom: 10%;
+  animation-delay: -2s;
+}
+
+/* --- particle motes --- */
+.hw-motes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.hw-mote {
+  position: absolute;
+  border-radius: 50%;
+  animation: hw-moteFloat linear infinite;
+  will-change: transform, opacity;
 }
 
 /* --- front fx layer --- */
@@ -380,4 +478,17 @@
 }
 [data-reduce] .hw-world {
   transition-duration: 0.01ms;
+}
+[data-reduce] .hw-atmo-glow {
+  animation: none;
+}
+[data-reduce] .hw-cat-model {
+  animation: none;
+}
+[data-reduce] .hw-mote {
+  animation: none;
+  opacity: 0;
+}
+[data-reduce] .habitat-world.entering {
+  animation: none;
 }
