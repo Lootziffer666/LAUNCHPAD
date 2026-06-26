@@ -250,8 +250,8 @@ class Component extends DCLogic {
   stepAll(){ if(!this.cats) return; this.cats.forEach(c=>{ this.step(c); c.frame++; }); this.setState(s=>({tick:s.tick+1})); }
   catClick(c){ if(this.state.view!=='home'||c.inRoom!=null) return; c.mode='sit'; c.pauseT=2600; c.hearts++; this.forceUpdate(); }
 
-  catEl(c,anim,size){ const ANIMS={walk:'Walk',run:'Run',sit:'Sit',stand:'Idle',pause:'Idle'};
-    return React.createElement('model-viewer',{ src:c.model, 'animation-name':ANIMS[anim]||'Walk', autoplay:'', loading:'eager', 'interaction-prompt':'none', 'disable-zoom':'', 'camera-orbit':'90deg 70deg 105%', orientation:`0deg ${c.face>0?'180deg':'0deg'} 0deg`, 'environment-image':'neutral', exposure:'1.4', style:{ width:size+'px', height:size+'px', backgroundColor:'transparent', '--poster-color':'transparent', display:'block', filter:'drop-shadow(0 4px 12px rgba(0,0,0,.6))' } });
+  catEl(c,anim,size){
+    return React.createElement('model-viewer',{ src:c.model, loading:'eager', 'interaction-prompt':'none', 'disable-zoom':'', 'camera-orbit':'90deg 80deg 105%', orientation:`-90deg ${c.face>0?'0deg':'180deg'} 0deg`, 'environment-image':'neutral', exposure:'1.4', style:{ width:size+'px', height:size+'px', backgroundColor:'transparent', '--poster-color':'transparent', display:'block', filter:'drop-shadow(0 4px 12px rgba(0,0,0,.6))' } });
   }
   renderCats(){ if(!this.cats) return null;
     const air=(c)=>c.mode==='jump'||c.mode==='fall'||c.mode==='wall';
