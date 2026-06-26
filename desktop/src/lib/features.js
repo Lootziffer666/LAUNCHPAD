@@ -11,12 +11,11 @@
    ============================================================ */
 
 export const FEATURES = {
-  // OFF for the shipping build. A later update sets this true.
-  personality: false,
+  // ON — the personality layer is live. Boot meta-game, gags, narrator active.
+  personality: true,
 
   // 0 = none … 1 = full. Lets the rollout ramp gently once `personality` is on.
-  // Reserved for the update path; ignored while `personality` is false.
-  mischiefIntensity: 0,
+  mischiefIntensity: 0.5,
 };
 
 // Optional override hook for the update/rollout path (and dev): a future

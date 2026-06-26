@@ -97,7 +97,7 @@ export default function App() {
   const [app, setApp] = useState(null); // {id, origin}
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
   const [settings, setSettings] = useState(false); // settings overlay open
-  const [mode, setMode] = useState('launchpad'); // 'launchpad' | 'windows' | 'controller' | 'habitat'
+  const [mode, setMode] = useState('habitat'); // 'launchpad' | 'windows' | 'controller' | 'habitat'
   const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
