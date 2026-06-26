@@ -107,9 +107,9 @@
       <!-- room layer (2D or 3D) -->
       <sc-if value="{{ show3d }}" hint-placeholder-val="{{ false }}">
       <div class="d3" style="{{ d3Style }}">
-        <!-- 3D: model-viewer background -->
+        <!-- 3D: A-Frame room with NPC cats -->
         <sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
-          <model-viewer src="{{ d3Model }}" loading="eager" reveal="auto" camera-controls interaction-prompt="none" exposure="1.1" shadow-intensity="0.7" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" field-of-view="{{ mvFov }}" min-field-of-view="40deg" max-field-of-view="100deg" style="position:absolute;inset:0;width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
+          <iframe src="{{ d3IframeSrc }}" style="position:absolute;inset:0;width:100%;height:100%;border:none;display:block;z-index:1;" allow="fullscreen" sandbox="allow-scripts allow-same-origin"></iframe>
         </sc-if>
         <!-- 2D: flat JPG background -->
         <sc-if value="{{ is2d }}" hint-placeholder-val="{{ false }}">
@@ -121,7 +121,7 @@
         <button class="exit-orb" onClick="{{ back }}" title="Zurück zur Welt" style="position:absolute;left:40px;top:38px;z-index:8;width:62px;height:62px;border-radius:50%;border:1px solid rgba(180,210,255,.5);background:radial-gradient(circle at 38% 32%, rgba(150,200,255,.45), rgba(20,32,64,.55) 70%);box-shadow:0 0 26px rgba(120,180,255,.55), inset 0 1px 0 rgba(255,255,255,.4);backdrop-filter:blur(8px);cursor:pointer;display:grid;place-items:center;animation:haloPulse 4s ease-in-out infinite;">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#eaf3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"></path></svg>
         </button>
-        <!-- 3D: floating icons -->
+        <!-- 3D: app grid overlay -->
         <sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
           <div style="{{ d3TitleStyle }}">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -132,13 +132,14 @@
               </div>
             </div>
           </div>
-          <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
-            <div style="{{ a.floatStyle }}">
-              <div style="position:absolute;inset:-18px;background:radial-gradient(closest-side, rgba(140,180,255,.5), transparent);filter:blur(16px);pointer-events:none;"></div>
-              <div style="position:relative;width:78px;height:78px;border-radius:22px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 20px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.28);">{{ a.glyph }}</div>
-              <div style="margin-top:10px;font-size:11px;font-weight:700;color:#fff;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.95);white-space:nowrap;letter-spacing:.3px;">{{ a.name }}</div>
-            </div>
-          </sc-for>
+          <div style="{{ d3GridStyle }}">
+            <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
+              <div style="{{ a.gridItemStyle }}">
+                <div style="width:90px;height:90px;border-radius:22px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 16px 36px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.3);">{{ a.glyph }}</div>
+                <div style="margin-top:9px;font-size:12px;font-weight:700;color:#fff;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.9);white-space:nowrap;letter-spacing:.3px;">{{ a.name }}</div>
+              </div>
+            </sc-for>
+          </div>
           <div style="{{ d3BtnWrapStyle }}">
             <button onClick="{{ back }}" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 36px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:#06203a;background:{{ d3Ac }};box-shadow:0 16px 40px rgba(0,0,0,.5);">{{ d3BtnLabel }}</button>
           </div>
@@ -221,9 +222,11 @@ class Component extends DCLogic {
     this.fit(); window.addEventListener('resize', this.fit);
     this.onKey=(e)=>{ if(e.key==='Escape' && this.state.view==='in') this.close(); };
     window.addEventListener('keydown', this.onKey);
+    this._msgHandler = e => { if (e.data === 'lp-exit') this.close(); };
+    window.addEventListener('message', this._msgHandler);
   }
   componentDidUpdate(){ const d=document.querySelector('.d3'); if(d){ [d, ...d.querySelectorAll('*')].forEach(el=>{ el.getAnimations&&el.getAnimations().forEach(a=>{ try{ const t=a.effect&&a.effect.getTiming&&a.effect.getTiming(); if(!t||t.iterations!==Infinity) a.finish(); }catch(e){} }); }); } }
-  componentWillUnmount(){ clearInterval(this.loop); clearInterval(this.clockTimer); (this._timers||[]).forEach(clearTimeout); window.removeEventListener('resize', this.fit); window.removeEventListener('keydown', this.onKey); }
+  componentWillUnmount(){ clearInterval(this.loop); clearInterval(this.clockTimer); (this._timers||[]).forEach(clearTimeout); window.removeEventListener('resize', this.fit); window.removeEventListener('keydown', this.onKey); window.removeEventListener('message', this._msgHandler); }
   after(fn,ms){ const id=setTimeout(fn,ms); this._timers.push(id); return id; }
 
   // ---- platformer cats ----
@@ -444,24 +447,17 @@ class Component extends DCLogic {
     };
     const TITLES = { play:'Spielewelt', apps:'App-Center', library:'Bibliothek', create:'Kreativ-Studio', watch:'Kino', explore:'Entdecken' };
     const mconf = MODELS[d3Tile.key] || MODELS.play;
-    const FP=[
-      {left:'22%',top:'50%',z:28,dur:3.6,delay:0},
-      {left:'43%',top:'38%',z:14,dur:4.0,delay:0.5},
-      {left:'63%',top:'52%',z:22,dur:3.3,delay:0.9},
-      {left:'80%',top:'40%',z:8, dur:3.8,delay:0.3},
-    ];
-    const d3Apps = d3Tile.apps.slice(0,4).map((a,idx)=>({
+    const d3Apps = d3Tile.apps.slice(0,6).map((a,idx)=>({
       ...a,
-      floatStyle:{
-        position:'absolute', left:FP[idx].left, top:FP[idx].top,
-        transform:`translate(-50%,-50%) translateZ(${FP[idx].z}px)`,
-        zIndex:5, textAlign:'center', pointerEvents:'auto',
+      gridItemStyle:{
+        display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', pointerEvents:'auto',
         opacity: view==='in'?1:0,
-        transition:`opacity .4s ${0.3+idx*0.1}s`,
-        animation: view==='in'?`critBob ${FP[idx].dur}s ${FP[idx].delay}s ease-in-out infinite`:undefined,
+        transition:`opacity .4s ${0.25+idx*0.07}s`,
+        animation: view==='in'?`critBob ${3.2+idx*0.28}s ${idx*0.14}s ease-in-out infinite`:undefined,
       },
     }));
     const d3Model = mconf.src;
+    const d3IframeSrc = `aframe-room.html?glb=${encodeURIComponent(d3Model)}&room=${d3Tile.key||'play'}`;
     const mvOrbit = view==='in' ? mconf.orbit : mconf.orbit.replace(/\d+%$/, '95%');
     const d3Icon = this.ic(ICON_NAMES[d3Tile.key]||'play', 26);
     const d3IconBg = `linear-gradient(150deg,${d3Tile.ac} 0%,${d3Tile.ac}44 100%)`;
@@ -481,10 +477,11 @@ class Component extends DCLogic {
       back:()=>this.close(), toggleMode:()=>this.toggleMode(),
       is3d: this.state.is3d, is2d: !this.state.is3d,
       modeLabel: this.state.is3d ? '✦ 3D' : '◈ 2D',
-      show3d, d3Model, d3Scene: d3Tile.scene, mvOrbit, mvFov: view==='opening'?'60deg':'70deg',
+      show3d, d3Model, d3IframeSrc, d3Scene: d3Tile.scene, mvOrbit, mvFov: view==='opening'?'60deg':'70deg',
       d3Apps, d3Icon, d3IconBg, d3Ac, d3Title, d3Sub, d3BtnLabel, interiorRays:this._rays,
       d3Style:{ position:'absolute', inset:0, zIndex:35, pointerEvents:'auto', perspective:'900px', perspectiveOrigin:'50% 45%', background:'radial-gradient(130% 110% at 50% 25%, #0b1630, #04060f 70%)', '--px':this._portalPx||'50%', '--py':this._portalPy||'50%', animation: view==='opening'?'portalIn 0.9s cubic-bezier(.2,0,.05,1) both':undefined },
       d3TitleStyle:{ position:'absolute', left:'52px', top:'48px', zIndex:6, opacity: view==='in'?1:0, transition:'opacity .5s .25s' },
+      d3GridStyle:{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)', zIndex:6, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'28px 36px', opacity: view==='in'?1:0, transition:'opacity .5s .3s' },
       d3BtnWrapStyle:{ position:'absolute', bottom:'52px', left:'50%', transform:'translateX(-50%)', zIndex:6, opacity: view==='in'?1:0, transition:'opacity .5s .65s' },
       d3PanelStyle:{ position:'absolute', right:'70px', top:'50%', transform:'translateY(-50%)', zIndex:5, opacity: view==='in'?1:0, transition:'opacity .5s .35s' },
       flashStyle: this.state.flash?'animation:flashAnim .6s ease forwards;':'',

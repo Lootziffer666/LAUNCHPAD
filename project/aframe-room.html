@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Habitat Room</title>
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <style>
+    html, body { margin:0; padding:0; overflow:hidden; width:100%; height:100%; background:#000; }
+  </style>
+  <script>
+    const _params  = new URLSearchParams(location.search);
+    const _glb     = _params.get('glb')  || '';
+    const _roomKey = _params.get('room') || 'play';
+
+    // Waypoints per room: [x, y, z]
+    // y > 0 = on furniture (table top, desk, shelf)
+    const WAYPOINTS = {
+      play:    [[-1.5,0,-0.5], [0,0.85,-0.4], [1.3,0,0.3],  [-0.5,0,0.9]],
+      apps:    [[-1.2,0,-0.3], [0.2,0.72,0],  [1.1,0,0.5],  [-0.4,0,0.9]],
+      library: [[-1.1,0,-0.5], [0.3,0.65,0],  [1.0,0,0.6],  [-0.3,0,0.9]],
+      create:  [[-1.2,0,-0.4], [0.4,0.55,0],  [1.1,0,0.45], [-0.5,0,0.8]],
+      watch:   [[-1.1,0,-0.3], [0.3,0,0.4],   [1.1,0,-0.3], [0,0,-1.0]  ],
+      explore: [[-1.6,0,-0.3], [0,0,0.5],     [1.6,0,-0.3], [0,0,-1.3]  ],
+    };
+
+    AFRAME.registerComponent('npc-patrol', {
+      schema: {
+        room:     {type:'string', default:'play'},
+        catIndex: {type:'int',   default:0},
+        speed:    {type:'number',default:0.85},
+      },
+      init() {
+        const pts = WAYPOINTS[this.data.room] || WAYPOINTS.play;
+        this.pts  = pts;
+        this.cur  = (this.data.catIndex * 2) % pts.length;
+        this.next = (this.cur + 1) % pts.length;
+        const p   = pts[this.cur];
+        this.el.object3D.position.set(p[0], p[1], p[2]);
+        this._lookTgt = new THREE.Vector3();
+      },
+      tick(t, dt) {
+        if (!dt || dt > 200) return;
+        const obj = this.el.object3D;
+        const pos = obj.position;
+        const nxt = this.pts[this.next];
+        const dx = nxt[0] - pos.x, dy = nxt[1] - pos.y, dz = nxt[2] - pos.z;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (dist < 0.12) {
+          this.cur  = this.next;
+          this.next = (this.next + 1) % this.pts.length;
+        } else {
+          const f = Math.min(this.data.speed * (dt / 1000) / dist, 1);
+          pos.x += dx * f;
+          pos.y += dy * f;
+          pos.z += dz * f;
+          if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+            this._lookTgt.set(nxt[0], pos.y, nxt[2]);
+            obj.lookAt(this._lookTgt);
+          }
+        }
+      }
+    });
+  </script>
+</head>
+<body>
+  <script>
+    const _esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    document.body.insertAdjacentHTML('afterbegin', `
+      <a-scene
+        background="color: #0b1030"
+        renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true"
+        vr-mode-ui="enabled: false"
+        loading-screen="backgroundColor: #0b1030; dotsColor: #6688ff">
+
+        <a-assets>
+          <a-asset-item id="room-glb"  src="${_esc(_glb)}"></a-asset-item>
+          <a-asset-item id="cat-a-glb" src="models/animated_cat_a.glb"></a-asset-item>
+          <a-asset-item id="cat-b-glb" src="models/animated_cat_b.glb"></a-asset-item>
+        </a-assets>
+
+        <a-entity gltf-model="#room-glb" position="0 0 0" scale="1 1 1"></a-entity>
+
+        <a-entity
+          id="cat-a"
+          gltf-model="#cat-a-glb"
+          scale="0.5 0.5 0.5"
+          animation-mixer="clip: Take 001; loop: repeat; crossFadeDuration: 0.2"
+          npc-patrol="catIndex: 0; room: ${_esc(_roomKey)}">
+        </a-entity>
+
+        <a-entity
+          id="cat-b"
+          gltf-model="#cat-b-glb"
+          scale="0.5 0.5 0.5"
+          animation-mixer="clip: Take 001; loop: repeat; crossFadeDuration: 0.2"
+          npc-patrol="catIndex: 1; room: ${_esc(_roomKey)}">
+        </a-entity>
+
+        <a-camera
+          position="0 2.5 5"
+          rotation="-20 0 0"
+          look-controls="enabled: false"
+          wasd-controls="enabled: false"
+          fov="65">
+        </a-camera>
+
+        <a-light type="ambient"     color="#c8d8ff"  intensity="1.5"></a-light>
+        <a-light type="directional" color="#fff8e0"  intensity="1.2" position="3 6 4" cast-shadow="true"></a-light>
+        <a-light type="hemisphere"  color="#ffffff"  ground-color="#223344" intensity="0.6"></a-light>
+      </a-scene>
+    `);
+  </script>
+</body>
+</html>
