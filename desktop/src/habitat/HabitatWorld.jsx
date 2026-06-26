@@ -61,8 +61,16 @@ export function HabitatWorld({ onBack }) {
   const [active, setActive] = useState(null); // index of open box or null
   const [view, setView] = useState('home'); // 'home' | 'opening' | 'in' | 'closing'
   const [hover, setHover] = useState(null);
+  const [entered, setEntered] = useState(false);
   const openTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
+
+  // Play arrival sound on mount and trigger enter animation
+  useEffect(() => {
+    SFX.launch();
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // Grid layout constants (matching prototype)
   const W = 400, H = 248, COLW = 452, ROWH = 300;
@@ -198,7 +206,7 @@ export function HabitatWorld({ onBack }) {
   }, []);
 
   return (
-    <div className="habitat-world">
+    <div className={`habitat-world${entered ? '' : ' entering'}`}>
       {/* Atmosphere layer */}
       <div className="hw-atmo">
         <div className="hw-atmo-glow" />

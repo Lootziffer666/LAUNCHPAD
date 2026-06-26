@@ -44,6 +44,11 @@
   100% { left: 150%; }
 }
 
+@keyframes hw-enter {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 /* --- root container --- */
 .habitat-world {
   position: absolute;
@@ -58,6 +63,9 @@
   perspective-origin: 50% 45%;
   font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+.habitat-world.entering {
+  animation: hw-enter 600ms ease-out forwards;
 }
 
 /* --- atmosphere --- */
@@ -480,4 +488,7 @@
 [data-reduce] .hw-mote {
   animation: none;
   opacity: 0;
+}
+[data-reduce] .habitat-world.entering {
+  animation: none;
 }

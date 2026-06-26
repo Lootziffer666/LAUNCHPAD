@@ -4,7 +4,7 @@
    game management and parental settings live in the curator window,
    reachable only through the PIN gate (main verifies and opens it).
    ============================================================ */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProfile } from './lib/useProfile.js';
 import { GameStore } from './games/useGames.js';
 import { SFX } from './lib/sfx.js';
@@ -98,6 +98,27 @@ export default function App() {
   const [play, setPlay] = useState(null); // {origin, initialGame} or null
   const [settings, setSettings] = useState(false); // settings overlay open
   const [mode, setMode] = useState('habitat'); // 'launchpad' | 'windows' | 'controller' | 'habitat'
+
+  // Track previous mode for crossfade transitions
+  const [prevMode, setPrevMode] = useState(null);
+  const [transitioning, setTransitioning] = useState(false);
+  const transTimerRef = useRef(null);
+
+  const switchMode = useCallback((newMode) => {
+    if (newMode === mode) return;
+    setPrevMode(mode);
+    setTransitioning(true);
+    setMode(newMode);
+    clearTimeout(transTimerRef.current);
+    transTimerRef.current = setTimeout(() => {
+      setTransitioning(false);
+      setPrevMode(null);
+    }, 350);
+  }, [mode]);
+
+  useEffect(() => {
+    return () => clearTimeout(transTimerRef.current);
+  }, []);
   const [controllerFading, setControllerFading] = useState(false);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
@@ -187,17 +208,17 @@ export default function App() {
     const handleCtrlG = (e) => {
       if (e.ctrlKey && e.key === 'g') {
         e.preventDefault();
-        setMode((m) => m === 'controller' ? 'launchpad' : 'controller');
+        switchMode(mode === 'controller' ? 'launchpad' : 'controller');
       }
       if (e.ctrlKey && e.key === 'h') {
         if (app || play || gate) return;
         e.preventDefault();
-        setMode((m) => m === 'habitat' ? 'launchpad' : 'habitat');
+        switchMode(mode === 'habitat' ? 'launchpad' : 'habitat');
       }
     };
     window.addEventListener('keydown', handleCtrlG);
     return () => window.removeEventListener('keydown', handleCtrlG);
-  }, [app, play, gate]);
+  }, [app, play, gate, mode, switchMode]);
 
   // When a tracked (spawned) game exits, main brings the shell forward and
   // emits game-closed — drop any overlay and land back on the LAUNCHPAD home,
@@ -229,16 +250,16 @@ export default function App() {
   const unlockGate = (pin) => {
     const target = gate && gate.target;
     setGate(null);
-    if (target === 'windows') setMode('windows');
+    if (target === 'windows') switchMode('windows');
     else if (window.launchpad && window.launchpad.openCurator) window.launchpad.openCurator(pin);
   };
   const backToLaunchpad = () => {
     SFX.back();
     if (mode === 'controller') {
       setControllerFading(true);
-      setTimeout(() => { setControllerFading(false); setMode('launchpad'); }, 400);
+      setTimeout(() => { setControllerFading(false); switchMode('launchpad'); }, 400);
     } else {
-      setMode('launchpad');
+      switchMode('launchpad');
     }
   };
 
@@ -258,32 +279,35 @@ export default function App() {
     <div className="stage-wrap">
       <div className="stage" ref={stageRef}>
         {mode === 'launchpad' && (
-          <React.Fragment>
+          <div style={{ opacity: transitioning && prevMode !== 'launchpad' ? 0 : 1, transition: 'opacity 300ms ease-in-out', position: 'absolute', inset: 0 }}>
             {!t.reduceMotion && <Starfield />}
             <AmbientFX reduceMotion={t.reduceMotion} />
             <Desktop
               kidName={t.kidName}
               onOpenApp={openApp} onOpenPlay={openPlay} onOpenParental={openParental}
               onLaunchDirect={launchDirect} onOpenWindows={openWindows}
-              onOpenHabitat={() => { SFX.open(); setMode('habitat'); }}
+              onOpenHabitat={() => { SFX.open(); switchMode('habitat'); }}
               onOpenSettings={openSettings}
             />
             <CatsLayer reduceMotion={t.reduceMotion} onSound={(k) => { if (SFX[k]) SFX[k](); }} />
-          </React.Fragment>
+          </div>
         )}
         {mode === 'windows' && (
-          <WindowsDesktop
-            kidName={t.kidName}
-            onHome={backToLaunchpad} onOpenPlay={openPlay}
-            onOpenParental={openParental} onLaunchDirect={(g) => launchDirect(g)}
-            onOpenSettings={openSettings}
-            onOpenLernen={() => openApp('lernen', 'windows')}
-          />
+          <div style={{ opacity: transitioning && prevMode !== 'windows' ? 0 : 1, transition: 'opacity 300ms ease-in-out', position: 'absolute', inset: 0 }}>
+            <WindowsDesktop
+              kidName={t.kidName}
+              onHome={backToLaunchpad} onOpenPlay={openPlay}
+              onOpenParental={openParental} onLaunchDirect={(g) => launchDirect(g)}
+              onOpenSettings={openSettings}
+              onOpenLernen={() => openApp('lernen', 'windows')}
+            />
+          </div>
         )}
         {mode === 'controller' && (
           <div style={{
-            opacity: controllerFading ? 0 : 1,
+            opacity: controllerFading ? 0 : (transitioning && prevMode !== 'controller' ? 0 : 1),
             transition: 'opacity 400ms ease-out',
+            position: 'absolute', inset: 0,
           }}>
             <BootScreen>
               <HabitatShell onBack={backToLaunchpad} />
@@ -291,7 +315,9 @@ export default function App() {
           </div>
         )}
         {mode === 'habitat' && (
-          <HabitatWorld onBack={backToLaunchpad} />
+          <div style={{ opacity: transitioning && prevMode !== 'habitat' ? 0 : 1, transition: 'opacity 300ms ease-in-out', position: 'absolute', inset: 0 }}>
+            <HabitatWorld onBack={backToLaunchpad} />
+          </div>
         )}
 
         {app && <AppShell app={{ id: app.id }} origin={app.origin} onClose={() => setApp(null)} />}

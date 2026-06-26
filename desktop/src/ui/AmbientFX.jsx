@@ -7,24 +7,29 @@
    ============================================================ */
 import React, { useMemo } from 'react';
 
-export function AmbientFX({ reduceMotion = false, density = 18 }) {
+export function AmbientFX({ reduceMotion = false, density = 35 }) {
   const motes = useMemo(() => {
     if (reduceMotion) return [];
-    return Array.from({ length: density }, () => ({
-      left: Math.random() * 100,
-      top: 40 + Math.random() * 60, // bias toward the lower half ("air above the floor")
-      size: 2 + Math.random() * 5,
-      delay: (Math.random() * 8).toFixed(2),
-      dur: (9 + Math.random() * 12).toFixed(2),
-      drift: (Math.random() * 40 - 20).toFixed(0),
-      hue: Math.random() > 0.5 ? 'a' : 'b',
-    }));
+    return Array.from({ length: density }, () => {
+      const r = Math.random();
+      const hue = r < 0.33 ? 'a' : r < 0.66 ? 'b' : 'c';
+      return {
+        left: Math.random() * 100,
+        top: 40 + Math.random() * 60, // bias toward the lower half ("air above the floor")
+        size: 2 + Math.random() * 5,
+        delay: (Math.random() * 8).toFixed(2),
+        dur: (9 + Math.random() * 12).toFixed(2),
+        drift: (Math.random() * 40 - 20).toFixed(0),
+        hue,
+      };
+    });
   }, [reduceMotion, density]);
 
   return (
     <div className={`ambient ${reduceMotion ? 'still' : ''}`} aria-hidden="true">
       <div className="ambient-aurora" />
       <div className="ambient-glow" />
+      <div className="ambient-core-glow" />
       <div className="ambient-vignette" />
       {motes.map((m, i) => (
         <i

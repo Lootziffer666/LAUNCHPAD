@@ -214,16 +214,26 @@ html, body {
 .ambient-aurora {
   position: absolute; inset: -20%;
   background:
-    radial-gradient(40% 35% at 22% 18%, rgba(124, 92, 255, 0.20), transparent 70%),
-    radial-gradient(45% 40% at 82% 26%, rgba(56, 189, 248, 0.18), transparent 70%),
-    radial-gradient(50% 45% at 50% 92%, rgba(34, 211, 170, 0.12), transparent 72%);
-  filter: blur(18px);
+    radial-gradient(40% 35% at 22% 18%, rgba(124, 92, 255, 0.26), transparent 70%),
+    radial-gradient(45% 40% at 82% 26%, rgba(56, 189, 248, 0.24), transparent 70%),
+    radial-gradient(50% 45% at 50% 92%, rgba(34, 211, 170, 0.16), transparent 72%);
+  filter: blur(18px) saturate(1.15);
   animation: aurora-drift 26s ease-in-out infinite alternate;
 }
 .ambient-glow {
   position: absolute; left: 50%; top: 12%; width: 60%; height: 50%; transform: translateX(-50%);
   background: radial-gradient(closest-side, rgba(120, 170, 255, 0.10), transparent 75%);
   animation: glow-breathe 9s ease-in-out infinite;
+}
+.ambient-core-glow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 70%; height: 70%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(140, 120, 255, 0.12), rgba(56, 189, 248, 0.06) 50%, transparent 80%);
+  border-radius: 50%;
+  animation: core-glow-pulse 8s ease-in-out infinite;
+  pointer-events: none;
 }
 .ambient-vignette {
   position: absolute; inset: 0;
@@ -236,16 +246,18 @@ html, body {
 }
 .mote-a { color: rgba(170, 200, 255, 0.85); background: rgba(200, 220, 255, 0.9); }
 .mote-b { color: rgba(150, 255, 220, 0.8); background: rgba(190, 255, 235, 0.9); }
+.mote-c { color: rgba(255, 180, 60, 0.8); background: rgba(255, 200, 80, 0.85); }
 @keyframes aurora-drift { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(3%, 2%, 0) scale(1.08); } }
 @keyframes glow-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes core-glow-pulse { 0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.95); } 50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); } }
 @keyframes mote-float {
   0% { opacity: 0; transform: translate(0, 12px) scale(0.7); }
   15% { opacity: 0.8; }
   85% { opacity: 0.7; }
   100% { opacity: 0; transform: translate(var(--drift, 0), -120px) scale(1); }
 }
-.ambient.still .ambient-aurora, .ambient.still .ambient-glow { animation: none; }
-[data-reduce] .ambient-aurora, [data-reduce] .ambient-glow, [data-reduce] .mote { animation: none !important; }
+.ambient.still .ambient-aurora, .ambient.still .ambient-glow, .ambient.still .ambient-core-glow { animation: none; }
+[data-reduce] .ambient-aurora, [data-reduce] .ambient-glow, [data-reduce] .ambient-core-glow, [data-reduce] .mote { animation: none !important; }
 [data-reduce] .mote { display: none; }
 
 /* ── companion (wandering critter) ── */
