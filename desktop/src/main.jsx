@@ -29,9 +29,12 @@ import './styles/lerndesktop.css';
 import './ui/image-slot.js';
 
 import App from './App.jsx';
+import { ErrorBoundary } from './ui/ErrorBoundary.jsx';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
