@@ -57,7 +57,7 @@ function BoxIcon({ name, size = 46 }) {
 }
 
 /* ---------- main component ---------- */
-export function HabitatWorld({ onBack }) {
+export function HabitatWorld({ onBack, skipArrivalSound = false }) {
   const [active, setActive] = useState(null); // index of open box or null
   const [view, setView] = useState('home'); // 'home' | 'opening' | 'in' | 'closing'
   const [hover, setHover] = useState(null);
@@ -65,9 +65,9 @@ export function HabitatWorld({ onBack }) {
   const openTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
 
-  // Play arrival sound on mount and trigger enter animation
+  // Play arrival sound on mount (skip if entering directly from boot) and trigger enter animation
   useEffect(() => {
-    SFX.launch();
+    if (!skipArrivalSound) SFX.launch();
     const raf = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -227,7 +227,6 @@ export function HabitatWorld({ onBack }) {
               auto-rotate
               rotation-per-second="20deg"
               interaction-prompt="none"
-              camera-controls="false"
               disable-zoom
               environment-image="neutral"
               exposure="1.2"
@@ -240,7 +239,6 @@ export function HabitatWorld({ onBack }) {
               auto-rotate
               rotation-per-second="15deg"
               interaction-prompt="none"
-              camera-controls="false"
               disable-zoom
               environment-image="neutral"
               exposure="1.2"

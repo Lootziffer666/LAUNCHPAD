@@ -117,9 +117,10 @@ export default function App() {
   }, [mode]);
 
   useEffect(() => {
-    return () => clearTimeout(transTimerRef.current);
+    return () => { clearTimeout(transTimerRef.current); clearTimeout(controllerTimerRef.current); };
   }, []);
   const [controllerFading, setControllerFading] = useState(false);
+  const controllerTimerRef = useRef(null);
   const [gate, setGate] = useState(null); // null | {target: 'windows'|'curator'}
 
   // Games load over IPC (async). Hold the shells until the first load lands so
@@ -134,6 +135,7 @@ export default function App() {
   // shipping build, switched on later via update. v1 boots clean.
   const personality = personalityEnabled();
   const [bootDone, setBootDone] = useState(false);
+  const bootJustFinishedRef = useRef(false);
   const [bootClip] = useState(() => {
     if (!personality) return null;
     let last = null;
@@ -257,7 +259,8 @@ export default function App() {
     SFX.back();
     if (mode === 'controller') {
       setControllerFading(true);
-      setTimeout(() => { setControllerFading(false); switchMode('launchpad'); }, 400);
+      clearTimeout(controllerTimerRef.current);
+      controllerTimerRef.current = setTimeout(() => { setControllerFading(false); switchMode('launchpad'); }, 400);
     } else {
       switchMode('launchpad');
     }
@@ -269,7 +272,7 @@ export default function App() {
     return (
       <div className="stage-wrap">
         <BootSequence clip={bootClip} kidName={t.kidName} reduceMotion={t.reduceMotion}
-          onDone={() => setBootDone(true)} />
+          onDone={() => { bootJustFinishedRef.current = true; setBootDone(true); }} />
       </div>
     );
   }
@@ -316,7 +319,7 @@ export default function App() {
         )}
         {mode === 'habitat' && (
           <div style={{ opacity: transitioning && prevMode !== 'habitat' ? 0 : 1, transition: 'opacity 300ms ease-in-out', position: 'absolute', inset: 0 }}>
-            <HabitatWorld onBack={backToLaunchpad} />
+            <HabitatWorld onBack={backToLaunchpad} skipArrivalSound={bootJustFinishedRef.current} />
           </div>
         )}
 

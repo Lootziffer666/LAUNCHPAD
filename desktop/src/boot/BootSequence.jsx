@@ -43,6 +43,7 @@ function Particle({ index }) {
         height: 4,
         borderRadius: '50%',
         background: index % 2 === 0 ? '#64c8ff' : '#a78bfa',
+        '--angle': `${angle}deg`,
         transform: `rotate(${angle}deg) translateY(-60px)`,
         opacity: 0,
         animation: `boot-particle-burst 0.8s ${delay}s ease-out forwards`,
