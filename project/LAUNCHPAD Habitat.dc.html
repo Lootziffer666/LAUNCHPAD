@@ -50,6 +50,7 @@
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:18px;color:#cdd8f2;">
+          <button onClick="{{ toggleMode }}" title="{{ is3d ? '2D-Modus' : '3D-Modus' }}" style="display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#cdd8f2;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);transition:background .2s;">{{ modeLabel }}</button>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a6 6 0 0 1 8 0M12 18.5h.01"></path></svg>
           <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">{{ clock }}</span>
         </div>
@@ -103,38 +104,65 @@
 
       <div class="fx" style="position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;{{ fxStyle }}">{{ frontFx }}</div>
 
-      <!-- 3D diorama layer — active for all 6 tiles via model-viewer -->
+      <!-- room layer (2D or 3D) -->
       <sc-if value="{{ show3d }}" hint-placeholder-val="{{ false }}">
       <div class="d3" style="{{ d3Style }}">
-          <model-viewer src="{{ d3Model }}" loading="eager" reveal="auto" camera-controls interaction-prompt="none" exposure="1.1" shadow-intensity="0.7" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" field-of-view="{{ mvFov }}" min-field-of-view="40deg" max-field-of-view="100deg" style="width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
+        <!-- 3D: model-viewer background -->
+        <sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
+          <model-viewer src="{{ d3Model }}" loading="eager" reveal="auto" camera-controls interaction-prompt="none" exposure="1.1" shadow-intensity="0.7" shadow-softness="1" environment-image="neutral" camera-orbit="{{ mvOrbit }}" field-of-view="{{ mvFov }}" min-field-of-view="40deg" max-field-of-view="100deg" style="position:absolute;inset:0;width:100%;height:100%;background-color:transparent;--poster-color:transparent;"></model-viewer>
+        </sc-if>
+        <!-- 2D: flat JPG background -->
+        <sc-if value="{{ is2d }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background-image:url('{{ d3Scene }}');background-size:cover;background-position:center;filter:brightness(.7);"></div>
+        </sc-if>
         <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 18%, rgba(120,170,255,.1), transparent 55%);mix-blend-mode:screen;"></div>
         <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 120% at 50% 46%, transparent 52%, rgba(2,4,12,.7) 100%);"></div>
         <div class="d3-rays" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">{{ interiorRays }}</div>
-        <button class="exit-orb" onClick="{{ back }}" title="Zurück zur Welt" style="position:absolute;left:40px;top:38px;z-index:8;width:62px;height:62px;border-radius:50%;border:1px solid rgba(180,210,255,.5);background:radial-gradient(circle at 38% 32%, rgba(150,200,255,.45), rgba(20,32,64,.55) 70%);box-shadow:0 0 26px rgba(120,180,255,.55), inset 0 1px 0 rgba(255,255,255,.4);backdrop-filter:blur(8px);cursor:pointer;display:grid;place-items:center;animation:haloPulse 4s ease-in-out infinite;" style-hover="transform:scale(1.08);">
+        <button class="exit-orb" onClick="{{ back }}" title="Zurück zur Welt" style="position:absolute;left:40px;top:38px;z-index:8;width:62px;height:62px;border-radius:50%;border:1px solid rgba(180,210,255,.5);background:radial-gradient(circle at 38% 32%, rgba(150,200,255,.45), rgba(20,32,64,.55) 70%);box-shadow:0 0 26px rgba(120,180,255,.55), inset 0 1px 0 rgba(255,255,255,.4);backdrop-filter:blur(8px);cursor:pointer;display:grid;place-items:center;animation:haloPulse 4s ease-in-out infinite;">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#eaf3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"></path></svg>
         </button>
-        <!-- floating room title - top left -->
-        <div style="{{ d3TitleStyle }}">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:46px;height:46px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;color:#fff;background:{{ d3IconBg }};box-shadow:0 10px 26px rgba(0,0,0,.5);">{{ d3Icon }}</div>
-            <div>
-              <div style="font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9);">{{ d3Title }}</div>
-              <div style="font-size:12px;font-weight:500;color:rgba(180,210,255,.8);margin-top:2px;">{{ d3Sub }}</div>
+        <!-- 3D: floating icons -->
+        <sc-if value="{{ is3d }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ d3TitleStyle }}">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:46px;height:46px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;color:#fff;background:{{ d3IconBg }};box-shadow:0 10px 26px rgba(0,0,0,.5);">{{ d3Icon }}</div>
+              <div>
+                <div style="font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9);">{{ d3Title }}</div>
+                <div style="font-size:12px;font-weight:500;color:rgba(180,210,255,.8);margin-top:2px;">{{ d3Sub }}</div>
+              </div>
             </div>
           </div>
-        </div>
-        <!-- floating app icons scattered in 3D space -->
-        <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
-          <div style="{{ a.floatStyle }}">
-            <div style="position:absolute;inset:-18px;background:radial-gradient(closest-side, rgba(140,180,255,.5), transparent);filter:blur(16px);pointer-events:none;"></div>
-            <div style="position:relative;width:78px;height:78px;border-radius:22px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 20px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.28);">{{ a.glyph }}</div>
-            <div style="margin-top:10px;font-size:11px;font-weight:700;color:#fff;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.95);white-space:nowrap;letter-spacing:.3px;">{{ a.name }}</div>
+          <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
+            <div style="{{ a.floatStyle }}">
+              <div style="position:absolute;inset:-18px;background:radial-gradient(closest-side, rgba(140,180,255,.5), transparent);filter:blur(16px);pointer-events:none;"></div>
+              <div style="position:relative;width:78px;height:78px;border-radius:22px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 20px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.28);">{{ a.glyph }}</div>
+              <div style="margin-top:10px;font-size:11px;font-weight:700;color:#fff;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.95);white-space:nowrap;letter-spacing:.3px;">{{ a.name }}</div>
+            </div>
+          </sc-for>
+          <div style="{{ d3BtnWrapStyle }}">
+            <button onClick="{{ back }}" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 36px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:#06203a;background:{{ d3Ac }};box-shadow:0 16px 40px rgba(0,0,0,.5);">{{ d3BtnLabel }}</button>
           </div>
-        </sc-for>
-        <!-- CTA button - bottom center -->
-        <div style="{{ d3BtnWrapStyle }}">
-          <button onClick="{{ back }}" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 36px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:#06203a;background:{{ d3Ac }};box-shadow:0 16px 40px rgba(0,0,0,.5);">{{ d3BtnLabel }}</button>
-        </div>
+        </sc-if>
+        <!-- 2D: classic glass card -->
+        <sc-if value="{{ is2d }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ d3PanelStyle }}">
+            <div style="position:relative;width:460px;border-radius:24px;padding:24px;background:linear-gradient(160deg, rgba(20,28,52,.72), rgba(10,14,30,.8));border:1px solid rgba(255,255,255,.18);box-shadow:0 50px 110px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.22);backdrop-filter:blur(20px);">
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+                <div style="width:52px;height:52px;border-radius:15px;display:grid;place-items:center;color:#fff;background:{{ d3IconBg }};box-shadow:0 12px 28px rgba(110,168,255,.45);">{{ d3Icon }}</div>
+                <div><div style="font-size:23px;font-weight:800;color:#fff;">{{ d3Title }}</div><div style="font-size:13px;font-weight:600;color:#aeb9dd;margin-top:2px;">{{ d3Sub }}</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <sc-for list="{{ d3Apps }}" as="a" hint-placeholder-count="4">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+                    <div style="width:62px;height:62px;border-radius:16px;display:grid;place-items:center;color:#fff;background:{{ a.bg }};box-shadow:0 10px 22px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2);">{{ a.glyph }}</div>
+                    <div style="font-size:12px;font-weight:700;color:#fff;text-align:center;line-height:1;">{{ a.name }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <button onClick="{{ back }}" style="margin-top:20px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:13px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:#06203a;background:{{ d3Ac }};box-shadow:0 14px 32px rgba(110,168,255,.45);">{{ d3BtnLabel }}</button>
+            </div>
+          </div>
+        </sc-if>
       </div>
       </sc-if>
 
@@ -160,10 +188,18 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;kidName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Jake&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;lush&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
-  state = { view:'home', active:null, hover:null, now:new Date(), flash:0, tick:0 };
+  state = { view:'home', active:null, hover:null, now:new Date(), flash:0, tick:0, is3d: localStorage.getItem('lp-mode')!=='2d' };
 
   W=400; H=248; D=70; COLW=452; ROWH=300; CAMZ=1380;
   pos(i){ const col=i%3, row=(i/3|0); return { col, row, x:(col-1)*this.COLW, y:row*this.ROWH-150, z:(col===1?0:30), ry:(1-col)*6 }; }
+
+  toggleMode(){ const next=this.state.is3d?'2d':'3d'; localStorage.setItem('lp-mode',next); this.setState({is3d:next==='3d'}); }
+
+  RECTS=(()=>{ const r={}; const xs=[0,155,308,462,616,771,925,1079,1233,1387];
+    [['F01','F02','F03','F04','F05','F06','F07','F08','F09','F10'],['F11','F12','F13','F14','F15','F16','F17','F18','F19','F20'],['F21','F22','F23','F24','F25']]
+    .forEach((row,ri)=>row.forEach((id,ci)=>{ r[id]={x:xs[ci],y:ri*185,w:(ci===1||ci===5||ci===8)?148:149,h:153}; })); return r; })();
+  ANIM={ walk:{frames:['F01','F02','F03','F05','F07'],fps:9}, stand:{frames:['F01'],fps:1}, sit:{frames:['F09'],fps:1}, run:{frames:['F02','F03','F05','F07'],fps:13} };
+  sheet(url){ return { url, sheetW:1536, sheetH:523, frameRects:this.RECTS, animations:this.ANIM }; }
 
   get reduce(){ return !!this.props.reduceMotion; }
 
@@ -175,8 +211,8 @@ class Component extends DCLogic {
       {id:'floor',level:2,col:null,y:838,x0:90,x1:1350},
     ];
     this.cats=[
-      { id:'brown', model:'models/animated_cat_a.glb', seg:'b0', x:268, y:476, dir:1, face:1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:200, roomDir:1, speed:5.0, size:120 },
-      { id:'blue',  model:'models/animated_cat_b.glb', seg:'t2', x:1120, y:176, dir:-1, face:-1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:160, roomDir:-1, speed:4.2, size:120 },
+      { id:'brown', model:'models/animated_cat_a.glb', sheet:this.sheet('sprites/cat_brown.png'), seg:'b0', x:268, y:476, dir:1, face:1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:200, roomDir:1, speed:5.0, size:120 },
+      { id:'blue',  model:'models/animated_cat_b.glb', sheet:this.sheet('sprites/cat_blue.png'),  seg:'t2', x:1120, y:176, dir:-1, face:-1, mode:'walk', pauseT:0, air:0, frame:0, hearts:0, inRoom:null, roomX:160, roomDir:-1, speed:4.2, size:120 },
     ];
     this._timers=[]; this.TICK=60;
     this.loop=setInterval(()=>this.stepAll(), this.TICK);
@@ -256,7 +292,11 @@ class Component extends DCLogic {
   stepAll(){ if(!this.cats) return; this.cats.forEach(c=>{ this.step(c); c.frame++; }); this.setState(s=>({tick:s.tick+1})); }
   catClick(c){ if(this.state.view!=='home'||c.inRoom!=null) return; c.mode='sit'; c.pauseT=2600; c.hearts++; this.forceUpdate(); }
 
+  spr(c,anim,size){ const sh=c.sheet; const a=sh.animations[anim]||sh.animations.stand; const id=a.frames[c.frame%a.frames.length]; const r=sh.frameRects[id]||sh.frameRects.F01; const sc=size/r.h;
+    return React.createElement('span',{ style:{ display:'block', width:Math.round(r.w*sc)+'px', height:Math.round(r.h*sc)+'px', backgroundImage:`url(${sh.url})`, backgroundSize:`${sh.sheetW*sc}px ${sh.sheetH*sc}px`, backgroundPosition:`${-r.x*sc}px ${-r.y*sc}px`, backgroundRepeat:'no-repeat', transform:`scaleX(${-c.face})`, transformOrigin:'center bottom', imageRendering:'pixelated', filter:'drop-shadow(0 0 12px rgba(150,200,255,.4)) drop-shadow(0 9px 7px rgba(0,0,0,.45))' } });
+  }
   catEl(c,anim,size){
+    if(!this.state.is3d) return this.spr(c,anim,size);
     return React.createElement('model-viewer',{ src:c.model, 'animation-name':'Take 001', autoplay:'', loading:'eager', 'interaction-prompt':'none', 'disable-zoom':'', 'camera-orbit':'90deg 80deg 105%', orientation:`0deg ${c.face>0?'0deg':'180deg'} 0deg`, 'environment-image':'neutral', exposure:'1.4', style:{ width:size+'px', height:size+'px', backgroundColor:'transparent', '--poster-color':'transparent', display:'block', filter:'drop-shadow(0 4px 12px rgba(0,0,0,.6))' } });
   }
   renderCats(){ if(!this.cats) return null;
@@ -442,12 +482,15 @@ class Component extends DCLogic {
       kidName:this.props.kidName??'Jake', initial:(this.props.kidName??'Jake').slice(0,1).toUpperCase(),
       chromeStyle: inside?'opacity:0;pointer-events:none;':'opacity:1;',
       backStyle:{ position:'absolute', left:'42px', top:'34px', zIndex:30, display: inside?'inline-flex':'none', alignItems:'center', gap:'8px', padding:'12px 22px', borderRadius:'999px', background:'rgba(8,12,26,.5)', border:'1px solid rgba(255,255,255,.2)', color:'#fff', fontFamily:'inherit', fontWeight:700, fontSize:'15px', cursor:'pointer', backdropFilter:'blur(10px)', opacity: view==='in'?1:0, transition:'opacity .4s .3s' },
-      back:()=>this.close(),
-      show3d, d3Model, mvOrbit, mvFov: view==='opening'?'60deg':'70deg',
+      back:()=>this.close(), toggleMode:()=>this.toggleMode(),
+      is3d: this.state.is3d, is2d: !this.state.is3d,
+      modeLabel: this.state.is3d ? '✦ 3D' : '◈ 2D',
+      show3d, d3Model, d3Scene: d3Tile.scene, mvOrbit, mvFov: view==='opening'?'60deg':'70deg',
       d3Apps, d3Icon, d3IconBg, d3Ac, d3Title, d3Sub, d3BtnLabel, interiorRays:this._rays,
       d3Style:{ position:'absolute', inset:0, zIndex:35, pointerEvents:'auto', perspective:'900px', perspectiveOrigin:'50% 45%', background:'radial-gradient(130% 110% at 50% 25%, #0b1630, #04060f 70%)', '--px':this._portalPx||'50%', '--py':this._portalPy||'50%', animation: view==='opening'?'portalIn 0.9s cubic-bezier(.2,0,.05,1) both':undefined },
       d3TitleStyle:{ position:'absolute', left:'52px', top:'48px', zIndex:6, opacity: view==='in'?1:0, transition:'opacity .5s .25s' },
       d3BtnWrapStyle:{ position:'absolute', bottom:'52px', left:'50%', transform:'translateX(-50%)', zIndex:6, opacity: view==='in'?1:0, transition:'opacity .5s .65s' },
+      d3PanelStyle:{ position:'absolute', right:'70px', top:'50%', transform:'translateY(-50%)', zIndex:5, opacity: view==='in'?1:0, transition:'opacity .5s .35s' },
       flashStyle: this.state.flash?'animation:flashAnim .6s ease forwards;':'',
     };
   }
