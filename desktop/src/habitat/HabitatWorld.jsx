@@ -12,6 +12,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 // Side-effect import: registers <model-viewer> custom element.
 import '@google/model-viewer';
 
+import { SFX } from '../lib/sfx';
+
+/* ---------- particle motes config ---------- */
+const MOTE_COLORS = ['#5ef0f0', '#a67cff', '#ffd966', '#6ea8ff', '#c9a6ff', '#5fe6b0'];
+const MOTE_COUNT = 35;
+
 /* ---------- data: 6 boxes mapped to GLB models ---------- */
 const MODELS = {
   play:    { src: '/models/kitchen.glb',        orbit: '180deg 74deg 68%' },
@@ -79,6 +85,7 @@ export function HabitatWorld({ onBack }) {
     clearTimeout(closeTimerRef.current);
     setActive(i);
     setView('opening');
+    SFX.doorOpen();
     openTimerRef.current = setTimeout(() => setView('in'), 980);
   }, [view]);
 
@@ -87,6 +94,7 @@ export function HabitatWorld({ onBack }) {
     clearTimeout(openTimerRef.current);
     clearTimeout(closeTimerRef.current);
     setView('closing');
+    SFX.close();
     closeTimerRef.current = setTimeout(() => {
       setView('home');
       setActive(null);
@@ -153,6 +161,42 @@ export function HabitatWorld({ onBack }) {
     return out;
   }, []);
 
+  // Particle motes (floating ambient specks)
+  const motes = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < MOTE_COUNT; i++) {
+      const color = MOTE_COLORS[i % MOTE_COLORS.length];
+      const size = 2 + Math.random() * 4;
+      const left = Math.random() * 100;
+      const top = 20 + Math.random() * 80;
+      const dur = 6 + Math.random() * 10;
+      const delay = Math.random() * dur;
+      out.push(
+        <div key={i} className="hw-mote" style={{
+          left: `${left}%`,
+          top: `${top}%`,
+          width: `${size}px`,
+          height: `${size}px`,
+          backgroundColor: color,
+          boxShadow: `0 0 ${size * 2}px ${color}`,
+          animationDuration: `${dur}s`,
+          animationDelay: `-${delay}s`,
+        }} />
+      );
+    }
+    return out;
+  }, []);
+
+  // Debounce ref for magic SFX on hover
+  const magicDebounceRef = useRef(0);
+  const playMagic = useCallback(() => {
+    const now = Date.now();
+    if (now - magicDebounceRef.current > 300) {
+      magicDebounceRef.current = now;
+      SFX.magic();
+    }
+  }, []);
+
   return (
     <div className="habitat-world">
       {/* Atmosphere layer */}
@@ -160,6 +204,43 @@ export function HabitatWorld({ onBack }) {
         <div className="hw-atmo-glow" />
         <div className="hw-atmo-vignette" />
       </div>
+
+      {/* Floating particle motes */}
+      <div className="hw-motes">
+        {motes}
+      </div>
+
+      {/* Cat mascots (model-viewer, small, floating) */}
+      {!inside && (
+        <>
+          <div className="hw-cat-model hw-cat-model--left">
+            <model-viewer
+              src="/models/cat_a.glb"
+              auto-rotate
+              rotation-per-second="20deg"
+              interaction-prompt="none"
+              camera-controls="false"
+              disable-zoom
+              environment-image="neutral"
+              exposure="1.2"
+              style={{ backgroundColor: 'transparent' }}
+            />
+          </div>
+          <div className="hw-cat-model hw-cat-model--right">
+            <model-viewer
+              src="/models/cat_b.glb"
+              auto-rotate
+              rotation-per-second="15deg"
+              interaction-prompt="none"
+              camera-controls="false"
+              disable-zoom
+              environment-image="neutral"
+              exposure="1.2"
+              style={{ backgroundColor: 'transparent' }}
+            />
+          </div>
+        </>
+      )}
 
       {/* 3D world (boxes grid) */}
       <div className="hw-world" style={{ transform: worldTransform }}>
@@ -209,7 +290,7 @@ export function HabitatWorld({ onBack }) {
                 <button
                   className="hw-door"
                   onClick={() => openBox(i)}
-                  onMouseEnter={() => setHover(i)}
+                  onMouseEnter={() => { setHover(i); playMagic(); }}
                   onMouseLeave={() => setHover(null)}
                   style={{
                     transformOrigin: dHinge,
