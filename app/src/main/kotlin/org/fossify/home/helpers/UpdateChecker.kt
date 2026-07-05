@@ -22,7 +22,6 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
 import org.fossify.home.BuildConfig
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -79,7 +78,9 @@ object UpdateChecker {
             }
             if (code == 0) code = versionCodeFromNotes(notes) ?: 0
             Release(versionCode = code, versionName = versionName, apkUrl = apkUrl, notes = notes)
-        } catch (e: JSONException) {
+        } catch (e: Exception) {
+            // org.json can throw JSONException (checked) or a RuntimeException depending on the
+            // impl/input; catch broadly so malformed feed input just yields null.
             android.util.Log.w(TAG, "release JSON parse failed", e)
             null
         }
