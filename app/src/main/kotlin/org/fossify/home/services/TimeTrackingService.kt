@@ -7,7 +7,7 @@
 // window starts and CooldownActivity is shown. Requires Usage Access (granted in Eltern-Modus).
 
 @file:Suppress(
-    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions"
+    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions", "ReturnCount"
 ) // polling intervals; fail-safe catches; service handles tracking + tamper checks
 
 package org.fossify.home.services
@@ -41,9 +41,11 @@ import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.DailyRefill
 import org.fossify.home.helpers.ForegroundPolicy
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TamperClock
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.TimeBudgetManager
@@ -154,6 +156,18 @@ class TimeTrackingService : Service() {
         val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
             .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
         if (!enforce) {
+            resetCounter()
+            return
+        }
+        // Daily base allowance: top up once per local day so "morgen gibt's neue" holds even if the
+        // launcher never returned to home. Idempotent, so running it every tick is cheap.
+        runBlocking { DailyRefill.maybeGrant(this@TimeTrackingService, database) }
+        // Papa-Modus (supervised override): pause metering entirely. No minutes are debited, no
+        // cool-down/strict-block relaunches fire — apps run free while the father supervises, and
+        // nothing lands in the mother-visible ledger/audit. First enforce the WiFi geofence, so
+        // leaving the allowed network hard-ends the session and normal rules resume this tick.
+        SupervisedOverride.enforceGeofence(this)
+        if (SupervisedOverride.isActive(this)) {
             resetCounter()
             return
         }

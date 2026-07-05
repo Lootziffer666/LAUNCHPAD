@@ -38,8 +38,25 @@
     <!-- LAUNCHPAD: restart tracking service after device reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- LAUNCHPAD Papa-Modus: read the supervised-override NFC tag -->
+    <uses-permission android:name="android.permission.NFC" />
+
+    <!-- LAUNCHPAD Papa-Modus WiFi geofence: read the connected SSID (needs location on Android 9+).
+         COARSE is declared alongside FINE per platform requirement (lint: CoarseFineLocation). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- LAUNCHPAD auto-update: install a pushed APK (parent-confirmed, or silent as device owner) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <uses-feature
         android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <!-- Papa-Modus works via QR without NFC too, so NFC must not gate installation -->
+    <uses-feature
+        android:name="android.hardware.nfc"
         android:required="false" />
 
     <application
@@ -250,6 +267,57 @@
             android:name=".activities.AppTimeRequestsActivity"
             android:exported="false"
             android:theme="@style/LauncherTheme" />
+
+        <!-- LAUNCHPAD Papa-Modus: parent setup (create secret, show QR, write tag, set window) -->
+        <activity
+            android:name=".activities.PapaModusActivity"
+            android:exported="false"
+            android:label="Papa-Modus"
+            android:parentActivityName=".activities.ElternModusActivity"
+            android:theme="@style/LauncherTheme" />
+
+        <!-- LAUNCHPAD Papa-Modus: the target a scanned QR or a tapped NFC tag lands on.
+             exported=true so an external scanner / the NFC dispatcher can open it; the token is
+             HMAC-verified inside, so an unsigned/foreign URI is a harmless no-op. -->
+        <activity
+            android:name=".activities.SupervisedOverrideActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@style/LauncherTheme">
+            <!-- QR / deep link opened by any URL handler -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="launchpad" android:host="papa" />
+            </intent-filter>
+            <!-- NFC tag carrying the same launchpad://papa?t=… URI record -->
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="launchpad" android:host="papa" />
+            </intent-filter>
+        </activity>
+
+        <!-- LAUNCHPAD auto-update: check/download/install a pushed release -->
+        <activity
+            android:name=".activities.UpdateActivity"
+            android:exported="false"
+            android:label="App-Update"
+            android:parentActivityName=".activities.ElternModusActivity"
+            android:theme="@style/LauncherTheme" />
+
+        <!-- LAUNCHPAD auto-update: expose the downloaded APK to the package installer -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <activity-alias
             android:name=".activities.SplashActivity.Red"

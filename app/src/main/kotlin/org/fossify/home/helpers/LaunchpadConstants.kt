@@ -17,10 +17,29 @@ object LaunchpadConstants {
     const val DEFAULT_SCHOOL_DAY_CAP_MINUTES = 60
     const val DEFAULT_COOLDOWN_DURATION_MINUTES = 15
     const val DEFAULT_EXPIRE_UNUSED_AFTER_DAYS = 30
+    // Daily base allowance topped up each local day so "morgen gibt's neue" is real.
+    const val DEFAULT_BASE_TIME_MINUTES = 60
 
     // Impulsbremse defaults
     const val DEFAULT_IMPULSE_SECONDS = 7
     const val DEFAULT_IMPULSE_REOPEN_WINDOW_MIN = 3
+
+    // "Papa-Modus" supervised override — how long one NFC/QR tap lifts the rules by default.
+    // A single scan grants min(token-expiry, now + this window). The parent can change it.
+    const val DEFAULT_OVERRIDE_WINDOW_MINUTES = 180
+    // Deep-link / NDEF scheme that both the NFC tag and the QR code carry.
+    const val OVERRIDE_URI_SCHEME = "launchpad"
+    const val OVERRIDE_URI_HOST = "papa"
+    // Token wire format version (see SupervisedOverride).
+    const val OVERRIDE_TOKEN_VERSION = "LPO1"
+    // Grace after leaving the allowed WiFi before Papa-Modus ends — robustness against brief blips.
+    const val OVERRIDE_GEOFENCE_GRACE_MS = 3 * 60 * 1000L // 3 min
+
+    // Auto-update: default release feed (parent pushes a GitHub Release → child's phone picks it up).
+    const val DEFAULT_UPDATE_FEED_URL =
+        "https://api.github.com/repos/Lootziffer666/LAUNCHPAD/releases/latest"
+    // Don't poll the feed more than once per this interval during normal use.
+    const val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24h
 
     // Time-limit warning toast vibration
     const val DEFAULT_VIBRATION_MS = 300
@@ -188,6 +207,37 @@ object LaunchpadPrefs {
     const val PREF_KNOWN_PACKAGES = "known_packages"
     const val PREF_PENDING_REVIEW_PACKAGES = "pending_review_packages"
     const val PREF_LAST_APP_SCAN = "last_app_scan"
+
+    // "Papa-Modus" supervised override. The override is deliberately kept OUT of the
+    // Krypto-Cash ledger and the shared audit/report/sync: while it's active, apps launch
+    // without draining budget and nothing is written to the mother-visible history. Rationale:
+    // the father supervises in person and prioritises supervised use over strict gating.
+    // - SECRET: HMAC key (hex). A tag/QR is only honoured if it was signed with this secret,
+    //   so the child can't self-issue a grant. Provisioned once in Papa-Modus setup.
+    // - UNTIL: epoch ms; override active while now < value.
+    // - WINDOW_MIN: how long a single valid scan lifts the rules.
+    const val PREF_OVERRIDE_SECRET_HEX = "supervised_override_secret"
+    const val PREF_OVERRIDE_UNTIL = "supervised_override_until"
+    const val PREF_OVERRIDE_WINDOW_MIN = "supervised_override_window_min"
+    // Local-only, never synced: timestamp of the last supervised session, so the father alone
+    // can see "Papa-Modus was last used at X" in his own setup screen.
+    const val PREF_OVERRIDE_LAST_USED = "supervised_override_last_used"
+    // WiFi geofence (opt-in): Papa-Modus only counts as active while connected to one of these
+    // saved home-network SSIDs. Leaving the network ends the session (a proxy for "too far from
+    // dad"). Reading the SSID needs location permission + location services on (Android 9+).
+    const val PREF_OVERRIDE_REQUIRE_WIFI = "supervised_override_require_wifi"
+    const val PREF_OVERRIDE_WIFI_SSIDS = "supervised_override_wifi_ssids"
+    // Epoch ms we first saw the device leave the allowed WiFi during an active window (0 = on net).
+    // A short grace before ending keeps a brief WiFi blip from cutting Papa-Modus mid-activity.
+    const val PREF_OVERRIDE_OFFWIFI_SINCE = "supervised_override_offwifi_since"
+
+    // Daily base-time refill: local midnight (epoch ms) we last topped up, so it grants once/day.
+    const val PREF_LAST_REFILL_DAY = "daily_refill_last_day"
+
+    // Auto-update: parent-configurable release feed, auto-check toggle, last-check timestamp.
+    const val PREF_UPDATE_FEED_URL = "update_feed_url"
+    const val PREF_UPDATE_AUTO_CHECK = "update_auto_check" // default ON
+    const val PREF_UPDATE_LAST_CHECK = "update_last_check"
 
     // Dedicated SharedPreferences file for LAUNCHPAD (separate from commons config).
     const val PREFS_FILE = "launchpad_prefs"

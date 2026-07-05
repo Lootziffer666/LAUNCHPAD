@@ -10,6 +10,7 @@ package org.fossify.home.helpers
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.sync.withLock
 import org.fossify.home.databases.AllowedApp
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
@@ -70,26 +71,29 @@ class CommandProcessor(
     private suspend fun applyAdjustTime(obj: JSONObject): String {
         val minutes = obj.getInt("minutes")
         val reason = obj.optString("reason", "Eltern-Anpassung")
-        val current = database.cryptoCashDao().getCurrentBalance()
-        // Preserve the No-Regression invariant: delta is the ACTUAL change, balance never < 0.
-        val effectiveDelta = if (minutes >= 0) minutes else maxOf(minutes, -current)
-        val newBalance = current + effectiveDelta
-        val type = if (effectiveDelta >= 0) LaunchpadConstants.TX_TYPE_EARN
-        else LaunchpadConstants.TX_TYPE_CORRECTION
-        val sign = if (effectiveDelta >= 0) "+" else ""
-        database.cryptoCashDao().insertTransaction(
-            CryptoCashTransaction(
-                deltaMinutes = effectiveDelta,
-                type = type,
-                actor = parentId,
-                reasonType = "remote_adjustment",
-                reasonText = reason,
-                childVisibleText = "$reason $sign$effectiveDelta Min",
-                source = "parent_app",
-                balanceAfter = newBalance
+        // Serialize the read-modify-write so a concurrent metering spend can't clobber the snapshot.
+        return LedgerGuard.mutex.withLock {
+            val current = database.cryptoCashDao().getCurrentBalance()
+            // Preserve the No-Regression invariant: delta is the ACTUAL change, balance never < 0.
+            val effectiveDelta = if (minutes >= 0) minutes else maxOf(minutes, -current)
+            val newBalance = current + effectiveDelta
+            val type = if (effectiveDelta >= 0) LaunchpadConstants.TX_TYPE_EARN
+            else LaunchpadConstants.TX_TYPE_CORRECTION
+            val sign = if (effectiveDelta >= 0) "+" else ""
+            database.cryptoCashDao().insertTransaction(
+                CryptoCashTransaction(
+                    deltaMinutes = effectiveDelta,
+                    type = type,
+                    actor = parentId,
+                    reasonType = "remote_adjustment",
+                    reasonText = reason,
+                    childVisibleText = "$reason $sign$effectiveDelta Min",
+                    source = "parent_app",
+                    balanceAfter = newBalance
+                )
             )
-        )
-        return "Zeit angepasst: $sign$effectiveDelta Min (neu: $newBalance)"
+            "Zeit angepasst: $sign$effectiveDelta Min (neu: $newBalance)"
+        }
     }
 
     private suspend fun applyToggleApp(obj: JSONObject): String {

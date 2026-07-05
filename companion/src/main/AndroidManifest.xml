@@ -1,8 +1,0 @@
-<!--
-  STALE — this old structure was replaced by companion/app/src/.
-  Do NOT add anything here. The real companion sources live in:
-    companion/app/src/main/AndroidManifest.xml
-    companion/app/src/main/kotlin/...
-  Build with:  ./build-companion.sh  (from repo root)
--->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

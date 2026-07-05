@@ -324,6 +324,17 @@ class MainActivity : SimpleActivity(), FlingListener {
         // LAUNCHPAD M3: enter kiosk lock-task if enabled and provisioned as device owner.
         KioskManager.onLauncherResumed(this, AppsDatabase.getInstance(this))
 
+        // LAUNCHPAD: throttled daily check for a pushed release (own thread; no-op if not due).
+        // Use the application context so the background thread never pins this Activity.
+        org.fossify.home.helpers.UpdateChecker.maybeAutoCheck(applicationContext)
+
+        // LAUNCHPAD: grant today's base-time allowance if the day rolled over (idempotent).
+        CoroutineScope(Dispatchers.IO).launch {
+            org.fossify.home.helpers.DailyRefill.maybeGrant(
+                applicationContext, AppsDatabase.getInstance(applicationContext)
+            )
+        }
+
         // LAUNCHPAD: surface newly installed apps for parent review (Family-Link open-install
         // model). Default-deny already blocks them; this only flags + notifies, throttled to 1/min.
         CoroutineScope(Dispatchers.IO).launch {
@@ -1398,6 +1409,10 @@ class MainActivity : SimpleActivity(), FlingListener {
     // LAUNCHPAD: hide non-whitelisted apps (Kindermodus) and leisure apps (Schulmodus) from the
     // drawer — default-deny plus "don't even tempt". Caller wraps this in try/catch (fail-open).
     private fun applyLaunchpadAppFilters(allApps: ArrayList<AppLauncher>): ArrayList<AppLauncher> {
+        // Papa-Modus (supervised override): show every app, including normally hidden ones, so
+        // the child can reach anything while the father supervises.
+        if (org.fossify.home.helpers.SupervisedOverride.isActive(applicationContext)) return allApps
+
         val prefs = applicationContext.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, MODE_PRIVATE)
         val enforce = prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
         val schoolActive = org.fossify.home.helpers.SchoolMode.isActive(applicationContext)

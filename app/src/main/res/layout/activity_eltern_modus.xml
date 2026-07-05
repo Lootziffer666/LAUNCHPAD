@@ -507,6 +507,44 @@
                     android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/em_row_papamodus"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Papa-Modus (NFC / QR)" />
+                    <TextView android:id="@+id/em_papa_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Regeln bei dir betreut aufheben"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/em_row_update"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/ripple_background" android:orientation="horizontal"
+                android:gravity="center_vertical" android:paddingEnd="16dp">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <org.fossify.commons.views.MyTextView style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="App-Update" />
+                    <TextView android:id="@+id/em_update_status"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Nach neuer Version suchen"
+                        android:textSize="12sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="›" android:textSize="22sp" android:textColor="?colorPrimary" />
+            </LinearLayout>
+
             <android.view.View
                 android:layout_width="match_parent"
                 android:layout_height="32dp" />

@@ -114,7 +114,9 @@ class JakeDashboardActivity : AppCompatActivity() {
                 else -> Playful.color(Playful.MINT)
             })
             balanceLabel.text = if (budget.inCooldown) "Minuten Pause noch" else "Minuten zum Spielen"
+            val papaActive = org.fossify.home.helpers.SupervisedOverride.isActive(this@JakeDashboardActivity)
             statusMsg.text = when {
+                papaActive -> "🛡️ Papa-Modus an — alles frei, die Zeit läuft nicht herunter."
                 budget.inCooldown -> "🌿 Verschnaufpause! Magst du malen, lesen oder bauen?"
                 budget.balanceMinutes <= 0 -> "🌙 Für heute ist die Zeit alle — morgen gibt's neue!"
                 budget.balanceMinutes < 10 -> "✨ Nur noch ${budget.balanceMinutes} Min — clever einsetzen!"

@@ -3,7 +3,7 @@
 // Runs on port 7391. No external deps — pure Java ServerSocket.
 //
 // Endpoints:
-//   GET  /api/status     → {balance, enforcement, cooldown}
+//   GET  /api/status     → {balance, enforcement, cooldown, schoolMode, papaMode, …}
 //   GET  /api/pending    → {doge:[...], zusagen:[...]}
 //   POST /api/command    → apply CommandProcessor; returns {ok, message}
 
@@ -159,6 +159,8 @@ object LaunchpadServer {
             put("cooldown", cooldown)
             put("schoolMode", SchoolMode.isActive(context))
             put("schoolUntil", SchoolMode.activeUntil(context))
+            put("papaMode", SupervisedOverride.isActive(context))
+            put("papaUntil", SupervisedOverride.activeUntil(context))
         }.toString()
     }
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.fossify.home.R
 import org.fossify.home.databases.AllowedApp
@@ -362,6 +363,8 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_school to { showSchoolModeChooser() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
             R.id.em_row_familylink to { showFamilyLinkInfo() },
+            R.id.em_row_papamodus to { startActivity(Intent(this, PapaModusActivity::class.java)) },
+            R.id.em_row_update to { startActivity(Intent(this, UpdateActivity::class.java)) },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
 
         // Switches
@@ -644,13 +647,15 @@ class ElternModusActivity : AppCompatActivity() {
                 val r = reason.text.toString().ifBlank { "Heute Ausnahme" }
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        val cur = db.cryptoCashDao().getCurrentBalance()
-                        db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
-                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
-                            actor = "parent", reasonType = "today_exception", reasonText = r,
-                            childVisibleText = "+$m Min (${r})", source = "parent_app",
-                            balanceAfter = cur + m
-                        ))
+                        org.fossify.home.helpers.LedgerGuard.mutex.withLock {
+                            val cur = db.cryptoCashDao().getCurrentBalance()
+                            db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
+                                deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
+                                actor = "parent", reasonType = "today_exception", reasonText = r,
+                                childVisibleText = "+$m Min (${r})", source = "parent_app",
+                                balanceAfter = cur + m
+                            ))
+                        }
                         TamperMonitor.recordSuspend(
                             this@ElternModusActivity,
                             LaunchpadConstants.AUDIT_EXCEPTION_GRANTED,

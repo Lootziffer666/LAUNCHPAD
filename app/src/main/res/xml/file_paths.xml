@@ -21,4 +21,7 @@
 
     <!-- Offline-KI Modell (filesDir/models/) — für zukünftige Nutzung -->
     <files-path name="ai_models" path="models/"/>
+
+    <!-- Auto-Update: heruntergeladene APK (cacheDir/updates/) an den Installer übergeben -->
+    <cache-path name="updates" path="updates/"/>
 </paths>

@@ -12,6 +12,7 @@ package org.fossify.home.helpers
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.sync.withLock
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.models.TimeBudget
@@ -38,6 +39,13 @@ class LaunchGate(
         packageName: String,
         timeBudget: TimeBudget
     ): LaunchDecision {
+        // Check 0: Papa-Modus (supervised override). While active, every gate — whitelist, budget,
+        // cool-down, schedule, school mode — is lifted and the launch is free. Deliberately not
+        // metered or logged (see TimeTrackingService, which also pauses while active).
+        if (SupervisedOverride.isActive(context)) {
+            return LaunchDecision(true, null, null)
+        }
+
         // Check 1: Whitelist
         if (!database.allowedAppDao().isAppAllowed(packageName)) {
             return LaunchDecision(
@@ -198,10 +206,10 @@ class TimeBudgetManager(
      * correct balanceAfter snapshot (never negative). Begins cool-down when the balance hits 0.
      * Returns the new balance.
      */
-    suspend fun spend(minutes: Int, pkg: String): Int {
+    suspend fun spend(minutes: Int, pkg: String): Int = LedgerGuard.mutex.withLock {
         var balance = database.cryptoCashDao().getCurrentBalance()
         val toSpend = minutes.coerceAtMost(balance)
-        if (toSpend <= 0) return balance
+        if (toSpend <= 0) return@withLock balance
 
         balance -= toSpend
         database.cryptoCashDao().insertTransaction(
@@ -218,7 +226,7 @@ class TimeBudgetManager(
         )
         Log.d(tag, "Spent $toSpend min on $pkg, balance=$balance")
         if (balance <= 0) beginCooldown()
-        return balance
+        balance
     }
 
     /** Start a cool-down window of [durationMinutes] from now. */
