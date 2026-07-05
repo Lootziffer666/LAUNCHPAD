@@ -89,6 +89,18 @@ object NotificationHelper {
         )
     }
 
+    fun notifyUpdateAvailable(context: Context, versionName: String) {
+        notify(
+            context,
+            id = 1005,
+            channel = CHANNEL_UPDATES,
+            title = "⬆️ Update verfügbar",
+            text = "Version $versionName — zum Installieren tippen",
+            targetClass = "org.fossify.home.activities.UpdateActivity",
+            extras = emptyMap()
+        )
+    }
+
     private fun notify(
         context: Context,
         id: Int,

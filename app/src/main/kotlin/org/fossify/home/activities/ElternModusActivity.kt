@@ -362,6 +362,8 @@ class ElternModusActivity : AppCompatActivity() {
             R.id.em_row_school to { showSchoolModeChooser() },
             R.id.em_row_qr to { startActivity(Intent(this, PairingActivity::class.java)) },
             R.id.em_row_familylink to { showFamilyLinkInfo() },
+            R.id.em_row_papamodus to { startActivity(Intent(this, PapaModusActivity::class.java)) },
+            R.id.em_row_update to { startActivity(Intent(this, UpdateActivity::class.java)) },
         ).forEach { (id, action) -> findViewById<android.view.View>(id).setOnClickListener { action() } }
 
         // Switches

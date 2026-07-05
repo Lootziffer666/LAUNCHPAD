@@ -38,6 +38,13 @@ class LaunchGate(
         packageName: String,
         timeBudget: TimeBudget
     ): LaunchDecision {
+        // Check 0: Papa-Modus (supervised override). While active, every gate — whitelist, budget,
+        // cool-down, schedule, school mode — is lifted and the launch is free. Deliberately not
+        // metered or logged (see TimeTrackingService, which also pauses while active).
+        if (SupervisedOverride.isActive(context)) {
+            return LaunchDecision(true, null, null)
+        }
+
         // Check 1: Whitelist
         if (!database.allowedAppDao().isAppAllowed(packageName)) {
             return LaunchDecision(

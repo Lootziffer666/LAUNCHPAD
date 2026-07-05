@@ -44,6 +44,7 @@ import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.ForegroundPolicy
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TamperClock
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.TimeBudgetManager
@@ -154,6 +155,13 @@ class TimeTrackingService : Service() {
         val enforce = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
             .getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
         if (!enforce) {
+            resetCounter()
+            return
+        }
+        // Papa-Modus (supervised override): pause metering entirely. No minutes are debited, no
+        // cool-down/strict-block relaunches fire — apps run free while the father supervises, and
+        // nothing lands in the mother-visible ledger/audit.
+        if (SupervisedOverride.isActive(this)) {
             resetCounter()
             return
         }

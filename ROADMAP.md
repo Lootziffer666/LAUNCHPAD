@@ -103,6 +103,14 @@ Diese Features stehen in **keiner** M1–M5-Stufe, sind aber fertig:
 - **Neu-installiert-Review**: erkennt neue Apps (Snapshot-Diff), Companion erlaubt/lehnt ab — `helpers/NewAppsTracker.kt`
 - **Ein-Tipp-Schulmodus**: pausiert Freizeit-Apps, Lernen/Kommunikation bleiben offen — `helpers/SchoolMode.kt`
 
+- **Papa-Modus (betreuter Override per NFC/QR)**: signiertes, zeitlich begrenztes Token hebt bei
+  Papa alle Regeln auf — ohne Zeitverbrauch und ohne Eintrag im mama-sichtbaren Verlauf —
+  `helpers/SupervisedOverride.kt`, `activities/SupervisedOverrideActivity.kt`,
+  `activities/PapaModusActivity.kt`. Doku: `docs/guides/PAPA_MODUS.md`. *(Gerätetest offen: NFC-Dispatch/QR-Scan.)*
+- **Auto-Update / Push-Updates**: täglicher GitHub-Release-Check, Benachrichtigung, Download +
+  Installation (still als Device-Owner, sonst Bestätigung) — `helpers/UpdateChecker.kt`,
+  `activities/UpdateActivity.kt`. Doku: `docs/guides/AUTO_UPDATE.md`. *(Gerätetest offen.)*
+
 ### UX-Politur (diese Session, PR #6)
 - **„Verspielt & bunt"**: warme Kind-Oberfläche statt dunklem „Fort-Knox"-Look, Raketen-Maskottchen — `helpers/Playful.kt`, `drawable/mascot_rocket*.xml`
 - **Wallpaper-adaptive Farben**: Farbschema folgt dem Hintergrundbild, mit Lesbarkeits-Garantie (Unit-getestet) — `helpers/Playful.kt` (`palette`/`derive`), `helpers/PlayfulPaletteTest.kt`

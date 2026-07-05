@@ -22,6 +22,21 @@ object LaunchpadConstants {
     const val DEFAULT_IMPULSE_SECONDS = 7
     const val DEFAULT_IMPULSE_REOPEN_WINDOW_MIN = 3
 
+    // "Papa-Modus" supervised override — how long one NFC/QR tap lifts the rules by default.
+    // A single scan grants min(token-expiry, now + this window). The parent can change it.
+    const val DEFAULT_OVERRIDE_WINDOW_MINUTES = 180
+    // Deep-link / NDEF scheme that both the NFC tag and the QR code carry.
+    const val OVERRIDE_URI_SCHEME = "launchpad"
+    const val OVERRIDE_URI_HOST = "papa"
+    // Token wire format version (see SupervisedOverride).
+    const val OVERRIDE_TOKEN_VERSION = "LPO1"
+
+    // Auto-update: default release feed (parent pushes a GitHub Release → child's phone picks it up).
+    const val DEFAULT_UPDATE_FEED_URL =
+        "https://api.github.com/repos/lootziffer666/launchpad/releases/latest"
+    // Don't poll the feed more than once per this interval during normal use.
+    const val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24h
+
     // Time-limit warning toast vibration
     const val DEFAULT_VIBRATION_MS = 300
 
@@ -188,6 +203,26 @@ object LaunchpadPrefs {
     const val PREF_KNOWN_PACKAGES = "known_packages"
     const val PREF_PENDING_REVIEW_PACKAGES = "pending_review_packages"
     const val PREF_LAST_APP_SCAN = "last_app_scan"
+
+    // "Papa-Modus" supervised override. The override is deliberately kept OUT of the
+    // Krypto-Cash ledger and the shared audit/report/sync: while it's active, apps launch
+    // without draining budget and nothing is written to the mother-visible history. Rationale:
+    // the father supervises in person and prioritises supervised use over strict gating.
+    // - SECRET: HMAC key (hex). A tag/QR is only honoured if it was signed with this secret,
+    //   so the child can't self-issue a grant. Provisioned once in Papa-Modus setup.
+    // - UNTIL: epoch ms; override active while now < value.
+    // - WINDOW_MIN: how long a single valid scan lifts the rules.
+    const val PREF_OVERRIDE_SECRET_HEX = "supervised_override_secret"
+    const val PREF_OVERRIDE_UNTIL = "supervised_override_until"
+    const val PREF_OVERRIDE_WINDOW_MIN = "supervised_override_window_min"
+    // Local-only, never synced: timestamp of the last supervised session, so the father alone
+    // can see "Papa-Modus was last used at X" in his own setup screen.
+    const val PREF_OVERRIDE_LAST_USED = "supervised_override_last_used"
+
+    // Auto-update: parent-configurable release feed, auto-check toggle, last-check timestamp.
+    const val PREF_UPDATE_FEED_URL = "update_feed_url"
+    const val PREF_UPDATE_AUTO_CHECK = "update_auto_check" // default ON
+    const val PREF_UPDATE_LAST_CHECK = "update_last_check"
 
     // Dedicated SharedPreferences file for LAUNCHPAD (separate from commons config).
     const val PREFS_FILE = "launchpad_prefs"
