@@ -160,7 +160,9 @@ class TimeTrackingService : Service() {
         }
         // Papa-Modus (supervised override): pause metering entirely. No minutes are debited, no
         // cool-down/strict-block relaunches fire — apps run free while the father supervises, and
-        // nothing lands in the mother-visible ledger/audit.
+        // nothing lands in the mother-visible ledger/audit. First enforce the WiFi geofence, so
+        // leaving the allowed network hard-ends the session and normal rules resume this tick.
+        SupervisedOverride.enforceGeofence(this)
         if (SupervisedOverride.isActive(this)) {
             resetCounter()
             return

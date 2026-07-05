@@ -218,6 +218,11 @@ object LaunchpadPrefs {
     // Local-only, never synced: timestamp of the last supervised session, so the father alone
     // can see "Papa-Modus was last used at X" in his own setup screen.
     const val PREF_OVERRIDE_LAST_USED = "supervised_override_last_used"
+    // WiFi geofence (opt-in): Papa-Modus only counts as active while connected to one of these
+    // saved home-network SSIDs. Leaving the network ends the session (a proxy for "too far from
+    // dad"). Reading the SSID needs location permission + location services on (Android 9+).
+    const val PREF_OVERRIDE_REQUIRE_WIFI = "supervised_override_require_wifi"
+    const val PREF_OVERRIDE_WIFI_SSIDS = "supervised_override_wifi_ssids"
 
     // Auto-update: parent-configurable release feed, auto-check toggle, last-check timestamp.
     const val PREF_UPDATE_FEED_URL = "update_feed_url"

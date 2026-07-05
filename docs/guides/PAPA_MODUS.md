@@ -35,6 +35,26 @@
 - **NFC:** Telefon an den Tag halten → Bestätigung „Papa-Modus ist an … frei bis HH:MM".
 - **QR:** Mit der Kamera/Lens scannen → derselbe Ablauf.
 
+## WLAN-Geofence (optional, empfohlen)
+
+Damit Papa-Modus **nur bei dir** gilt und nicht bei der Mutter:
+
+1. In **Eltern-Modus → Papa-Modus → WLAN-Geofence**: *„Dieses WLAN als zuhause merken"* (einmalig
+   pro Netz; du kannst mehrere merken). Beim ersten Mal fragt Android die **Standort-Berechtigung**
+   ab — das ist eine Android-Vorgabe zum Auslesen des WLAN-Namens; **Standort muss dabei an sein**.
+2. *„WLAN-Bindung an"* schalten.
+
+Danach gilt:
+- Ein Scan wird **abgelehnt**, wenn das Telefon nicht in einem gemerkten WLAN ist.
+- Verlässt Jake das WLAN (zu weit weg), **endet Papa-Modus automatisch** beim nächsten Tick des
+  Zeitdienstes — die normalen Regeln greifen sofort wieder, ohne aufs Zeitfenster zu warten.
+- Die maximale Dauer bleibt zusätzlich durch *„Dauer pro Scan"* begrenzt (gegen „zu lange").
+
+**Grenzen ehrlich:** Das ist ein WLAN-Geofence, keine metergenaue Entfernung zu deinem Handy.
+„Nähe zu deinem Handy" per Bluetooth (BLE) wäre ein größeres Feature (die Eltern-App müsste
+senden) — sag Bescheid, wenn du das zusätzlich willst. Der WLAN-Geofence deckt „bei Papa /
+zu weit weg" für den Alltag zuverlässig ab.
+
 ## Sicherheits-Ehrlichkeit (Scope)
 
 - Das Token ist HMAC-SHA256-signiert und zeitlich begrenzt → Jake kann keinen eigenen Code bauen,

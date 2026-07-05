@@ -7,7 +7,9 @@
 
 package org.fossify.home.activities
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
@@ -22,6 +24,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import org.fossify.home.helpers.SupervisedOverride
@@ -79,6 +83,20 @@ class PapaModusActivity : AppCompatActivity() {
         })
         content.addView(button("📤 Link teilen (auf NFC-Tag schreiben)") { shareLink() })
 
+        content.addView(heading("WLAN-Geofence", 17f))
+        content.addView(body(
+            "Optional: Papa-Modus funktioniert nur in deinem WLAN. Verlässt Jake das Netz " +
+                "(zu weit weg), enden die Freiheiten automatisch. Zum WLAN-Auslesen braucht Android " +
+                "die Standort-Berechtigung — Standort muss dabei eingeschaltet sein."
+        ))
+        content.addView(button("📶 Dieses WLAN als „zuhause" merken") { rememberWifi() })
+        content.addView(button("🔀 WLAN-Bindung an/aus") { toggleGeofence() })
+        content.addView(button("🗑️ Gemerkte WLANs löschen") {
+            SupervisedOverride.clearAllowedSsids(this)
+            toast("WLAN-Liste geleert")
+            refreshStatus()
+        })
+
         content.addView(heading("Verwaltung", 17f))
         content.addView(button("🛑 Papa-Modus jetzt beenden") {
             SupervisedOverride.stop(this)
@@ -105,6 +123,15 @@ class PapaModusActivity : AppCompatActivity() {
             sb.append("○ Gerade nicht aktiv\n")
         }
         sb.append("Dauer pro Scan: ${SupervisedOverride.windowMinutes(this)} Min\n")
+        if (SupervisedOverride.requireWifi(this)) {
+            val nets = SupervisedOverride.allowedSsids(this)
+            sb.append(
+                if (nets.isEmpty()) "WLAN-Bindung: AN, aber noch kein WLAN gemerkt ⚠️\n"
+                else "WLAN-Bindung: AN — ${nets.joinToString(", ")}\n"
+            )
+        } else {
+            sb.append("WLAN-Bindung: aus\n")
+        }
         val last = SupervisedOverride.lastUsed(this)
         if (last > 0) {
             sb.append("Zuletzt genutzt: " +
@@ -113,6 +140,50 @@ class PapaModusActivity : AppCompatActivity() {
             sb.append("Noch nie genutzt")
         }
         statusView.text = sb.toString()
+    }
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun rememberWifi() {
+        if (!hasLocationPermission()) {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQ_LOCATION
+            )
+            return
+        }
+        val ssid = SupervisedOverride.rememberCurrentWifi(this)
+        if (ssid == null) {
+            toast("WLAN nicht lesbar — ist Standort an und du im WLAN?")
+        } else {
+            toast("Gemerkt: $ssid")
+            refreshStatus()
+        }
+    }
+
+    private fun toggleGeofence() {
+        val next = !SupervisedOverride.requireWifi(this)
+        if (next && SupervisedOverride.allowedSsids(this).isEmpty()) {
+            toast("Erst ein WLAN merken, dann Bindung einschalten")
+            return
+        }
+        SupervisedOverride.setRequireWifi(this, next)
+        toast(if (next) "WLAN-Bindung an" else "WLAN-Bindung aus")
+        refreshStatus()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_LOCATION &&
+            grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+        ) {
+            rememberWifi()
+        } else if (requestCode == REQ_LOCATION) {
+            toast("Ohne Standort-Berechtigung kann das WLAN nicht erkannt werden")
+        }
     }
 
     private fun showWindowDialog() {
@@ -221,4 +292,8 @@ class PapaModusActivity : AppCompatActivity() {
     }
 
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    private companion object {
+        const val REQ_LOCATION = 4711
+    }
 }

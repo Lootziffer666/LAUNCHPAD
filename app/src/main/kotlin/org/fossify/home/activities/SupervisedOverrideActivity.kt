@@ -43,6 +43,11 @@ class SupervisedOverrideActivity : AppCompatActivity() {
             render(ok = false, message = "Kein gültiger Papa-Code erkannt.")
             return
         }
+        // WiFi geofence: refuse to start unless we're on an allowed home network.
+        if (!SupervisedOverride.isOnAllowedWifi(this)) {
+            render(ok = false, message = "Papa-Modus geht nur im richtigen WLAN bei Papa.")
+            return
+        }
         val until = SupervisedOverride.redeemToken(this, token)
         if (until == null) {
             // Neutral wording on purpose — no hint about how the code is built.

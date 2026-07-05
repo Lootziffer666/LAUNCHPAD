@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.fossify.home.R
 import org.fossify.home.databases.AllowedApp
@@ -646,13 +647,15 @@ class ElternModusActivity : AppCompatActivity() {
                 val r = reason.text.toString().ifBlank { "Heute Ausnahme" }
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        val cur = db.cryptoCashDao().getCurrentBalance()
-                        db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
-                            deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
-                            actor = "parent", reasonType = "today_exception", reasonText = r,
-                            childVisibleText = "+$m Min (${r})", source = "parent_app",
-                            balanceAfter = cur + m
-                        ))
+                        org.fossify.home.helpers.LedgerGuard.mutex.withLock {
+                            val cur = db.cryptoCashDao().getCurrentBalance()
+                            db.cryptoCashDao().insertTransaction(CryptoCashTransaction(
+                                deltaMinutes = m, type = LaunchpadConstants.TX_TYPE_CORRECTION,
+                                actor = "parent", reasonType = "today_exception", reasonText = r,
+                                childVisibleText = "+$m Min (${r})", source = "parent_app",
+                                balanceAfter = cur + m
+                            ))
+                        }
                         TamperMonitor.recordSuspend(
                             this@ElternModusActivity,
                             LaunchpadConstants.AUDIT_EXCEPTION_GRANTED,

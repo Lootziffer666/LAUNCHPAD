@@ -20,6 +20,7 @@ package org.fossify.home.helpers
 
 import android.content.Context
 import android.net.Uri
+import android.net.wifi.WifiManager
 import java.security.SecureRandom
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -92,7 +93,17 @@ object SupervisedOverride {
     fun activeUntil(context: Context): Long =
         prefs(context).getLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L)
 
-    fun isActive(context: Context): Boolean = System.currentTimeMillis() < activeUntil(context)
+    /**
+     * Active = within the granted window AND (if the geofence is on) still on an allowed home
+     * WiFi. The WiFi term is evaluated live, so leaving the network re-gates the rules on the
+     * next check without waiting for the window to expire.
+     */
+    fun isActive(context: Context): Boolean =
+        System.currentTimeMillis() < activeUntil(context) && isOnAllowedWifi(context)
+
+    /** True while a window is set, ignoring the geofence — used to detect "left the WiFi". */
+    private fun windowOpen(context: Context): Boolean =
+        System.currentTimeMillis() < activeUntil(context)
 
     fun remainingMillis(context: Context): Long =
         (activeUntil(context) - System.currentTimeMillis()).coerceAtLeast(0L)
@@ -114,6 +125,70 @@ object SupervisedOverride {
     /** End the supervised session immediately. */
     fun stop(context: Context) =
         prefs(context).edit().putLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L).apply()
+
+    // ── WiFi geofence ────────────────────────────────────────────────────────────────────
+
+    fun requireWifi(context: Context): Boolean =
+        prefs(context).getBoolean(LaunchpadPrefs.PREF_OVERRIDE_REQUIRE_WIFI, false)
+
+    fun setRequireWifi(context: Context, required: Boolean) =
+        prefs(context).edit().putBoolean(LaunchpadPrefs.PREF_OVERRIDE_REQUIRE_WIFI, required).apply()
+
+    fun allowedSsids(context: Context): Set<String> =
+        prefs(context).getStringSet(LaunchpadPrefs.PREF_OVERRIDE_WIFI_SSIDS, emptySet()) ?: emptySet()
+
+    fun clearAllowedSsids(context: Context) =
+        prefs(context).edit().remove(LaunchpadPrefs.PREF_OVERRIDE_WIFI_SSIDS).apply()
+
+    /** Read the currently-connected WiFi SSID, or null if unavailable (needs location perm + on). */
+    fun currentSsid(context: Context): String? {
+        return try {
+            val wm = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return null
+            @Suppress("DEPRECATION") // connectionInfo works on all supported API levels
+            val raw = wm.connectionInfo?.ssid ?: return null
+            val ssid = raw.trim('"')
+            if (ssid.isBlank() || ssid.equals("<unknown ssid>", ignoreCase = true) || ssid == "0x") {
+                null
+            } else {
+                ssid
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("LAUNCHPAD", "SSID read failed", e)
+            null
+        }
+    }
+
+    /** Add the current network to the allow-list. Returns the SSID, or null if it couldn't be read. */
+    fun rememberCurrentWifi(context: Context): String? {
+        val ssid = currentSsid(context) ?: return null
+        val next = allowedSsids(context).toMutableSet().apply { add(ssid) }
+        prefs(context).edit().putStringSet(LaunchpadPrefs.PREF_OVERRIDE_WIFI_SSIDS, next).apply()
+        return ssid
+    }
+
+    /**
+     * Geofence gate. When the geofence is off → always true. When on → require a saved SSID list
+     * and a current connection to one of them (fail-closed: no saved net, or SSID unreadable, or
+     * on a foreign net → false).
+     */
+    fun isOnAllowedWifi(context: Context): Boolean {
+        if (!requireWifi(context)) return true
+        val allowed = allowedSsids(context)
+        if (allowed.isEmpty()) return false
+        val ssid = currentSsid(context) ?: return false
+        return ssid in allowed
+    }
+
+    /**
+     * Hard-end an in-progress session the moment the device leaves the allowed WiFi, so it can't
+     * silently resume if they wander back within the window. Call from the tracking tick.
+     */
+    fun enforceGeofence(context: Context) {
+        if (windowOpen(context) && requireWifi(context) && !isOnAllowedWifi(context)) {
+            stop(context)
+        }
+    }
 
     /**
      * The launcher's HMAC secret (hex). Created on first use. A tag/QR only works if it was signed
