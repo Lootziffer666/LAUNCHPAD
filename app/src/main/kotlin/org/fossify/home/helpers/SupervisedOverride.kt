@@ -14,7 +14,10 @@
 // that is out of scope and contrary to the "supervised, not fortress" intent. State is one
 // timestamp: active while now < PREF_OVERRIDE_UNTIL (mirrors SchoolMode).
 
-@file:Suppress("MagicNumber", "TooManyFunctions") // ms/minute math, key sizes; cohesive helper
+@file:Suppress(
+    "MagicNumber", "TooManyFunctions", "TooGenericExceptionCaught",
+    "DestructuringDeclarationWithTooManyEntries", "ReturnCount"
+) // ms/minute math, key sizes; fail-safe catches; cohesive helper
 
 package org.fossify.home.helpers
 
@@ -179,7 +182,11 @@ object SupervisedOverride {
         if (!requireWifi(context)) return true
         val allowed = allowedSsids(context)
         if (allowed.isEmpty()) return false
-        val ssid = currentSsid(context) ?: return false
+        // Indeterminate SSID (location off/denied, or a foreground service on Android 14+ that
+        // can't read it) → fail-OPEN: never end/deny on "unknown". Only a positively foreign
+        // network gates. This prevents the geofence from wrongly cutting Papa-Modus mid-activity
+        // when the SSID simply can't be read; the per-launch gate still re-checks in the foreground.
+        val ssid = currentSsid(context) ?: return true
         return ssid in allowed
     }
 

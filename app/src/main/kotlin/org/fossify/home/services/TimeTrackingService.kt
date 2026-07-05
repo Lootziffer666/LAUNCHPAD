@@ -7,7 +7,7 @@
 // window starts and CooldownActivity is shown. Requires Usage Access (granted in Eltern-Modus).
 
 @file:Suppress(
-    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions"
+    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions", "ReturnCount"
 ) // polling intervals; fail-safe catches; service handles tracking + tamper checks
 
 package org.fossify.home.services

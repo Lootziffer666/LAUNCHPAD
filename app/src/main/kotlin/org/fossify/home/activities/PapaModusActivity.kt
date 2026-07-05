@@ -89,7 +89,7 @@ class PapaModusActivity : AppCompatActivity() {
                 "(zu weit weg), enden die Freiheiten automatisch. Zum WLAN-Auslesen braucht Android " +
                 "die Standort-Berechtigung — Standort muss dabei eingeschaltet sein."
         ))
-        content.addView(button("📶 Dieses WLAN als „zuhause" merken") { rememberWifi() })
+        content.addView(button("📶 Dieses WLAN als Zuhause merken") { rememberWifi() })
         content.addView(button("🔀 WLAN-Bindung an/aus") { toggleGeofence() })
         content.addView(button("🗑️ Gemerkte WLANs löschen") {
             SupervisedOverride.clearAllowedSsids(this)

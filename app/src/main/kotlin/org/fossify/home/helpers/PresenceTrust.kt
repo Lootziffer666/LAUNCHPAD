@@ -9,6 +9,8 @@
 // trust thresholds). This file is the PURE scoring kernel (no Android deps) so it is unit-tested
 // and can be wired into enforcement incrementally.
 
+@file:Suppress("MagicNumber") // reference weights/thresholds are self-documenting constants
+
 package org.fossify.home.helpers
 
 /** One presence signal and how much trust it contributes when present. */

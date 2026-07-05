@@ -8,7 +8,10 @@
 // The JSON parsing + version comparison are pure (unit-tested in UpdateCheckerTest); the network
 // and install steps are thin Android wrappers around them.
 
-@file:Suppress("MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions") // timeouts/sizes; fail-safe catches; cohesive helper
+@file:Suppress(
+    "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions",
+    "NestedBlockDepth", "MaxLineLength", "LoopWithTooManyJumpStatements"
+) // timeouts/sizes; fail-safe catches; cohesive HTTP/install helper
 
 package org.fossify.home.helpers
 
@@ -144,8 +147,9 @@ object UpdateChecker {
         // Clean stale downloads so the cache doesn't grow unbounded.
         dir.listFiles()?.forEach { it.delete() }
         val target = File(dir, "launchpad-${release.versionCode}.apk")
+        var conn: HttpURLConnection? = null
         return try {
-            val conn = openConnection(url).apply {
+            conn = openConnection(url).apply {
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", "LAUNCHPAD-Updater")
                 connectTimeout = CONNECT_TIMEOUT_MS
@@ -169,6 +173,8 @@ object UpdateChecker {
             android.util.Log.w(TAG, "APK download failed", e)
             target.delete()
             null
+        } finally {
+            conn?.disconnect()
         }
     }
 
@@ -257,8 +263,9 @@ object UpdateChecker {
     }
 
     private fun httpGet(urlString: String): String? {
+        var conn: HttpURLConnection? = null
         return try {
-            val conn = openConnection(urlString).apply {
+            conn = openConnection(urlString).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github+json")
                 setRequestProperty("User-Agent", "LAUNCHPAD-Updater")
@@ -274,6 +281,8 @@ object UpdateChecker {
         } catch (e: Exception) {
             android.util.Log.w(TAG, "feed fetch failed", e)
             null
+        } finally {
+            conn?.disconnect()
         }
     }
 

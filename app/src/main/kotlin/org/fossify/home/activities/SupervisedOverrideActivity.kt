@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Suppress("MagicNumber") // UI built programmatically
+@Suppress("MagicNumber", "TooGenericExceptionCaught") // UI built programmatically; fail-safe catches
 class SupervisedOverrideActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

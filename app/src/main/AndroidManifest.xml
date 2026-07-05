@@ -41,8 +41,10 @@
     <!-- LAUNCHPAD Papa-Modus: read the supervised-override NFC tag -->
     <uses-permission android:name="android.permission.NFC" />
 
-    <!-- LAUNCHPAD Papa-Modus WiFi geofence: read the connected SSID (needs location on Android 9+) -->
+    <!-- LAUNCHPAD Papa-Modus WiFi geofence: read the connected SSID (needs location on Android 9+).
+         COARSE is declared alongside FINE per platform requirement (lint: CoarseFineLocation). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- LAUNCHPAD auto-update: install a pushed APK (parent-confirmed, or silent as device owner) -->
