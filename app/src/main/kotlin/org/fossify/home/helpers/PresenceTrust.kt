@@ -22,6 +22,9 @@ object PresenceTrust {
     const val WEIGHT_HOME_GEOFENCE = 15 // GPS says "at home"
     const val WEIGHT_TIME_WINDOW = 10 // within an expected daytime window
     const val WEIGHT_SUPERVISED_TAG = 60 // a freshly redeemed, signed Papa tag (strong on its own)
+    // "Child present" signal (Luke's idea, age 6): an occasional, transparent camera check confirms
+    // a child is actually using the device — a positive presence signal, not covert surveillance.
+    const val WEIGHT_CHILD_PRESENT = 30
 
     /** Default trust needed to treat the environment as "trusted". */
     const val DEFAULT_THRESHOLD = 55
