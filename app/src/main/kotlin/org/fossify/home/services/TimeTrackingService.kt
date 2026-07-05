@@ -41,6 +41,7 @@ import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.DailyRefill
 import org.fossify.home.helpers.ForegroundPolicy
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
@@ -158,6 +159,9 @@ class TimeTrackingService : Service() {
             resetCounter()
             return
         }
+        // Daily base allowance: top up once per local day so "morgen gibt's neue" holds even if the
+        // launcher never returned to home. Idempotent, so running it every tick is cheap.
+        runBlocking { DailyRefill.maybeGrant(this@TimeTrackingService, database) }
         // Papa-Modus (supervised override): pause metering entirely. No minutes are debited, no
         // cool-down/strict-block relaunches fire — apps run free while the father supervises, and
         // nothing lands in the mother-visible ledger/audit. First enforce the WiFi geofence, so

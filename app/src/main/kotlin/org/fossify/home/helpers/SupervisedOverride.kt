@@ -94,12 +94,12 @@ object SupervisedOverride {
         prefs(context).getLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L)
 
     /**
-     * Active = within the granted window AND (if the geofence is on) still on an allowed home
-     * WiFi. The WiFi term is evaluated live, so leaving the network re-gates the rules on the
-     * next check without waiting for the window to expire.
+     * Active = within the granted window AND the geofence is satisfied. The geofence is evaluated
+     * live, so leaving the allowed WiFi re-gates the rules without waiting for the window — but a
+     * short grace absorbs brief blips (see geofenceSatisfied).
      */
     fun isActive(context: Context): Boolean =
-        System.currentTimeMillis() < activeUntil(context) && isOnAllowedWifi(context)
+        windowOpen(context) && geofenceSatisfied(context)
 
     /** True while a window is set, ignoring the geofence — used to detect "left the WiFi". */
     private fun windowOpen(context: Context): Boolean =
@@ -122,9 +122,12 @@ object SupervisedOverride {
             .putInt(LaunchpadPrefs.PREF_OVERRIDE_WINDOW_MIN, minutes.coerceIn(5, 12 * 60))
             .apply()
 
-    /** End the supervised session immediately. */
+    /** End the supervised session immediately (and reset the geofence grace clock). */
     fun stop(context: Context) =
-        prefs(context).edit().putLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L).apply()
+        prefs(context).edit()
+            .putLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L)
+            .putLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, 0L)
+            .apply()
 
     // ── WiFi geofence ────────────────────────────────────────────────────────────────────
 
@@ -181,12 +184,40 @@ object SupervisedOverride {
     }
 
     /**
-     * Hard-end an in-progress session the moment the device leaves the allowed WiFi, so it can't
-     * silently resume if they wander back within the window. Call from the tracking tick.
+     * Read-only geofence check with a grace period. Off → always true. On + connected → true.
+     * On + off-network → true only while inside the grace window (so a brief WiFi blip doesn't
+     * cut Papa-Modus mid-activity); once the grace clock (set by enforceGeofence) has run out, the
+     * session is already stopped and windowOpen is false anyway. A not-yet-started grace clock
+     * (offSince == 0) reads as "just dropped" → still true until the next tick records it.
+     */
+    fun geofenceSatisfied(context: Context): Boolean {
+        if (!requireWifi(context)) return true
+        if (isOnAllowedWifi(context)) return true
+        val offSince = prefs(context).getLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, 0L)
+        if (offSince == 0L) return true
+        return System.currentTimeMillis() - offSince < LaunchpadConstants.OVERRIDE_GEOFENCE_GRACE_MS
+    }
+
+    /**
+     * Drive the geofence grace clock and hard-end a session that has been off the allowed WiFi for
+     * longer than the grace window, so it can't silently resume if they wander back. Call from the
+     * tracking tick. On the allowed network (or geofence off / no window) the clock is cleared.
      */
     fun enforceGeofence(context: Context) {
-        if (windowOpen(context) && requireWifi(context) && !isOnAllowedWifi(context)) {
-            stop(context)
+        val p = prefs(context)
+        if (!windowOpen(context) || !requireWifi(context) || isOnAllowedWifi(context)) {
+            if (p.getLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, 0L) != 0L) {
+                p.edit().putLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, 0L).apply()
+            }
+            return
+        }
+        // Off the allowed WiFi during an active window.
+        val offSince = p.getLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, 0L)
+        val now = System.currentTimeMillis()
+        if (offSince == 0L) {
+            p.edit().putLong(LaunchpadPrefs.PREF_OVERRIDE_OFFWIFI_SINCE, now).apply()
+        } else if (now - offSince >= LaunchpadConstants.OVERRIDE_GEOFENCE_GRACE_MS) {
+            stop(context) // also clears the grace clock
         }
     }
 

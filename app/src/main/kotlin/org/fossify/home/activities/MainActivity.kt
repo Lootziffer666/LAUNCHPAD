@@ -328,6 +328,13 @@ class MainActivity : SimpleActivity(), FlingListener {
         // Use the application context so the background thread never pins this Activity.
         org.fossify.home.helpers.UpdateChecker.maybeAutoCheck(applicationContext)
 
+        // LAUNCHPAD: grant today's base-time allowance if the day rolled over (idempotent).
+        CoroutineScope(Dispatchers.IO).launch {
+            org.fossify.home.helpers.DailyRefill.maybeGrant(
+                applicationContext, AppsDatabase.getInstance(applicationContext)
+            )
+        }
+
         // LAUNCHPAD: surface newly installed apps for parent review (Family-Link open-install
         // model). Default-deny already blocks them; this only flags + notifies, throttled to 1/min.
         CoroutineScope(Dispatchers.IO).launch {

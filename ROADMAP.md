@@ -110,6 +110,11 @@ Diese Features stehen in **keiner** M1–M5-Stufe, sind aber fertig:
 - **Auto-Update / Push-Updates**: täglicher GitHub-Release-Check, Benachrichtigung, Download +
   Installation (still als Device-Owner, sonst Bestätigung) — `helpers/UpdateChecker.kt`,
   `activities/UpdateActivity.kt`. Doku: `docs/guides/AUTO_UPDATE.md`. *(Gerätetest offen.)*
+- **WLAN-Geofence für Papa-Modus** (opt-in, mit Karenzzeit gegen Aussetzer) — `SupervisedOverride`.
+- **Tägliche Grundzeit** (Refill bis Basiswert, idempotent) — `helpers/DailyRefill.kt`.
+- **Ledger-Serialisierung** (Mutex gegen Nebenläufigkeits-Verluste) — `helpers/LedgerGuard.kt`.
+- **Presence-Trust-Fundament** (gewichtete Signale → Trust-Score) — `helpers/PresenceTrust.kt`,
+  Design: `docs/guides/PRESENCE_TRUST.md`. Papa-Modus ist der erste Spezialfall.
 
 ### UX-Politur (diese Session, PR #6)
 - **„Verspielt & bunt"**: warme Kind-Oberfläche statt dunklem „Fort-Knox"-Look, Raketen-Maskottchen — `helpers/Playful.kt`, `drawable/mascot_rocket*.xml`

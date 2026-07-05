@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   download & install a pushed update (silent as device owner, otherwise the system install
   confirmation). Eltern-Modus → App-Update.
 - companion: Papa-Modus status chip + note on the Home hero, so a paused balance isn't misread.
+- android: **daily base-time allowance** — the balance is topped up to the configured base once per
+  local day (idempotent, via the ledger), so "morgen gibt's neue" actually holds.
+- android: **Papa-Modus WiFi geofence** — optional binding to saved home networks; a scan is
+  refused off-network and the session auto-ends after leaving (with a short grace against blips).
+- android: **Presence-Trust foundation** (`helpers/PresenceTrust.kt`) — a pure weighted-signal
+  trust scorer that generalises Papa-Modus into a context-trust model (see
+  `docs/guides/PRESENCE_TRUST.md`).
+### Fixed
+- android: serialize all Krypto-Cash balance writes through one Mutex so concurrent earn/spend
+  (metering vs parent adjustment) can't lose an update or corrupt a balance snapshot.
 - desktop: Steam-family tools from the VENT product line integrated natively into the
   Familienzentrale — Wunschliste tab (entries with target prices, live price check via
   CheapShark) and Angebote tab (top Steam deals, wishlist hits highlighted); parents can

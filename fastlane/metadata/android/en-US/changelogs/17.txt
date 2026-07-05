@@ -1,10 +1,10 @@
 Added:
 
-• Papa-Modus: an NFC tag or QR code (at a supervising parent's place) can lift the launcher's
-  rules for a set window — no screen-time is spent and it stays out of the shared history
-• App updates: the launcher checks a release feed daily and can download & install a pushed update
-  (silent as device owner, otherwise the normal install confirmation)
+• Papa-Modus: a supervised NFC tag / QR code lifts the rules for a set window — no time is spent,
+  optionally bound to your home WiFi (auto-ends when leaving)
+• Daily base-time allowance so "tomorrow there's new time" actually holds
+• App updates the parent can push (checks a release feed; installs silently as device owner)
 
-Changed:
+Fixed:
 
-• Companion app now shows when Papa-Modus is active so a paused balance reads correctly
+• Time balance is now written safely under concurrency (no lost earn/spend)
