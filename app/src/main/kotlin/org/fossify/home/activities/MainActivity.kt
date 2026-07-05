@@ -325,7 +325,8 @@ class MainActivity : SimpleActivity(), FlingListener {
         KioskManager.onLauncherResumed(this, AppsDatabase.getInstance(this))
 
         // LAUNCHPAD: throttled daily check for a pushed release (own thread; no-op if not due).
-        org.fossify.home.helpers.UpdateChecker.maybeAutoCheck(this)
+        // Use the application context so the background thread never pins this Activity.
+        org.fossify.home.helpers.UpdateChecker.maybeAutoCheck(applicationContext)
 
         // LAUNCHPAD: surface newly installed apps for parent review (Family-Link open-install
         // model). Default-deny already blocks them; this only flags + notifies, throttled to 1/min.

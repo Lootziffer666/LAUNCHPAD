@@ -14,7 +14,7 @@
 // that is out of scope and contrary to the "supervised, not fortress" intent. State is one
 // timestamp: active while now < PREF_OVERRIDE_UNTIL (mirrors SchoolMode).
 
-@file:Suppress("MagicNumber") // ms/minute math, key sizes
+@file:Suppress("MagicNumber", "TooManyFunctions") // ms/minute math, key sizes; cohesive helper
 
 package org.fossify.home.helpers
 
@@ -136,6 +136,9 @@ object SupervisedOverride {
     fun hasSecret(context: Context): Boolean =
         !prefs(context).getString(LaunchpadPrefs.PREF_OVERRIDE_SECRET_HEX, null).isNullOrBlank()
 
+    private fun secretHexOrNull(context: Context): String? =
+        prefs(context).getString(LaunchpadPrefs.PREF_OVERRIDE_SECRET_HEX, null)?.takeIf { it.isNotBlank() }
+
     /** Random nonce for a freshly minted token. */
     fun newNonce(): String = ByteArray(NONCE_BYTES).also { SecureRandom().nextBytes(it) }.toHex()
 
@@ -159,8 +162,11 @@ object SupervisedOverride {
      * local-only "last used" timestamp — never touches the ledger or the shared audit.
      */
     fun redeemToken(context: Context, token: String): Long? {
+        // If Papa-Modus was never set up there is no secret — reject rather than silently minting
+        // one (so a stray launchpad://papa scan can't seed a secret on an unconfigured device).
+        val secret = secretHexOrNull(context) ?: return null
         val now = System.currentTimeMillis()
-        val expiry = verifyToken(getOrCreateSecretHex(context), token, now) ?: return null
+        val expiry = verifyToken(secret, token, now) ?: return null
         val until = maxOf(activeUntil(context), grantedUntil(expiry, now, windowMinutes(context)))
         prefs(context).edit()
             .putLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, until)

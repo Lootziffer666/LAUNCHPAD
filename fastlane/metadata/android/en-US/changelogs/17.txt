@@ -1,0 +1,10 @@
+Added:
+
+• Papa-Modus: an NFC tag or QR code (at a supervising parent's place) can lift the launcher's
+  rules for a set window — no screen-time is spent and it stays out of the shared history
+• App updates: the launcher checks a release feed daily and can download & install a pushed update
+  (silent as device owner, otherwise the normal install confirmation)
+
+Changed:
+
+• Companion app now shows when Papa-Modus is active so a paused balance reads correctly

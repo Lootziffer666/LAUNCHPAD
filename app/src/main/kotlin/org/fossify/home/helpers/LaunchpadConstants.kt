@@ -33,7 +33,7 @@ object LaunchpadConstants {
 
     // Auto-update: default release feed (parent pushes a GitHub Release → child's phone picks it up).
     const val DEFAULT_UPDATE_FEED_URL =
-        "https://api.github.com/repos/lootziffer666/launchpad/releases/latest"
+        "https://api.github.com/repos/Lootziffer666/LAUNCHPAD/releases/latest"
     // Don't poll the feed more than once per this interval during normal use.
     const val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24h
 

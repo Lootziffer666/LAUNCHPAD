@@ -8,7 +8,7 @@
 // The JSON parsing + version comparison are pure (unit-tested in UpdateCheckerTest); the network
 // and install steps are thin Android wrappers around them.
 
-@file:Suppress("MagicNumber", "TooGenericExceptionCaught") // timeouts/sizes; fail-safe network catches
+@file:Suppress("MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions") // timeouts/sizes; fail-safe catches; cohesive helper
 
 package org.fossify.home.helpers
 
@@ -145,11 +145,24 @@ object UpdateChecker {
         dir.listFiles()?.forEach { it.delete() }
         val target = File(dir, "launchpad-${release.versionCode}.apk")
         return try {
-            openConnection(url).apply {
+            val conn = openConnection(url).apply {
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "LAUNCHPAD-Updater")
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
-            }.inputStream.use { input ->
+            }
+            if (conn.responseCode !in 200..299) {
+                android.util.Log.w(TAG, "APK download HTTP ${conn.responseCode}")
+                return null
+            }
+            conn.inputStream.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
+            }
+            // A truncated/HTML response isn't a valid package; guard against installing garbage.
+            if (target.length() < 1_000L) {
+                android.util.Log.w(TAG, "downloaded APK implausibly small (${target.length()} B)")
+                target.delete()
+                return null
             }
             target
         } catch (e: Exception) {

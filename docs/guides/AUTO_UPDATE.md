@@ -5,7 +5,7 @@
 ## Mechanik
 
 - Der Launcher fragt einmal täglich (gedrosselt, eigener Thread) einen **Release-Feed** ab —
-  standardmäßig `https://api.github.com/repos/lootziffer666/launchpad/releases/latest`.
+  standardmäßig `https://api.github.com/repos/Lootziffer666/LAUNCHPAD/releases/latest`.
 - Ist der `versionCode` im Release **höher** als der installierte, erscheint eine Benachrichtigung
   „⬆️ Update verfügbar". Ein Tipp öffnet **Eltern-Modus → App-Update**.
 - Dort: **Herunterladen & installieren**.

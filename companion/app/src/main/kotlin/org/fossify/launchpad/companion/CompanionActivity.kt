@@ -356,6 +356,8 @@ class CompanionActivity : AppCompatActivity() {
         val cooldown = json.optBoolean("cooldown", false)
         val schoolMode = json.optBoolean("schoolMode", false)
         val schoolUntil = json.optLong("schoolUntil", 0L)
+        val papaMode = json.optBoolean("papaMode", false)
+        val papaUntil = json.optLong("papaUntil", 0L)
 
         val hero = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -400,7 +402,22 @@ class CompanionActivity : AppCompatActivity() {
             val mins = ((schoolUntil - System.currentTimeMillis()) / 60000L).coerceAtLeast(0)
             chips.addView(statusChip(if (schoolUntil == Long.MAX_VALUE) "📚 Schule" else "📚 Schule $mins′", PURPLE))
         }
+        if (papaMode) {
+            val mins = ((papaUntil - System.currentTimeMillis()) / 60000L).coerceAtLeast(0)
+            chips.addView(statusChip("🛡️ Papa-Modus $mins′", GREEN))
+        }
         hero.addView(chips)
+
+        // While Papa-Modus is on, the launcher pauses metering — the balance won't move. Say so,
+        // so a paused balance doesn't read as "broken".
+        if (papaMode) {
+            hero.addView(TextView(this).apply {
+                text = "Papa-Modus aktiv: Regeln pausiert, Zeit läuft nicht herunter."
+                textSize = 12f
+                setTextColor(Color.parseColor(HERO_SUB))
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
         content.addView(hero)
 
         content.addView(

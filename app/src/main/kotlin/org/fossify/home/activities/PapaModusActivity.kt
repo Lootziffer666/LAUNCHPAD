@@ -24,7 +24,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.SupervisedOverride
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -222,10 +221,4 @@ class PapaModusActivity : AppCompatActivity() {
     }
 
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-
-    companion object {
-        // Referenced by LaunchpadConstants indirectly; kept here for discoverability.
-        @Suppress("unused")
-        const val VERSION = LaunchpadConstants.OVERRIDE_TOKEN_VERSION
-    }
 }
