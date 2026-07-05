@@ -10,7 +10,7 @@
 
 @file:Suppress(
     "MagicNumber", "TooGenericExceptionCaught", "TooManyFunctions",
-    "NestedBlockDepth", "MaxLineLength", "LoopWithTooManyJumpStatements"
+    "NestedBlockDepth", "MaxLineLength", "LoopWithTooManyJumpStatements", "SwallowedException"
 ) // timeouts/sizes; fail-safe catches; cohesive HTTP/install helper
 
 package org.fossify.home.helpers
@@ -79,9 +79,9 @@ object UpdateChecker {
             if (code == 0) code = versionCodeFromNotes(notes) ?: 0
             Release(versionCode = code, versionName = versionName, apkUrl = apkUrl, notes = notes)
         } catch (e: Exception) {
-            // org.json can throw JSONException (checked) or a RuntimeException depending on the
-            // impl/input; catch broadly so malformed feed input just yields null.
-            android.util.Log.w(TAG, "release JSON parse failed", e)
+            // Malformed feed input → null. Deliberately no android.util.Log here: this function is
+            // pure and unit-tested on the JVM, where android.util.Log is a stub that THROWS, which
+            // would turn the caught error into an escaping RuntimeException.
             null
         }
     }
