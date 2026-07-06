@@ -162,10 +162,11 @@ class TimeTrackingService : Service() {
         // Daily base allowance: top up once per local day so "morgen gibt's neue" holds even if the
         // launcher never returned to home. Idempotent, so running it every tick is cheap.
         runBlocking { DailyRefill.maybeGrant(this@TimeTrackingService, database) }
-        // Papa-Modus (supervised override): pause metering entirely. No minutes are debited, no
-        // cool-down/strict-block relaunches fire — apps run free while the father supervises, and
-        // nothing lands in the mother-visible ledger/audit. First enforce the WiFi geofence, so
-        // leaving the allowed network hard-ends the session and normal rules resume this tick.
+        // Trusted environment (Papa-Modus): pause metering entirely. No minutes are debited, no
+        // cool-down/strict-block relaunches fire — apps run free while the father supervises. The
+        // trusted session itself is recorded transparently in the shared audit (see
+        // SupervisedOverrideActivity); only per-minute metering is paused here. First enforce the
+        // WiFi geofence, so leaving the allowed network hard-ends the session this tick.
         SupervisedOverride.enforceGeofence(this)
         if (SupervisedOverride.isActive(this)) {
             resetCounter()

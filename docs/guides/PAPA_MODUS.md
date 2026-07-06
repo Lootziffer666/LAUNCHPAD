@@ -1,9 +1,13 @@
-# Papa-Modus — betreuter Override per NFC / QR
+# Papa-Modus — betreute Vertrauensumgebung per NFC / QR
 
 > **Ziel:** Wenn Jake bei Papa ist, soll er einen NFC-Tag antippen oder einen QR-Code scannen
-> können, der seine Regeln vorübergehend aufhebt — betreutes Nutzen ist wichtiger als striktes
-> PIN-Gating. Der Override verbraucht **keine** Krypto-Cash-Zeit und erscheint **nicht** im
-> geteilten Verlauf (Tagesbericht / Audit / Companion-Sync), der auf der Mama-Seite sichtbar ist.
+> können, der seine Regeln vorübergehend entspannt — betreutes Nutzen ist wichtiger als striktes
+> PIN-Gating. Papa-Modus verbraucht **keine** Krypto-Cash-Zeit (die Minutenzählung pausiert).
+>
+> **Transparent, nicht heimlich:** Papa-Modus ist ein Spezialfall des **Trust-Score-Systems**
+> (siehe `PRESENCE_TRUST.md`). Der Start einer Vertrauens-Sitzung wird als `TRUSTED_MODE`-Eintrag
+> ins **geteilte Audit** geschrieben und ist im Companion / Tagesbericht sichtbar — es wird also
+> nichts vor der Mama-Seite versteckt.
 
 ## Wie es funktioniert
 
@@ -14,12 +18,12 @@
 - Ein gültiger Scan hebt **alle** Sperren auf (Whitelist, Zeitbudget, Cooldown, Wochenplan,
   Schulmodus) für ein einstellbares Fenster (Standard **180 Min**). Danach greifen die Regeln
   automatisch wieder — es gibt kein „Aus-Tippen", nur Ablauf oder „jetzt beenden".
-- Während der Override aktiv ist:
+- Während Papa-Modus aktiv ist:
   - `LaunchGate` lässt jede App direkt starten (`app/.../helpers/LaunchGate.kt`, Check 0),
-  - der `TimeTrackingService` **pausiert** die Zeitmessung (kein SPEND, kein Cooldown-Relaunch),
+  - der `TimeTrackingService` **pausiert** die Minutenzählung (kein SPEND, kein Cooldown-Relaunch),
   - der App-Drawer zeigt auch sonst versteckte Apps.
-  Es wird **nichts** in Ledger/Audit geschrieben; nur ein lokaler „zuletzt genutzt"-Zeitstempel,
-  den ausschließlich Papa im Setup sieht.
+  Der **Start** der Sitzung steht als `TRUSTED_MODE` im geteilten Audit; zusätzlich merkt sich der
+  Launcher lokal einen „zuletzt genutzt"-Zeitstempel für Papas Setup-Screen.
 
 ## Einrichten (einmalig, auf Jakes Telefon)
 

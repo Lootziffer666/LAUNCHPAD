@@ -1,12 +1,13 @@
 // File: app/src/main/kotlin/org/fossify/home/helpers/SupervisedOverride.kt
-// LAUNCHPAD "Papa-Modus" — a supervised, time-boxed override of the rules.
+// LAUNCHPAD "Papa-Modus" — a supervised, time-boxed TRUSTED ENVIRONMENT (a case of PresenceTrust).
 //
 // WHY: the father supervises the child in person and values supervised use over strict
-// PIN-gating. A physical NFC tag (or the same token as a QR code) at his place lets the child
-// lift the launcher's rules *while there*. It is deliberately kept OUT of the Krypto-Cash ledger
-// and the shared audit/report/companion-sync: during an active override apps launch without
-// draining the time budget and nothing is written to the mother-visible history (see LaunchGate
-// and TimeTrackingService, which both short-circuit while isActive()).
+// PIN-gating. A physical NFC tag (or the same token as a QR code) at his place is a strong
+// presence signal; combined with the home-WiFi geofence it makes the environment "trusted", and
+// while trusted the launcher's rules are relaxed. This is TRANSPARENT, not hidden: starting a
+// trusted session is written to the shared audit (see SupervisedOverrideActivity), and it shows in
+// the companion / reports. Only per-minute metering is paused (apps don't drain the time budget)
+// — see LaunchGate and TimeTrackingService, which short-circuit while isActive().
 //
 // SECURITY MODEL (honest scope): the token is HMAC-SHA256 signed with a secret that only the
 // launcher and the father's tag/QR know, so the child cannot self-issue a grant, and every scan
@@ -97,12 +98,26 @@ object SupervisedOverride {
         prefs(context).getLong(LaunchpadPrefs.PREF_OVERRIDE_UNTIL, 0L)
 
     /**
-     * Active = within the granted window AND the geofence is satisfied. The geofence is evaluated
-     * live, so leaving the allowed WiFi re-gates the rules without waiting for the window — but a
-     * short grace absorbs brief blips (see geofenceSatisfied).
+     * The current supervised-presence trust score (0..100), expressed via the shared PresenceTrust
+     * model: a freshly redeemed, signed tag is a strong signal, and being on the home WiFi adds
+     * more. Papa-Modus is thus a special case of the trust score, not a separate hidden switch.
+     */
+    fun trustScore(context: Context): Int =
+        PresenceTrust.supervisedScore(
+            supervisedTag = windowOpen(context),
+            homeWifi = requireWifi(context) && isOnAllowedWifi(context)
+        )
+
+    /**
+     * "Trusted environment" (Papa-Modus) is active when a signed tag window is open, the WiFi
+     * geofence is satisfied, AND the trust score clears the threshold. The geofence stays a hard
+     * gate (a foreign network ends it); the score is what the wider trust model keys off. Evaluated
+     * live, with a short grace for WiFi blips (see geofenceSatisfied).
      */
     fun isActive(context: Context): Boolean =
-        windowOpen(context) && geofenceSatisfied(context)
+        windowOpen(context) &&
+            geofenceSatisfied(context) &&
+            PresenceTrust.isTrusted(trustScore(context))
 
     /** True while a window is set, ignoring the geofence — used to detect "left the WiFi". */
     private fun windowOpen(context: Context): Boolean =
@@ -270,9 +285,10 @@ object SupervisedOverride {
     }
 
     /**
-     * Verify a scanned/tapped [token] and, if valid, start (or extend) the override window. Returns
-     * the epoch-ms the override now runs until, or null if the token was invalid/expired. Records a
-     * local-only "last used" timestamp — never touches the ledger or the shared audit.
+     * Verify a scanned/tapped [token] and, if valid, start (or extend) the trusted window. Returns
+     * the epoch-ms it now runs until, or null if the token was invalid/expired. Stores a "last used"
+     * timestamp for the setup screen; the caller (SupervisedOverrideActivity) writes the visible
+     * audit entry so the trusted session shows in the shared history.
      */
     fun redeemToken(context: Context, token: String): Long? {
         // If Papa-Modus was never set up there is no secret — reject rather than silently minting

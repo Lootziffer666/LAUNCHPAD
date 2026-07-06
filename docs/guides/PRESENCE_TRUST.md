@@ -16,7 +16,6 @@ Dies ist die **Roadmap/Architektur**. Der reine Scoring-Kern existiert bereits a
 | Papas Handy in der Nähe (BT/NFC) | 35 | *geplant (Companion sendet BLE)* |
 | Zuhause laut GPS-Geofence | 15 | *geplant* |
 | Passende Uhrzeit | 10 | *geplant* |
-| Kind anwesend (Kamera-Check) | 30 | *geplant (Lukes Idee)* |
 
 `score = Σ Gewichte der aktiven Signale` (0..100). **Trusted**, wenn `score ≥ Schwelle`
 (Default 55, pro Familie einstellbar).
@@ -55,28 +54,23 @@ und `canLaunch` vergleicht sie mit dem aktuellen Score statt mit festen Kategori
 ## Migrationsplan (inkrementell, jeweils testbar)
 
 1. ✅ **Kern**: `PresenceTrust` Scorer + Tests (erledigt).
-2. ✅ **Papa-Modus als Spezialfall**: signierter Tag + WLAN-Geofence + Karenz (erledigt).
+2. ✅ **Papa-Modus geht im Trust-Score auf**: die „Trusted-Environment"-Entscheidung läuft über
+   `SupervisedOverride.isActive` = offenes Tag-Fenster **und** WLAN-Geofence **und**
+   `PresenceTrust.isTrusted(trustScore)`. **Transparent statt heimlich**: Start einer
+   Vertrauens-Sitzung landet als `TRUSTED_MODE`-Eintrag im geteilten Audit (sichtbar im Companion /
+   Bericht); nur die Minutenzählung pausiert (erledigt).
 3. **Signale ausbauen**: GPS-Geofence, Uhrzeitfenster, BLE-Nähe (Companion sendet, Launcher scannt).
 4. **Score sichtbar machen**: Eltern-Dashboard zeigt aktuellen Score + aktive Signale.
 5. **`LaunchGate` auf Score umstellen**: `trustRequired` pro App/Kategorie; alte Kategorien als
    Defaults abbilden (kein Bruch).
 6. **Profile**: Home/School/Car/Night/Unknown als benannte Schwellen-/Regel-Sets.
 
-## „Kind anwesend" als Signal (Lukes Idee, 6 Jahre)
+## „Kind anwesend" (Kamera) — bewusst NICHT hier
 
-Statt zu prüfen, ob ein Kind *ausgesperrt* wird, prüft das Gerät **positiv**, dass gerade ein Kind
-davorsitzt: ein **gelegentlicher, sichtbarer Kamera-Check** (kein heimliches Mitschneiden — eine
-kurze, angekündigte Aufnahme, on-device ausgewertet, nichts wird gespeichert/hochgeladen). Das ist
-elegant, weil es die Blickrichtung dreht:
-
-- Kind erkannt → **Kind-Profil** greift (das strengere/geschützte Set) — „sicherer", nicht „mehr Kontrolle".
-- Kein Kind / Erwachsener erkannt → höherer Trust möglich (Eltern-Kontext).
-
-Passt sauber ins Modell als Signal `WEIGHT_CHILD_PRESENT` (30). Wichtig für die Umsetzung:
-**Transparenz** (LED/Hinweis bei jeder Aufnahme), **on-device only** (keine Cloud, keine
-Speicherung), **opt-in**, und robuste Fallbacks (Kamera aus/verdeckt → Signal fehlt einfach, nichts
-„kaputt"). Braucht ein On-Device-Modell (z. B. face/child-Classifier) + Berechtigungen + Gerätetest
-→ eigener Schritt, aber konzeptionell schon verankert.
+Lukes Idee (positiv erkennen, dass ein Kind davorsitzt, statt es auszusperren) ist stark, wird aber
+**nicht** in diesem Modul umgesetzt: sie ist eine **eigene Infrastruktur** (On-Device-Modell,
+Kamera-Berechtigungen, Transparenz-Garantien) und wird separat geplant. Falls sie kommt, dockt sie
+später als weiteres Signal an — bis dahin ist sie hier absichtlich außen vor.
 
 ## Ehrliche Grenzen
 
