@@ -189,7 +189,8 @@ interface CryptoCashDao {
     // (source = 'parent_app') are excluded so they always bypass the weekly cap — the parent veto.
     @Query(
         "SELECT COALESCE(SUM(deltaMinutes), 0) FROM crypto_cash_tx " +
-            "WHERE deleted = 0 AND type = 'EARN' AND source != 'parent_app' " +
+            "WHERE deleted = 0 AND type = 'EARN' " +
+            "AND (source IS NULL OR source != 'parent_app') " +
             "AND createdAt >= :weekStart"
     )
     suspend fun getWeekEarnedMinutes(weekStart: Long): Int

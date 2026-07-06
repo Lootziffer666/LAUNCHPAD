@@ -10,12 +10,15 @@
 package org.fossify.home.helpers
 
 import java.util.Calendar
+import java.util.GregorianCalendar
 
 object WeeklyCap {
 
     /** Local start-of-week (Monday 00:00) for [now]. */
     fun weekStartMillis(now: Long): Long {
-        val cal = Calendar.getInstance()
+        // GregorianCalendar (not Calendar.getInstance) so week math never lands on a locale-specific
+        // non-Gregorian calendar (Buddhist/Japanese Imperial etc.).
+        val cal = GregorianCalendar()
         cal.timeInMillis = now
         cal.firstDayOfWeek = Calendar.MONDAY
         cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
