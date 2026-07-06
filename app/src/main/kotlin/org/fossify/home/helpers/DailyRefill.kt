@@ -58,7 +58,19 @@ object DailyRefill {
                 return@withLock
             }
             val balance = db.cryptoCashDao().getCurrentBalance()
-            val grant = grantAmount(base, balance)
+            // Hard weekly cap: the system may only top up within what's left of the week's cap.
+            // Parent additions are excluded from the earned total (getWeekEarnedMinutes), so a
+            // parent can always give more — that's the veto. Turn the whole cap off via the pref.
+            val capEnabled = prefs.getBoolean(LaunchpadPrefs.PREF_WEEK_CAP_ENABLED, true)
+            val weekCap = prefs.getInt(
+                LaunchpadPrefs.PREF_WEEK_CAP_MINUTES, LaunchpadConstants.DEFAULT_WEEK_CAP_MINUTES
+            )
+            val weekEarned = db.cryptoCashDao().getWeekEarnedMinutes(WeeklyCap.weekStartMillis(today))
+            val grant = WeeklyCap.capGrant(
+                desired = grantAmount(base, balance),
+                remaining = WeeklyCap.remaining(weekCap, weekEarned),
+                capEnabled = capEnabled
+            )
             if (grant > 0) {
                 db.cryptoCashDao().insertTransaction(
                     CryptoCashTransaction(

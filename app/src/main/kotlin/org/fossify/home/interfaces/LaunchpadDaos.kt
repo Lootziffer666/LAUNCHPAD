@@ -184,6 +184,15 @@ interface CryptoCashDao {
             "AND reasonText = 'Nutzung: ' || :pkg AND createdAt >= :todayMidnight"
     )
     suspend fun getTodaySpentMinutesForApp(pkg: String, todayMidnight: Long): Int
+
+    // Minutes EARNed this week from non-parent sources (system daily refill etc.). Parent additions
+    // (source = 'parent_app') are excluded so they always bypass the weekly cap — the parent veto.
+    @Query(
+        "SELECT COALESCE(SUM(deltaMinutes), 0) FROM crypto_cash_tx " +
+            "WHERE deleted = 0 AND type = 'EARN' AND source != 'parent_app' " +
+            "AND createdAt >= :weekStart"
+    )
+    suspend fun getWeekEarnedMinutes(weekStart: Long): Int
 }
 
 // ─── ParentCommand DAO ────────────────────────────────────────────────────────

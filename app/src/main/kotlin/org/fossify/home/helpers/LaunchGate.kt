@@ -39,9 +39,11 @@ class LaunchGate(
         packageName: String,
         timeBudget: TimeBudget
     ): LaunchDecision {
-        // Check 0: Papa-Modus (supervised override). While active, every gate — whitelist, budget,
-        // cool-down, schedule, school mode — is lifted and the launch is free. Deliberately not
-        // metered or logged (see TimeTrackingService, which also pauses while active).
+        // Check 0: trusted environment (Papa-Modus, a case of the PresenceTrust model). While the
+        // environment is trusted, every gate — whitelist, budget, cool-down, schedule, school mode
+        // — is relaxed and the launch is free. This is transparent, not hidden: starting a trusted
+        // session is recorded in the shared audit (see SupervisedOverrideActivity); only per-minute
+        // metering is paused (see TimeTrackingService).
         if (SupervisedOverride.isActive(context)) {
             return LaunchDecision(true, null, null)
         }

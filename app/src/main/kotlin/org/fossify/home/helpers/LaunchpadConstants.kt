@@ -102,6 +102,9 @@ object LaunchpadConstants {
     const val AUDIT_LOCKDOWN_TRIGGERED = "LOCKDOWN_TRIGGERED"
     const val AUDIT_LOCKDOWN_CLEARED = "LOCKDOWN_CLEARED"
     const val AUDIT_EXCEPTION_GRANTED = "EXCEPTION_GRANTED"
+    // Papa-Modus is now a TRANSPARENT trusted-environment (part of the trust model), so entering
+    // it is recorded in the normal audit — no longer hidden from the shared history.
+    const val AUDIT_TRUSTED_MODE = "TRUSTED_MODE"
 
     // Audit severities
     const val SEVERITY_INFO = "INFO"
@@ -208,14 +211,15 @@ object LaunchpadPrefs {
     const val PREF_PENDING_REVIEW_PACKAGES = "pending_review_packages"
     const val PREF_LAST_APP_SCAN = "last_app_scan"
 
-    // "Papa-Modus" supervised override. The override is deliberately kept OUT of the
-    // Krypto-Cash ledger and the shared audit/report/sync: while it's active, apps launch
-    // without draining budget and nothing is written to the mother-visible history. Rationale:
-    // the father supervises in person and prioritises supervised use over strict gating.
+    // "Papa-Modus" — a supervised TRUSTED ENVIRONMENT (a case of PresenceTrust). While active,
+    // apps launch without draining the time budget (per-minute metering is paused). It is
+    // TRANSPARENT: starting a trusted session is recorded in the shared audit and shows in the
+    // companion/reports — it is no longer hidden from the shared history. Rationale: the father
+    // supervises in person and prioritises supervised use over strict gating.
     // - SECRET: HMAC key (hex). A tag/QR is only honoured if it was signed with this secret,
     //   so the child can't self-issue a grant. Provisioned once in Papa-Modus setup.
-    // - UNTIL: epoch ms; override active while now < value.
-    // - WINDOW_MIN: how long a single valid scan lifts the rules.
+    // - UNTIL: epoch ms; trusted window active while now < value.
+    // - WINDOW_MIN: how long a single valid scan relaxes the rules.
     const val PREF_OVERRIDE_SECRET_HEX = "supervised_override_secret"
     const val PREF_OVERRIDE_UNTIL = "supervised_override_until"
     const val PREF_OVERRIDE_WINDOW_MIN = "supervised_override_window_min"
@@ -233,6 +237,10 @@ object LaunchpadPrefs {
 
     // Daily base-time refill: local midnight (epoch ms) we last topped up, so it grants once/day.
     const val PREF_LAST_REFILL_DAY = "daily_refill_last_day"
+
+    // Hard weekly cap on SYSTEM/earned time (daily refill etc.). Default ON. Parent additions
+    // (adjust_time / "Heute Ausnahme", source = parent_app) always bypass it — that is the veto.
+    const val PREF_WEEK_CAP_ENABLED = "week_cap_enabled"
 
     // Auto-update: parent-configurable release feed, auto-check toggle, last-check timestamp.
     const val PREF_UPDATE_FEED_URL = "update_feed_url"

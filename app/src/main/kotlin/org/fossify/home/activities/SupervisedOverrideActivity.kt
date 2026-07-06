@@ -18,7 +18,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import org.fossify.home.extensions.goHome
 import org.fossify.home.helpers.ChildProfile
+import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.SupervisedOverride
+import org.fossify.home.helpers.TamperMonitor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,6 +58,14 @@ class SupervisedOverrideActivity : AppCompatActivity() {
         }
         val name = ChildProfile.name(this)
         val clock = SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(until))
+        // Transparent by design: a trusted-environment session is recorded in the normal, shared
+        // audit — Papa-Modus is a visible part of the trust model, not a hidden switch.
+        TamperMonitor.record(
+            this,
+            LaunchpadConstants.AUDIT_TRUSTED_MODE,
+            LaunchpadConstants.SEVERITY_INFO,
+            "Vertrauensmodus aktiv bis $clock (Regeln entspannt)"
+        )
         render(
             ok = true,
             message = "👋 Papa-Modus ist an, $name!\nAlle Apps sind frei bis $clock."

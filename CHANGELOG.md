@@ -5,11 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- android: **Papa-Modus is now a transparent case of the Presence-Trust model**, no longer a hidden
+  switch. Activation runs through the trust score (`SupervisedOverride.isActive` = open tag window
+  AND WiFi geofence AND `PresenceTrust.isTrusted`), and starting a trusted session is written to the
+  shared audit as a `TRUSTED_MODE` event (visible in the companion/report). Per-minute metering is
+  still paused while trusted; nothing is hidden from the shared history.
 ### Added
-- android: **Papa-Modus** — a supervised, time-boxed override. An HMAC-signed NFC tag or QR code
-  (at the supervising parent's place) lifts the launcher's rules for a set window; it spends no
-  screen-time and is deliberately kept out of the ledger and the shared audit/report/companion
-  sync. Set up under Eltern-Modus → Papa-Modus.
+- android: **hard weekly cap with parent veto** — the system daily refill only tops up within
+  what's left of the weekly cap (`WeeklyCap`, default 120 min, toggle `week_cap_enabled`). Parent
+  additions (adjust_time / Heute-Ausnahme) are excluded from the cap and always apply — the veto.
+  Earned time still never expires.
+### Added (previously)
+- android: **Papa-Modus** — a supervised, time-boxed trusted environment. An HMAC-signed NFC tag or
+  QR code (at the supervising parent's place) relaxes the launcher's rules for a set window; it
+  spends no screen-time. Set up under Eltern-Modus → Papa-Modus.
 - android: **push / auto-updates** — the launcher checks a GitHub release feed daily and can
   download & install a pushed update (silent as device owner, otherwise the system install
   confirmation). Eltern-Modus → App-Update.
