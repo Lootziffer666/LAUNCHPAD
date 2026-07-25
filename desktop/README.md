@@ -50,9 +50,10 @@ fills the whole screen and its desktop is simply the screen; the same world is w
 there as a dimmed backdrop. **Esc** or **Zurück** flies back out and the lid drops shut.
 
 The lids open the way the shelf is built: **the left column swings left, the right column
-swings right, the middle ones up and down.** The hinge sits on the inner edge — the
-reference render has the hinge barrels on the vertical inner posts, so the left column is
-hung on its right edge and swings outward, and mirrored on the right.
+swings right, the middle ones up and down.** Every hinge sits on the *outer* edge, as the
+reference renders show it — the open Explore door hangs off the right edge of its box, the
+open Apps lid off the top edge. So the top middle lifts like a chest lid and the bottom
+middle folds down like a laptop.
 
 How it holds together:
 

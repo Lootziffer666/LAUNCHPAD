@@ -139,37 +139,38 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   background-image: var(--art);
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  transition: transform var(--t-lid) var(--lid), opacity .28s linear .36s;
-  backface-visibility: hidden;
+  transition: transform var(--t-lid) var(--lid), opacity .3s linear .46s;
 }
 
-/* Der Angelpunkt liegt innen — die Scharnierbolzen sitzen in der Vorlage
-   auf den senkrechten Innenstegen. Die linke Reihe ist also rechts
-   angeschlagen und geht nach links auf, die rechte umgekehrt; die
-   mittleren hängen an der waagerechten Mitte und gehen nach oben bzw.
-   unten. In Ruhe liegt der Deckel flach auf seiner gemessenen Fläche. */
-.bay[data-open="links"]  .lid { transform-origin: 100% 50%; }
-.bay[data-open="rechts"] .lid { transform-origin: 0% 50%; }
-.bay[data-open="oben"]   .lid { transform-origin: 50% 100%; }
-.bay[data-open="unten"]  .lid { transform-origin: 50% 0%; }
+/* Der Angelpunkt liegt außen — so zeigen es die Vorlagen: an der Tür des
+   rechten Fachs sitzen die Scharnierbolzen am rechten Rand, am Deckel der
+   oberen Mitte an der Oberkante. Die linke Reihe geht also nach links auf,
+   die rechte nach rechts, der obere Deckel hebt sich wie bei einer Truhe,
+   der untere klappt herunter wie ein Laptop. In Ruhe liegt der Deckel flach
+   auf seiner gemessenen Fläche. */
+.bay[data-open="links"]  .lid { transform-origin: 0% 50%; }
+.bay[data-open="rechts"] .lid { transform-origin: 100% 50%; }
+.bay[data-open="oben"]   .lid { transform-origin: 50% 0%; }
+.bay[data-open="unten"]  .lid { transform-origin: 50% 100%; }
 
-/* Ein Spalt weit, wenn man hinsieht: genug, um zu erkennen, dass etwas
-   drin ist, wenig genug, um dem Nachbarfach nicht ins Bild zu schwingen. */
-.bay[data-open="links"]:hover  .lid, .bay[data-open="links"]:focus-within  .lid { transform: perspective(1500px) rotateY(15deg); }
-.bay[data-open="rechts"]:hover .lid, .bay[data-open="rechts"]:focus-within .lid { transform: perspective(1500px) rotateY(-15deg); }
-.bay[data-open="oben"]:hover   .lid, .bay[data-open="oben"]:focus-within   .lid { transform: perspective(1500px) rotateX(-15deg); }
-.bay[data-open="unten"]:hover  .lid, .bay[data-open="unten"]:focus-within  .lid { transform: perspective(1500px) rotateX(15deg); }
+/* Ein Spalt weit, wenn man hinsieht: die freie Kante kommt einem entgegen. */
+.bay[data-open="links"]:hover  .lid, .bay[data-open="links"]:focus-within  .lid { transform: perspective(1500px) rotateY(-15deg); }
+.bay[data-open="rechts"]:hover .lid, .bay[data-open="rechts"]:focus-within .lid { transform: perspective(1500px) rotateY(15deg); }
+.bay[data-open="oben"]:hover   .lid, .bay[data-open="oben"]:focus-within   .lid { transform: perspective(1500px) rotateX(15deg); }
+.bay[data-open="unten"]:hover  .lid, .bay[data-open="unten"]:focus-within  .lid { transform: perspective(1500px) rotateX(-15deg); }
 
-/* Alle sechs zugleich: noch zurückhaltender, sonst wird die Wand unruhig. */
-.bay[data-open="links"].peek  .lid { transform: perspective(1500px) rotateY(9deg); }
-.bay[data-open="rechts"].peek .lid { transform: perspective(1500px) rotateY(-9deg); }
-.bay[data-open="oben"].peek   .lid { transform: perspective(1500px) rotateX(-9deg); }
-.bay[data-open="unten"].peek  .lid { transform: perspective(1500px) rotateX(9deg); }
+/* Alle sechs zugleich: zurückhaltender, sonst wird die Wand unruhig. */
+.bay[data-open="links"].peek  .lid { transform: perspective(1500px) rotateY(-9deg); }
+.bay[data-open="rechts"].peek .lid { transform: perspective(1500px) rotateY(9deg); }
+.bay[data-open="oben"].peek   .lid { transform: perspective(1500px) rotateX(9deg); }
+.bay[data-open="unten"].peek  .lid { transform: perspective(1500px) rotateX(-9deg); }
 
-.bay[data-open="links"].open  .lid { transform: perspective(1500px) rotateY(115deg);  opacity: 0; }
-.bay[data-open="rechts"].open .lid { transform: perspective(1500px) rotateY(-115deg); opacity: 0; }
-.bay[data-open="oben"].open   .lid { transform: perspective(1500px) rotateX(-115deg); opacity: 0; }
-.bay[data-open="unten"].open  .lid { transform: perspective(1500px) rotateX(115deg);  opacity: 0; }
+/* Offen: gut über den rechten Winkel hinaus, wie in den Vorlagen — die Tür
+   steht dann neben dem Fach, der Truhendeckel darüber. */
+.bay[data-open="links"].open  .lid { transform: perspective(1500px) rotateY(-105deg); opacity: 0; }
+.bay[data-open="rechts"].open .lid { transform: perspective(1500px) rotateY(105deg);  opacity: 0; }
+.bay[data-open="oben"].open   .lid { transform: perspective(1500px) rotateX(105deg);  opacity: 0; }
+.bay[data-open="unten"].open  .lid { transform: perspective(1500px) rotateX(-105deg); opacity: 0; }
 
 .bay-hit { position: absolute; inset: 0; z-index: 7; }
 .bay.open .bay-hit, .room.zoomed .bay-hit { pointer-events: none; }
