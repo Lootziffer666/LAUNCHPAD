@@ -19,6 +19,7 @@ separate from the Android app.
 | Path | What it is |
 |---|---|
 | `prototype.html` + `css/` + `js/` | The clickable **design prototype** (no build step). Design source of truth for the child shell. |
+| `faecher.html` | The **Fächerwand** home concept — one self-contained file, no build, no assets. Six lidded compartments, a desktop hidden in each; a click opens the lid and the camera flies into that compartment until it fills the screen. See below. |
 | `index.html` + `src/` | The **child shell** renderer. |
 | `curator.html` + `src/curator/` | The **parent curator** renderer (Familienzentrale). |
 | `electron/` | Main process + the two preload bridges. |
@@ -36,6 +37,42 @@ npm test         # unit tests — launch resolver, curation model, SteamGridDB c
 `npm run dev` serves both entries on `http://localhost:5173` (child at `/`, curator at
 `/curator.html`) and opens the child window against it. The curator window opens from inside
 the child shell: **Elternbereich** tile → PIN (demo: `1234`).
+
+`faecher.html` needs none of that — open the file in a browser.
+
+## Fächerwand (`faecher.html`)
+
+The home screen as a shelf of six lidded compartments: **Spielen · Apps · Bibliothek ·
+Erschaffen · Schauen · Entdecken**. Each lid rests almost closed with warm light seeping
+out of the crack; hover or focus lifts it a little, so you can peek at the desktop inside.
+Click, and the lid swings open while the camera immediately starts flying into that
+compartment — no pause between the two — until the compartment fills the whole screen and
+its desktop is simply the screen. **Esc** or **Zurück** flies back out; the lid drops shut
+once the compartment has landed again.
+
+How it holds together:
+
+- **One shape everywhere.** The compartment takes the shape of the viewport, so when it
+  fills the screen nothing is cropped and no bar is left over. The desktop is laid out on a
+  fixed 1400 px-wide stage whose height follows the screen (clamped, so the layout can't be
+  squashed flat); on extreme aspect ratios the stage sits centred with dark margins rather
+  than losing its edges.
+- **Only one compartment moves.** The chosen `.bay-box` is pinned to its measured position
+  (`position: fixed`, same geometry, so nothing jumps) and flown from there. The other five
+  stay put under a single scrim that fades in — fading each one separately cost five
+  compositor layers per flight and visibly stuttered.
+- **The flight starts in the click.** The layer is prepared on hover/focus, and the
+  transform is set synchronously in the click handler; going through
+  `requestAnimationFrame` delayed the start enough that the zoom stopped feeling like an
+  answer to the click.
+- **No assets.** Every piece of artwork — card scenes, book covers, the sky — is painted
+  procedurally onto canvases from a seeded palette, so the file stands alone.
+- **Keyboard and d-pad.** Arrow keys move across the shelf, Enter opens, Esc goes back.
+  `prefers-reduced-motion` keeps the same path, just short.
+
+Prototype scope: the tiles, chips and cards are not wired to anything, and *Ausschalten* /
+*Suche* / *Elternbereich* are placeholders. Content lives in the `BAYS` array at the top of
+the script — that is the place to edit names, sections and scenes.
 
 ## How it's wired
 

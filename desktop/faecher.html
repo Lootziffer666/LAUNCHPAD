@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LAUNCHPAD — Fächerwand</title>
+<style>
+/* ============================================================
+   LAUNCHPAD — Fächerwand
+   Sechs Fächer mit Deckeln. In jedem Fach wartet ein Desktop.
+   Ein Klick: der Deckel schwingt auf, die Kamera fährt hinein,
+   bis das Fach das ganze Bild füllt.
+
+   Tokens bewusst aus css/base.css übernommen, damit die Wand
+   zum restlichen Shell passt (comet-cyan, gold, ease-metro).
+   ============================================================ */
+
+:root {
+  /* Grund — kalte Nacht */
+  --night:      #04091a;
+
+  /* Korpus der Fächer */
+  --shell:      #14356e;
+  --shell-lo:   #0b1f47;
+
+  /* Akzente (base.css) */
+  --cyan:       #38bdf8;
+  --gold:       #ffc83d;
+
+  /* Schrift */
+  --ink:        #eef4ff;
+  --ink-soft:   #b7c7e9;
+  --ink-mute:   #7b8bb4;
+
+  --ease:  cubic-bezier(.25, 1, .5, 1);      /* ease-metro */
+  --lid:   cubic-bezier(.22, .9, .24, 1.02); /* Deckel: kurzes Nachfedern */
+  --dolly: cubic-bezier(.33, .05, .12, 1);   /* Kamerafahrt: sofort anschieben, gleiten, weich setzen */
+
+  --t-lid:   560ms;
+  --t-dolly: 860ms;
+
+  /* Zwei Formate, die zusammenspielen müssen:
+     --vw/--vh  Form des Fachs = Form des Bildschirms. Nur so füllt das Fach
+                am Ende exakt das Bild, ohne dass an den Kanten etwas fehlt.
+     --sw/--sh  Bühne des Desktops. Breite fest, Höhe folgt dem Bildschirm,
+                aber begrenzt — sonst wird der Desktop auf extremen Formaten
+                so flach, dass der Inhalt nicht mehr hineinpasst. Passt die
+                Bühne nicht zur Fachform, sitzt sie mittig mit dunklen
+                Rändern statt beschnitten zu werden.
+     Beide werden in JS gesetzt; hier stehen nur die Startwerte. */
+  --vw: 16; --vh: 9;
+  --sw: 1400; --sh: 788;
+  --gap: 26px;
+
+  --font: "Outfit", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--night);
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+:focus { outline: none; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; border-radius: 10px; }
+
+/* ============================================================
+   Raum
+   ============================================================ */
+
+.room {
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+
+#sky { position: absolute; inset: 0; z-index: 0; }
+
+.room::after { /* Vignette — der Raum liegt im Halbdunkel */
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 42%, rgba(2,5,15,.72) 100%);
+  opacity: .9;
+}
+
+/* Beim Hineinfahren geht im Raum das Licht aus. Eine einzige Fläche statt
+   sechs einzeln ausgeblendeter Fächer — das ist der Unterschied zwischen
+   einer flüssigen und einer hakeligen Fahrt. */
+.scrim {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background: var(--night); opacity: 0;
+  transition: opacity .52s var(--ease);
+}
+.room.zoomed .scrim { opacity: .95; }
+
+/* ---- Kopfzeile ---- */
+
+.hud {
+  position: relative; z-index: 4;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 26px 42px 0;
+}
+.room.zoomed .hud { pointer-events: none; }
+
+.who { display: flex; align-items: center; gap: 15px; }
+.avatar {
+  width: 58px; height: 58px; border-radius: 50%; flex: none;
+  border: 2px solid rgba(160,205,255,.55);
+  background:
+    radial-gradient(60% 55% at 50% 82%, #f2c9a3 0 42%, transparent 43%),
+    radial-gradient(52% 48% at 50% 34%, #ffe0b8 0 60%, transparent 61%),
+    conic-gradient(from 200deg at 50% 34%, #d9a45f, #b9793a, #e8bd7c, #c98c46);
+  box-shadow: 0 0 26px rgba(56,189,248,.28), inset 0 -8px 18px rgba(0,0,0,.35);
+}
+.who h1 { font-size: 27px; font-weight: 700; letter-spacing: .2px; line-height: 1.1; }
+.who p  { font-size: 14.5px; color: var(--ink-mute); font-weight: 500; margin-top: 1px; }
+
+.status { display: flex; align-items: center; gap: 18px; color: var(--ink-soft); }
+.status .clock { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .4px; }
+.status svg { width: 22px; height: 22px; opacity: .85; }
+.batt { width: 30px; height: 15px; border: 1.6px solid rgba(190,210,245,.7); border-radius: 4px; position: relative; }
+.batt::after { content: ""; position: absolute; top: 2px; left: 2px; bottom: 2px; width: 62%; border-radius: 2px; background: #5fd97a; }
+.batt::before { content: ""; position: absolute; right: -4px; top: 4px; bottom: 4px; width: 2.5px; border-radius: 0 2px 2px 0; background: rgba(190,210,245,.7); }
+
+/* ============================================================
+   Die Wand
+   ============================================================ */
+
+/* Bewusst ohne z-index UND ohne perspective: beides würde hier einen
+   Stapelkontext aufmachen, und das fliegende Fach käme nicht über den
+   Vorhang. Die Perspektive für den Deckel sitzt am Fach selbst. */
+.wall-wrap {
+  position: relative;
+  display: grid; place-items: center;
+  padding: 22px 42px;
+}
+
+.wall {
+  --cols: 3; --rows: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  gap: var(--gap);
+}
+
+/* ---- ein Fach ---- */
+
+/* Die übrigen Fächer werden nicht einzeln ausgeblendet — der Vorhang legt
+   sich über sie. Das spart fünf Ebenen pro Fahrt. */
+.bay { position: relative; aspect-ratio: var(--vw) / var(--vh); }
+
+.bay-box {
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  /* Perspektive sitzt hier, nicht weiter oben: so schwingt der Deckel
+     räumlich auf und bleibt trotzdem sauber über dem Innenraum. */
+  perspective: 1400px;
+  /* Korpus: außen kühler Lack, innen Tiefe */
+  background: linear-gradient(168deg, var(--shell) 0%, var(--shell-lo) 62%, #071734 100%);
+  box-shadow:
+    0 34px 60px -22px rgba(0,0,0,.85),
+    0 0 0 1px rgba(120,180,255,.16),
+    inset 0 0 0 1px rgba(150,205,255,.10),
+    inset 0 2px 0 rgba(190,225,255,.22);
+  /* Nur transform und Radius werden bewegt. Ein animierter Schatten würde
+     jedes Bild der Fahrt neu zeichnen lassen — er wird stattdessen
+     zu Beginn abgeschaltet. */
+  transform-origin: 0 0;
+  transition: transform var(--t-dolly) var(--dolly), border-radius .3s var(--ease);
+}
+.bay.open .bay-box { border-radius: 0; box-shadow: none; }
+.bay.flying { z-index: 60; }
+
+/* Innenraum — hier wohnt der Desktop.
+   Bewusst deckungsgleich mit dem Korpus: nur so ist die Geometrie beim
+   Hineinfahren exakt, ohne dass unterwegs etwas verrutscht. Der sichtbare
+   Rahmen kommt von .rim und wird beim Öffnen einfach weggeblendet. */
+.bay-inner {
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #060d20;
+  transition: border-radius .3s var(--ease);
+}
+.bay.open .bay-inner { border-radius: 0; }
+
+.rim {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 9px #0d2450,
+    inset 0 0 0 10px rgba(150,205,255,.18),
+    inset 0 0 0 11px rgba(4,10,26,.9),
+    inset 0 2px 0 rgba(190,225,255,.22),
+    inset 0 16px 34px rgba(0,0,0,.6);
+  transition: opacity .5s var(--dolly);
+}
+.bay.open .rim { opacity: 0; }
+
+/* Der Desktop: eine Bühne fester Größe, mittig ins Fach skaliert */
+.screen {
+  position: absolute; left: 50%; top: 50%;
+  width: calc(var(--sw) * 1px); height: calc(var(--sh) * 1px);
+  transform: translate(-50%, -50%) scale(var(--k, .25));
+  pointer-events: none;
+}
+.bay.open .screen { pointer-events: auto; }
+
+/* warmes Licht, das aus dem Fach quillt */
+.spill {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: 16px;
+  background:
+    radial-gradient(120% 78% at 50% 108%, rgba(255,200,61,.30), transparent 62%),
+    linear-gradient(180deg, rgba(4,10,26,.62), transparent 46%);
+  opacity: 1; transition: opacity .5s var(--ease);
+}
+.bay.open .spill { opacity: 0; }
+
+/* ---- der Deckel ---- */
+
+.lid {
+  position: absolute; left: -2px; right: -2px; top: -2px;
+  height: calc(100% + 4px);
+  transform-origin: 50% 0;
+  transform: rotateX(-5deg);
+  transform-style: preserve-3d;
+  transition: transform var(--t-lid) var(--lid), opacity .3s linear .34s;
+  z-index: 5;
+  border-radius: 17px;
+  /* lackierter Deckel: Licht fällt von oben ein, unten läuft er in die
+     Schattenkante aus, aus der gleich das warme Licht kommt */
+  background:
+    radial-gradient(100% 78% at 50% -22%, rgba(150,215,255,.34), transparent 60%),
+    linear-gradient(102deg, rgba(255,255,255,.07) 0 34%, rgba(255,255,255,0) 56%),
+    linear-gradient(172deg, #2d63ad 0%, #1b3f7e 30%, #112a58 62%, #08172f 100%);
+  box-shadow:
+    0 30px 52px -16px rgba(0,0,0,.85),
+    inset 0 0 0 1px rgba(150,205,255,.20),
+    inset 0 3px 0 rgba(205,232,255,.36),
+    inset 0 -34px 52px rgba(2,7,20,.72);
+  display: grid; place-items: center;
+  backface-visibility: hidden;
+}
+.bay:hover .lid, .bay.peek .lid, .bay:focus-within .lid { transform: rotateX(-26deg); }
+.bay.open .lid { transform: rotateX(-118deg); opacity: 0; }
+
+/* Lichtspalt unter der Deckelkante */
+.lid::after {
+  content: ""; position: absolute; left: 8%; right: 8%; bottom: -3px; height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, transparent, rgba(255,200,61,.85), transparent);
+  filter: blur(3px); opacity: .8;
+  transition: opacity .3s var(--ease);
+}
+.bay:hover .lid::after, .bay.peek .lid::after { opacity: 1; }
+
+.lid-face { text-align: center; transform: translateZ(1px); padding: 0 20px; }
+.lid-face .glyph {
+  width: 78px; height: 78px; margin: 0 auto 14px;
+  display: grid; place-items: center; border-radius: 22px;
+  background: rgba(6,16,38,.5);
+  box-shadow: inset 0 0 0 1px rgba(160,210,255,.28), 0 10px 22px rgba(0,0,0,.4);
+}
+.lid-face .glyph svg { width: 40px; height: 40px; }
+.lid-face h2 { font-size: 34px; font-weight: 800; letter-spacing: .4px; text-shadow: 0 2px 14px rgba(0,0,0,.55); }
+.lid-face p { margin-top: 5px; font-size: 14.5px; font-weight: 600; color: rgba(200,222,255,.66); letter-spacing: .3px; }
+
+/* Scharniere */
+.hinge {
+  position: absolute; top: -6px; width: 46px; height: 13px; z-index: 6;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #21304d, #0c1526);
+  box-shadow: inset 0 1px 0 rgba(180,210,255,.35), 0 2px 5px rgba(0,0,0,.6);
+}
+.hinge.l { left: 21%; } .hinge.r { right: 21%; }
+.bay.open .hinge { opacity: 0; transition: opacity .25s linear; }
+
+.bay-hit { position: absolute; inset: 0; z-index: 7; border-radius: 16px; }
+.bay.open .bay-hit, .room.zoomed .bay-hit { pointer-events: none; }
+
+/* ============================================================
+   Leiste unten
+   ============================================================ */
+
+.dock {
+  position: relative; z-index: 4;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 42px 26px;
+}
+.room.zoomed .dock { pointer-events: none; }
+
+.dock-mid { display: flex; align-items: center; gap: 10px; }
+.dbtn {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 48px; padding: 11px 18px; border-radius: 999px;
+  color: var(--ink-soft); font-size: 15px; font-weight: 600;
+  transition: background .16s, color .16s;
+}
+.dbtn svg { width: 22px; height: 22px; }
+.dbtn:hover { background: rgba(255,255,255,.09); color: #fff; }
+.dbtn.on { color: var(--cyan); }
+.dbtn.gate {
+  background: rgba(255,255,255,.07);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+}
+
+/* ============================================================
+   Der Desktop im Fach (logische Bühne 1400×788)
+   ============================================================ */
+
+.screen-bg { position: absolute; inset: 0; }
+.screen-bg canvas { width: 100%; height: 100%; display: block; }
+.screen-bg::after { /* die Kulisse bleibt Kulisse — Inhalt zuerst */
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(4,9,24,.86) 0%, rgba(4,9,24,.6) 34%, rgba(4,9,24,.94) 100%),
+    linear-gradient(96deg, rgba(4,9,24,.72) 0%, rgba(4,9,24,.1) 62%);
+}
+
+.dsk { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 34px 56px 0; }
+
+.dsk-top { display: flex; align-items: center; justify-content: space-between; flex: none; }
+.dsk-top .who h1 { font-size: 21px; }
+.dsk-top .who p { font-size: 12.5px; }
+.dsk-top .avatar { width: 44px; height: 44px; }
+.dsk-top .status .clock { font-size: 16px; }
+.dsk-top .status svg { width: 17px; height: 17px; }
+.dsk-top .batt { width: 24px; height: 12px; }
+
+.dsk-head { flex: none; margin: 26px 0 4px; }
+.dsk-head h2 { font-size: 46px; font-weight: 700; letter-spacing: -.6px; }
+.dsk-head p { font-size: 17px; color: var(--ink-soft); font-weight: 500; margin-top: 4px; }
+
+.dsk-body { flex: 1; overflow: hidden; padding-top: 22px; display: flex; flex-direction: column; gap: 26px; }
+
+.sec-title { font-size: 15px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 13px; }
+
+/* Karten mit gemaltem Motiv */
+.row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.row.n3 { grid-template-columns: repeat(3, 1fr); }
+.card {
+  position: relative; aspect-ratio: 16 / 10; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 16px 30px -14px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.10);
+  transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 22px 38px -14px rgba(0,0,0,.85), inset 0 0 0 1px rgba(120,200,255,.4); }
+.card canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.card .cap {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 34px 16px 14px; text-align: left;
+  background: linear-gradient(180deg, transparent, rgba(3,8,20,.9) 62%);
+}
+.card .cap b { display: block; font-size: 17px; font-weight: 700; }
+.card .cap span { display: block; font-size: 13px; color: var(--ink-soft); font-weight: 500; margin-top: 2px; }
+.bar { height: 4px; border-radius: 4px; background: rgba(255,255,255,.2); margin-top: 9px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 4px; background: var(--cyan); }
+
+/* App-Kacheln */
+.tiles { display: flex; gap: 16px; flex-wrap: wrap; }
+.tile {
+  width: 132px; padding: 16px 10px 13px; border-radius: 16px; text-align: center;
+  background: rgba(255,255,255,.055);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.13);
+  transition: background .18s, transform .18s var(--ease);
+}
+.tile:hover { background: rgba(255,255,255,.12); transform: translateY(-3px); }
+.tile .ti { width: 46px; height: 46px; margin: 0 auto 10px; display: grid; place-items: center; border-radius: 13px; }
+.tile .ti svg { width: 26px; height: 26px; }
+.tile b { display: block; font-size: 14px; font-weight: 600; }
+.tile span { display: block; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
+
+/* Kategorie-Pillen */
+.chips { display: flex; gap: 13px; flex-wrap: wrap; }
+.chip {
+  padding: 12px 26px; border-radius: 12px; font-size: 14.5px; font-weight: 600; color: var(--ink-soft);
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,.13);
+  transition: background .16s, color .16s;
+}
+.chip:hover { background: rgba(255,255,255,.13); color: #fff; }
+.chip.on { color: #fff; box-shadow: inset 0 0 0 1px rgba(56,189,248,.6); background: rgba(56,189,248,.15); }
+
+/* Bücher */
+.shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.book {
+  display: flex; gap: 14px; padding: 14px; border-radius: 14px; text-align: left;
+  background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  transition: background .18s, transform .18s var(--ease);
+}
+.book:hover { background: rgba(255,255,255,.1); transform: translateY(-3px); }
+.book canvas { width: 62px; height: 86px; border-radius: 6px; flex: none; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
+.book b { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.25; }
+.book span { display: block; font-size: 12px; color: var(--ink-mute); margin-top: 3px; }
+.book em { display: block; font-style: normal; font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 10px; }
+
+/* Fußleiste des Desktops */
+.dsk-foot {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0 20px; margin-top: auto;
+}
+
+/* ============================================================
+   Kleine Bewohner am Rand
+   ============================================================ */
+
+.critter { position: absolute; z-index: 1; pointer-events: none; opacity: .9; }
+.critter svg { display: block; }
+.critter .eye { transform-origin: center; animation: blink 7s infinite; }
+.critter.b .eye { animation-delay: 2.6s; }
+.critter.c .eye { animation-delay: 4.4s; }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
+/* sie sitzen vor dem Regal, nicht davor im Weg */
+.critter.a { left: 92px;   bottom: 76px; }
+.critter.b { right: 128px; bottom: 80px; }
+.critter.c { left: 286px;  top: 92px; }
+
+/* ============================================================
+   Zurückhaltung, wenn gewünscht
+   ============================================================ */
+
+/* Wer weniger Bewegung eingestellt hat, bekommt denselben Weg — nur kurz:
+   das Fach ist trotzdem da, wo es hingehört. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-lid: 1ms; --t-dolly: 200ms; --dolly: linear; }
+  .card:hover, .tile:hover, .book:hover { transform: none; }
+  .critter .eye { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .wall { --cols: 2; --rows: 3; }
+  .lid-face h2 { font-size: 26px; }
+  .lid-face .glyph { width: 60px; height: 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="room" id="room">
+  <canvas id="sky"></canvas>
+
+  <header class="hud">
+    <div class="who">
+      <div class="avatar"></div>
+      <div>
+        <h1 id="kidName">Jake</h1>
+        <p>Willkommen zurück</p>
+      </div>
+    </div>
+    <div class="status">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 8.8a16 16 0 0 1 20 0M5 12.4a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <span class="clock" id="clock">19:45</span>
+      <span class="batt"></span>
+    </div>
+  </header>
+
+  <div class="wall-wrap">
+    <div class="wall" id="wall"></div>
+  </div>
+
+  <div class="scrim"></div>
+
+  <nav class="dock">
+    <button class="dbtn" data-act="power">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3.5v8"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+      Ausschalten
+    </button>
+    <div class="dock-mid">
+      <button class="dbtn" data-act="search" aria-label="Suchen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      </button>
+      <button class="dbtn on" data-act="home" aria-label="Startseite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M3.5 10.5 12 3.6l8.5 6.9V20a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/></svg>
+      </button>
+      <button class="dbtn" data-act="peek" id="peekBtn" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M8 3.5l-1.5 2.5M16 3.5l1.5 2.5"/></svg>
+        Alle Deckel
+      </button>
+    </div>
+    <button class="dbtn gate" data-act="gate">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+      Elternbereich
+    </button>
+  </nav>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   Symbole
+   ============================================================ */
+const S = (d, extra = '') =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+        stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+
+const ICON = {
+  play:    S('<path d="M8 5.4v13.2l11-6.6z" fill="currentColor" stroke-linejoin="round"/>'),
+  apps:    S('<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>'),
+  book:    S('<path d="M4 4.5h6a3 3 0 0 1 2 .9 3 3 0 0 1 2-.9h6v13h-6a3 3 0 0 0-2 .9 3 3 0 0 0-2-.9H4z"/><path d="M12 5.4v13"/>'),
+  pencil:  S('<path d="M4 20l1-4.4L15.6 5a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.4 19z"/><path d="M14.4 6.6l3 3"/>'),
+  tv:      S('<rect x="3" y="6" width="18" height="12.5" rx="2"/><path d="M8.5 2.8 12 6l3.5-3.2"/>'),
+  compass: S('<circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.8 13.6 14 8.8 15.6l1.6-5.2z" fill="currentColor" fill-opacity=".22"/>'),
+  plus:    S('<path d="M12 5.5v13M5.5 12h13"/>'),
+  music:   S('<path d="M9 18V6.4l10-1.9V16"/><circle cx="6.5" cy="18" r="2.6"/><circle cx="16.5" cy="16" r="2.6"/>'),
+  story:   S('<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
+  chess:   S('<path d="M9 20.5h6l-.7-5.5H9.7z"/><path d="M12 3.5a2.4 2.4 0 0 1 1.6 4.2l1.4 3.4a3 3 0 0 1-2.9 3.9h-.2a3 3 0 0 1-2.9-3.9l1.4-3.4A2.4 2.4 0 0 1 12 3.5z"/>'),
+  leaf:    S('<path d="M20 4.5C10.5 4 4.5 8 4.5 14.5A5.5 5.5 0 0 0 10 20c6.5 0 10.5-6 10-15.5z"/><path d="M8 18C10.5 13 14 10 19 7.5"/>'),
+  planet:  S('<circle cx="12" cy="11.4" r="6"/><ellipse cx="12" cy="11.4" rx="11" ry="4" transform="rotate(-22 12 11.4)"/>'),
+  paw:     S('<ellipse cx="12" cy="16" rx="4.6" ry="4"/><circle cx="6.6" cy="11" r="2.1"/><circle cx="17.4" cy="11" r="2.1"/><circle cx="9.4" cy="6.6" r="2.1"/><circle cx="14.6" cy="6.6" r="2.1"/>'),
+  globe:   S('<circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.4 2.4 3.6 5.3 3.6 8.6S14.4 18.2 12 20.6c-2.4-2.4-3.6-5.3-3.6-8.6S9.6 5.8 12 3.4z"/>'),
+  brush:   S('<path d="M14.5 3.8 20.2 9.5 11 18.7a3 3 0 0 1-1.5.8L5 20.5l1-4.5a3 3 0 0 1 .8-1.5z"/><path d="M12.6 5.7 18.3 11.4"/>'),
+  cube:    S('<path d="M12 3.2 20 7.6v8.8L12 20.8 4 16.4V7.6z"/><path d="M4 7.6 12 12l8-4.4M12 12v8.8"/>'),
+  back:    S('<path d="M20 12H4.5M10.5 5.5 4 12l6.5 6.5"/>'),
+  search:  S('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
+  home:    S('<path d="M3.5 10.5 12 3.6l8.5 6.9V20a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/>'),
+  window:  S('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18"/>'),
+  lock:    S('<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>'),
+  wifi:    S('<path d="M2 8.8a16 16 0 0 1 20 0M5 12.4a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.1" fill="currentColor" stroke="none"/>')
+};
+
+/* ============================================================
+   Bildwelten — jede Kachel wird gemalt, keine Dateien nötig
+   ============================================================ */
+
+const mulberry = (a) => () => {
+  a |= 0; a = (a + 0x6D2B79F5) | 0;
+  let t = Math.imul(a ^ (a >>> 15), 1 | a);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+const PAL = {
+  castle:  { sky: ['#3a1f6e', '#160a34'], glow: 'rgba(190,130,255,.55)', ridge: ['#2a1550', '#180a30', '#0c0518'], water: '#1b0d3a', stars: 1 },
+  sky:     { sky: ['#f0c58a', '#5d7fb8'], glow: 'rgba(255,225,180,.75)', ridge: ['#a9b7d4', '#7d8db2'],            water: null,      stars: 0 },
+  island:  { sky: ['#2f7fc4', '#0d3a6b'], glow: 'rgba(255,240,200,.45)', ridge: ['#12603f', '#0b3f2c'],            water: '#0d4d80', stars: 0 },
+  road:    { sky: ['#3d1250', '#0a0620'], glow: 'rgba(255,120,60,.6)',   ridge: ['#241038', '#120722'],            water: '#1a0a2c', stars: 1 },
+  cavern:  { sky: ['#5a2a8a', '#180b34'], glow: 'rgba(120,230,255,.5)',  ridge: ['#3a1a60', '#22103c', '#100722'], water: '#241048', stars: 0 },
+  arena:   { sky: ['#8a3418', '#280a12'], glow: 'rgba(255,170,60,.6)',   ridge: ['#4a1a16', '#2a0e10'],            water: null,      stars: 0 },
+  peak:    { sky: ['#c9a26a', '#3c4a72'], glow: 'rgba(255,235,190,.65)', ridge: ['#4a4260', '#2e2a44'],            water: null,      stars: 0 },
+  ocean:   { sky: ['#1c4f86', '#061a34'], glow: 'rgba(180,225,255,.5)',  ridge: ['#0d3358', '#07203a'],            water: '#0a2c4e', stars: 1 },
+  forest:  { sky: ['#1d5a4a', '#07211e'], glow: 'rgba(200,255,190,.4)',  ridge: ['#12463a', '#0a2b24'],            water: '#0a2f2a', stars: 0 },
+  aurora:  { sky: ['#0f3f5e', '#050f26'], glow: 'rgba(110,255,190,.5)',  ridge: ['#0c2942', '#061626'],            water: '#08243c', stars: 1 },
+  temple:  { sky: ['#7a4a86', '#1a0e2c'], glow: 'rgba(255,200,120,.5)',  ridge: ['#432a58', '#26163a', '#140b22'], water: '#2a1542', stars: 1 },
+  space:   { sky: ['#241a52', '#04061a'], glow: 'rgba(150,170,255,.55)',  ridge: ['#151038', '#080520'],           water: null,      stars: 2 },
+  meadow:  { sky: ['#2a6fa8', '#0b2d52'], glow: 'rgba(255,240,190,.5)',  ridge: ['#1d6b46', '#0f4530'],            water: '#12507e', stars: 0 },
+  desk:    { sky: ['#1a6b74', '#08303a'], glow: 'rgba(255,220,150,.75)', ridge: ['#0e4a52', '#082e36'],            water: null,      stars: 0 },
+  library: { sky: ['#3b2a6e', '#150c30'], glow: 'rgba(255,205,130,.6)',  ridge: ['#2a1c52', '#170e34'],            water: null,      stars: 0 }
+};
+
+function paint(cv, key, seed, w, h) {
+  const p = PAL[key] || PAL.castle;
+  const dpr = 1.6;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d');
+  c.scale(dpr, dpr);
+  const r = mulberry(seed);
+
+  let g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, p.sky[0]); g.addColorStop(1, p.sky[1]);
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+
+  if (p.stars) {
+    const n = 26 * p.stars;
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h * .72, s = r() * 1.3 + .3;
+      c.globalAlpha = .25 + r() * .6;
+      c.fillStyle = r() > .82 ? '#ffe6a8' : '#ffffff';
+      c.beginPath(); c.arc(x, y, s, 0, 6.284); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
+
+  const ox = w * (.18 + r() * .64), oy = h * (.1 + r() * .26), orad = h * (.62 + r() * .6);
+  g = c.createRadialGradient(ox, oy, 0, ox, oy, orad);
+  g.addColorStop(0, p.glow); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+
+  const horizon = h * (p.water ? .62 : .76);
+  p.ridge.forEach((col, i) => {
+    const base = horizon - (p.ridge.length - 1 - i) * h * .07;
+    const amp = h * (.3 - i * .06);
+    c.fillStyle = col;
+    c.beginPath(); c.moveTo(0, h);
+    let y = base - r() * amp * .4;
+    for (let x = 0; x <= w + 24; x += w / 7) {
+      const ny = base - Math.abs(Math.sin(x * (.7 + i) / w * 3 + seed)) * amp * (.5 + r() * .7);
+      c.quadraticCurveTo(x - w / 14, (y + ny) / 2 - amp * .12, x, ny);
+      y = ny;
+    }
+    c.lineTo(w, h); c.closePath(); c.fill();
+  });
+
+  if (p.water) {
+    c.fillStyle = p.water; c.fillRect(0, horizon, w, h - horizon);
+
+    // Spiegelung des Lichts — weich auslaufend, damit kein Balken entsteht
+    c.save();
+    c.beginPath(); c.rect(0, horizon, w, h - horizon); c.clip();
+    g = c.createRadialGradient(ox, horizon, 0, ox, horizon, Math.max(w, h) * .42);
+    g.addColorStop(0, 'rgba(255,255,255,.24)');
+    g.addColorStop(.55, 'rgba(255,255,255,.06)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g; c.fillRect(0, horizon, w, h - horizon);
+
+    // ein paar Kräusel, kurz und leise
+    c.lineCap = 'round';
+    for (let i = 0; i < 9; i++) {
+      const t = i / 9;
+      const y = horizon + (h - horizon) * (t * t * .95 + .05);
+      const len = w * (.06 + r() * .16) * (1 - t * .4);
+      const x = ox + (r() - .5) * w * .5 - len / 2;
+      c.strokeStyle = `rgba(255,255,255,${(.16 - t * .1).toFixed(3)})`;
+      c.lineWidth = Math.max(1, (h - horizon) * .022);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y); c.stroke();
+    }
+    c.restore();
+
+    // Horizontkante
+    g = c.createLinearGradient(0, horizon - h * .03, 0, horizon + h * .02);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(.7, 'rgba(255,255,255,.13)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g; c.fillRect(0, horizon - h * .03, w, h * .05);
+  }
+
+  g = c.createRadialGradient(w / 2, h * .45, h * .2, w / 2, h * .5, h * 1.1);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(2,5,14,.55)');
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+}
+
+/* ============================================================
+   Inhalt der sechs Fächer
+   ============================================================ */
+
+const BAYS = [
+  {
+    id: 'spielen', label: 'Spielen', kicker: '8 Spiele', icon: 'play', scene: 'castle',
+    title: 'Spielen', sub: 'Spring rein in deine Spiele und Abenteuer.',
+    sections: [
+      { kind: 'cards', title: 'Meine Spiele', items: [
+        { name: 'Sternenschloss', meta: 'Zuletzt heute gespielt', scene: 'castle' },
+        { name: 'Wolkensegler',   meta: 'Zuletzt gestern',        scene: 'sky' },
+        { name: 'Inselwelt',      meta: 'Vor 3 Tagen',            scene: 'island' },
+        { name: 'Rennstern',      meta: 'Vor einer Woche',        scene: 'road' }
+      ]},
+      { kind: 'cards', title: 'Für dich empfohlen', items: [
+        { name: 'Kristallhöhle',  scene: 'cavern' },
+        { name: 'Turnierplatz',   scene: 'arena' },
+        { name: 'Wächtergipfel',  scene: 'peak' },
+        { name: 'Ozeanfahrt',     scene: 'ocean' }
+      ]}
+    ]
+  },
+  {
+    id: 'apps', label: 'Apps', kicker: '3 erlaubt', icon: 'apps', scene: 'desk',
+    title: 'Apps', sub: 'Deine Werkzeuge, Medien und mehr.',
+    sections: [
+      { kind: 'tiles', title: 'Erlaubte Apps', items: [
+        { name: 'Bücher',    hint: 'Lesen',    icon: 'book',   tint: '#3b82f6' },
+        { name: 'Malstudio', hint: 'Kreativ',  icon: 'brush',  tint: '#38bdf8' },
+        { name: 'Schach',    hint: 'Denken',   icon: 'chess',  tint: '#22c55e' },
+        { name: 'Hinzufügen', hint: 'Anfragen', icon: 'plus',  tint: '#64748b' }
+      ]},
+      { kind: 'chips', title: 'Kategorien', items: ['Lernen', 'Kreativ', 'Unterhaltung', 'Werkzeuge'] },
+      { kind: 'cards', title: 'Zuletzt benutzt', items: [
+        { name: 'Malstudio',  meta: 'Vor 20 Minuten', scene: 'desk' },
+        { name: 'Bücher',     meta: 'Gestern Abend',  scene: 'library' },
+        { name: 'Schach',     meta: 'Vor 2 Tagen',    scene: 'temple' },
+        { name: 'Sternenkarte', meta: 'Letzte Woche', scene: 'space' }
+      ]}
+    ]
+  },
+  {
+    id: 'bibliothek', label: 'Bibliothek', kicker: '4 Bücher', icon: 'book', scene: 'library',
+    title: 'Bibliothek', sub: 'Bücher, Spielstände und Gesammeltes.',
+    sections: [
+      { kind: 'chips', items: ['Bücher', 'Spielstände', 'Downloads', 'Sammlungen'] },
+      { kind: 'books', title: 'Weiterlesen', items: [
+        { name: 'Der verwunschene Wald', by: 'L. Grünwald',  pct: 66, scene: 'forest' },
+        { name: 'Sterne und weiter',     by: 'A. Orion',     pct: 100, scene: 'space' },
+        { name: 'Das verlorene Reich',   by: 'M. Stein',     pct: 45, scene: 'temple' },
+        { name: 'Meeresgeschichten',     by: 'T. Blauwasser', pct: 80, scene: 'ocean' }
+      ]},
+      { kind: 'cards', title: 'Neu im Regal', items: [
+        { name: 'Die Nachtwanderer', meta: 'Vorlesebuch',  scene: 'aurora' },
+        { name: 'Insel der Riesen',  meta: 'Abenteuer',    scene: 'island' },
+        { name: 'Der Bergpfad',      meta: 'Sachbuch',     scene: 'peak' },
+        { name: 'Tief unten',        meta: 'Meer & Tiere', scene: 'ocean' }
+      ]}
+    ]
+  },
+  {
+    id: 'erschaffen', label: 'Erschaffen', kicker: '4 Werke', icon: 'pencil', scene: 'desk',
+    title: 'Erschaffen', sub: 'Mach etwas, das es noch nicht gibt.',
+    sections: [
+      { kind: 'tiles', title: 'Neu anfangen', items: [
+        { name: 'Zeichnen',     hint: 'Malstudio', icon: 'brush',  tint: '#38bdf8' },
+        { name: 'Musik',        hint: 'Klanglabor', icon: 'music', tint: '#f59e0b' },
+        { name: 'Geschichten',  hint: 'Schreiben',  icon: 'story', tint: '#8b5cf6' },
+        { name: 'Mehr',         hint: 'Bausteine',  icon: 'cube',  tint: '#64748b' }
+      ]},
+      { kind: 'cards', title: 'Meine Werke', items: [
+        { name: 'Dorf im Schnee',  meta: 'Gestern',      scene: 'peak' },
+        { name: 'Das Baumhaus',    meta: 'Vor 2 Tagen',  scene: 'meadow' },
+        { name: 'Nachtsee',        meta: 'Letzte Woche', scene: 'aurora' },
+        { name: 'Der Drache',      meta: 'Letzte Woche', scene: 'arena' }
+      ]}
+    ]
+  },
+  {
+    id: 'schauen', label: 'Schauen', kicker: '3 laufen', icon: 'tv', scene: 'castle',
+    title: 'Schauen', sub: 'Filme und Serien für dich.',
+    sections: [
+      { kind: 'cards', title: 'Weiterschauen', n: 3, items: [
+        { name: 'Weltraum-Entdecker', meta: 'Staffel 1 · Folge 4', pct: 62, scene: 'space' },
+        { name: 'Wilder Planet',      meta: 'Staffel 1 · Folge 2', pct: 38, scene: 'meadow' },
+        { name: 'Magische Akademie',  meta: 'Staffel 2 · Folge 5', pct: 74, scene: 'castle' }
+      ]},
+      { kind: 'chips', title: 'Empfohlen für dich', items: ['Filme', 'Serien', 'Lernen', 'Kurzfilme'] }
+    ]
+  },
+  {
+    id: 'entdecken', label: 'Entdecken', kicker: '4 Welten', icon: 'compass', scene: 'meadow',
+    title: 'Entdecken', sub: 'Neue Orte und Ideen.',
+    sections: [
+      { kind: 'tiles', title: 'Wohin heute?', items: [
+        { name: 'Natur',    hint: 'Wälder & Seen', icon: 'leaf',   tint: '#22c55e' },
+        { name: 'Weltall',  hint: 'Planeten',      icon: 'planet', tint: '#6366f1' },
+        { name: 'Tiere',    hint: 'Nah dran',      icon: 'paw',    tint: '#f59e0b' },
+        { name: 'Kulturen', hint: 'Menschen',      icon: 'globe',  tint: '#38bdf8' }
+      ]},
+      { kind: 'cards', title: 'Ausgewählt', n: 3, items: [
+        { name: 'Nordlichter',     meta: 'Norwegen',  scene: 'aurora' },
+        { name: 'Bergsee',         meta: 'Alpen',     scene: 'peak' },
+        { name: 'Tempel im Nebel', meta: 'Japan',     scene: 'temple' }
+      ]}
+    ]
+  }
+];
+
+/* ============================================================
+   Aufbau
+   ============================================================ */
+
+const room = document.getElementById('room');
+const wall = document.getElementById('wall');
+let seedCount = 1;
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
+function cardMarkup(it, w, h) {
+  const prog = it.pct != null ? `<div class="bar"><i style="width:${it.pct}%"></i></div>` : '';
+  const meta = it.meta ? `<span>${esc(it.meta)}</span>` : '';
+  return `<button class="card" data-scene="${it.scene}" data-w="${w}" data-h="${h}">
+      <canvas aria-hidden="true"></canvas>
+      <span class="cap"><b>${esc(it.name)}</b>${meta}${prog}</span>
+    </button>`;
+}
+
+function sectionMarkup(sec) {
+  const head = sec.title ? `<div class="sec-title">${esc(sec.title)}</div>` : '';
+  if (sec.kind === 'cards') {
+    const n = sec.n || 4;
+    const w = n === 3 ? 420 : 308, h = Math.round(w * 10 / 16);
+    return `<section>${head}<div class="row${n === 3 ? ' n3' : ''}">
+      ${sec.items.map((it) => cardMarkup(it, w, h)).join('')}</div></section>`;
+  }
+  if (sec.kind === 'tiles') {
+    return `<section>${head}<div class="tiles">${sec.items.map((it) => `
+      <button class="tile">
+        <span class="ti" style="background:${it.tint}22; box-shadow: inset 0 0 0 1px ${it.tint}66; color:${it.tint}">${ICON[it.icon] || ICON.cube}</span>
+        <b>${esc(it.name)}</b><span>${esc(it.hint || '')}</span>
+      </button>`).join('')}</div></section>`;
+  }
+  if (sec.kind === 'chips') {
+    return `<section>${head}<div class="chips">${sec.items.map((t, i) =>
+      `<button class="chip${i === 0 && !sec.title ? ' on' : ''}">${esc(t)}</button>`).join('')}</div></section>`;
+  }
+  if (sec.kind === 'books') {
+    return `<section>${head}<div class="shelf">${sec.items.map((b) => `
+      <button class="book">
+        <canvas data-scene="${b.scene}" data-w="62" data-h="86" aria-hidden="true"></canvas>
+        <span><b>${esc(b.name)}</b><span>${esc(b.by)}</span><em>${b.pct}%</em></span>
+      </button>`).join('')}</div></section>`;
+  }
+  return '';
+}
+
+function screenMarkup(bay) {
+  return `
+    <div class="screen-bg"><canvas data-scene="${bay.scene}" data-w="700" data-h="394" aria-hidden="true"></canvas></div>
+    <div class="dsk">
+      <div class="dsk-top">
+        <div class="who">
+          <div class="avatar"></div>
+          <div><h1>Jake</h1><p>Willkommen zurück</p></div>
+        </div>
+        <div class="status">${ICON.wifi}<span class="clock" data-clock>19:45</span><span class="batt"></span></div>
+      </div>
+      <div class="dsk-head"><h2>${esc(bay.title)}</h2><p>${esc(bay.sub)}</p></div>
+      <div class="dsk-body">${bay.sections.map(sectionMarkup).join('')}</div>
+      <div class="dsk-foot">
+        <button class="dbtn" data-act="close">${ICON.back} Zurück</button>
+        <div class="dock-mid">
+          <button class="dbtn" aria-label="Suchen">${ICON.search}</button>
+          <button class="dbtn on" data-act="close" aria-label="Startseite">${ICON.home}</button>
+          <button class="dbtn" aria-label="Fenster">${ICON.window}</button>
+        </div>
+        <button class="dbtn gate" data-act="gate">${ICON.lock} Elternbereich</button>
+      </div>
+    </div>`;
+}
+
+BAYS.forEach((bay, i) => {
+  const el = document.createElement('article');
+  el.className = 'bay';
+  el.dataset.id = bay.id;
+  el.innerHTML = `
+    <div class="bay-box">
+      <div class="bay-inner">
+        <div class="screen">${screenMarkup(bay)}</div>
+        <div class="spill"></div>
+      </div>
+      <div class="rim"></div>
+      <div class="lid">
+        <div class="lid-face">
+          <div class="glyph">${ICON[bay.icon]}</div>
+          <h2>${esc(bay.label)}</h2>
+          <p>${esc(bay.kicker)}</p>
+        </div>
+      </div>
+      <div class="hinge l"></div><div class="hinge r"></div>
+    </div>
+    <button class="bay-hit" aria-label="${esc(bay.label)} öffnen"></button>`;
+  el.style.setProperty('--i', i);
+  wall.appendChild(el);
+});
+
+// alle Motive einmal malen
+document.querySelectorAll('canvas[data-scene]').forEach((cv) => {
+  paint(cv, cv.dataset.scene, seedCount++ * 977, +cv.dataset.w, +cv.dataset.h);
+});
+document.querySelectorAll('.card').forEach((card) => {
+  const cv = card.querySelector('canvas');
+  if (cv && !cv.dataset.scene) paint(cv, card.dataset.scene, seedCount++ * 977, +card.dataset.w, +card.dataset.h);
+});
+
+/* ============================================================
+   Nachthimmel
+   ============================================================ */
+
+const sky = document.getElementById('sky');
+function paintSky() {
+  const w = sky.width = innerWidth, h = sky.height = innerHeight;
+  const c = sky.getContext('2d');
+  let g = c.createLinearGradient(0, 0, w * .3, h);
+  g.addColorStop(0, '#0a1c44'); g.addColorStop(.55, '#061128'); g.addColorStop(1, '#03071a');
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+  g = c.createRadialGradient(w * .5, h * .3, 0, w * .5, h * .3, h * 1.1);
+  g.addColorStop(0, 'rgba(40,110,220,.24)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+  const r = mulberry(7);
+  for (let i = 0; i < 160; i++) {
+    const x = r() * w, y = r() * h, s = r() * 1.5 + .2;
+    c.globalAlpha = .15 + r() * .7;
+    c.fillStyle = r() > .85 ? '#ffd9a0' : (r() > .6 ? '#a8d8ff' : '#ffffff');
+    c.beginPath(); c.arc(x, y, s, 0, 6.284); c.fill();
+  }
+  c.globalAlpha = 1;
+}
+paintSky();
+
+/* kleine Bewohner */
+const critter = (cls, scale, tint) => {
+  const d = document.createElement('div');
+  d.className = 'critter ' + cls;
+  d.innerHTML = `<svg width="${86 * scale}" height="${78 * scale}" viewBox="0 0 86 78">
+    <ellipse cx="43" cy="52" rx="26" ry="24" fill="${tint}"/>
+    <path d="M24 32 L18 10 L36 24 Z M62 32 L68 10 L50 24 Z" fill="${tint}"/>
+    <g class="eye"><ellipse cx="34" cy="48" rx="6.5" ry="7" fill="#ffe9b0"/><ellipse cx="52" cy="48" rx="6.5" ry="7" fill="#ffe9b0"/></g>
+    <circle cx="35.5" cy="49" r="2.6" fill="#1a1206"/><circle cx="53.5" cy="49" r="2.6" fill="#1a1206"/>
+  </svg>`;
+  room.appendChild(d);
+};
+critter('a', 1.05, '#1b2440');
+critter('b', .82, '#141d36');
+critter('c', .62, '#18213c');
+
+/* ============================================================
+   Uhr
+   ============================================================ */
+
+function tick() {
+  const t = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clock').textContent = t;
+  document.querySelectorAll('[data-clock]').forEach((e) => { e.textContent = t; });
+}
+tick(); setInterval(tick, 20000);
+
+/* ============================================================
+   Maßstab: Bühne 1400×788 ins Fach rechnen
+   ============================================================ */
+
+/* Das Fach bekommt die Form des Bildschirms, die Wand wird so breit, dass
+   sechs solche Fächer in den freien Platz passen — in beide Richtungen.
+   Damit fällt beim Hineinfahren kein Rand weg und es bleibt kein Balken übrig. */
+const STAGE_W = 1400, SH_MIN = 700, SH_MAX = 1180;
+
+function fit() {
+  const sh = Math.round(Math.min(SH_MAX, Math.max(SH_MIN, STAGE_W * innerHeight / innerWidth)));
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--vw', innerWidth);
+  rootStyle.setProperty('--vh', innerHeight);
+  rootStyle.setProperty('--sw', STAGE_W);
+  rootStyle.setProperty('--sh', sh);
+
+  const wrap = wall.parentElement;
+  const cs = getComputedStyle(wrap);
+  const availW = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const ws = getComputedStyle(wall);
+  const cols = +ws.getPropertyValue('--cols') || 3;
+  const rows = +ws.getPropertyValue('--rows') || 2;
+  const gap = parseFloat(ws.gap) || 26;
+
+  const bayW = Math.min(
+    (availW - gap * (cols - 1)) / cols,
+    ((availH - gap * (rows - 1)) / rows) * (innerWidth / innerHeight),
+    520
+  );
+  wall.style.width = Math.floor(bayW * cols + gap * (cols - 1)) + 'px';
+
+  const r = wall.querySelector('.bay-box').getBoundingClientRect();
+  const k = Math.min(r.width / STAGE_W, r.height / sh);   // nichts abschneiden
+  wall.querySelectorAll('.screen').forEach((s) => s.style.setProperty('--k', k));
+}
+
+/* ============================================================
+   Klick → Deckel auf, Kamera hinein
+   ============================================================ */
+
+const state = { open: null, busy: false, armed: null };
+const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* Es fliegt nur das eine Fach, nicht die ganze Wand: der Korpus wird an
+   seiner gemessenen Stelle festgesetzt (position: fixed, gleiche Geometrie,
+   also kein Sprung) und von dort auf Bildschirmgröße gefahren. So muss der
+   Browser während der Fahrt eine Fläche zeichnen statt sechs. */
+function camera(box) {
+  const r = box.getBoundingClientRect();
+  const S = Math.max(innerWidth / r.width, innerHeight / r.height);
+  const tx = (innerWidth - r.width * S) / 2 - r.left;
+  const ty = (innerHeight - r.height * S) / 2 - r.top;
+  return { r, S, tx, ty };
+}
+
+function pin(box, r) {
+  box.style.position = 'fixed';
+  box.style.left = r.left + 'px';
+  box.style.top = r.top + 'px';
+  box.style.width = r.width + 'px';
+  box.style.height = r.height + 'px';
+}
+
+function unpin(box) {
+  box.style.position = box.style.left = box.style.top = box.style.width = box.style.height = '';
+}
+
+/* Die Ebene vorbereiten, sobald ein Fach ins Visier gerät. Das kostet einen
+   Moment — den nimmt man sich vor dem Klick, nicht im Klick, sonst ruckelt
+   der Anfang der Fahrt. */
+function arm(bayEl) {
+  const box = bayEl && bayEl.querySelector('.bay-box');
+  if (!box || box === state.armed) return;
+  if (state.armed) state.armed.style.willChange = 'auto';
+  box.style.willChange = 'transform';
+  state.armed = box;
+}
+function disarm(box) { if (box) box.style.willChange = 'auto'; if (state.armed === box) state.armed = null; }
+
+function open(bayEl) {
+  if (state.open || state.busy) return;
+  state.busy = true;
+  state.open = bayEl;
+
+  // Kein fit() an dieser Stelle: das Layout steht schon, und ein Reflow
+  // ausgerechnet im Klick würde den Start der Fahrt verzögern.
+  const box = bayEl.querySelector('.bay-box');
+  const cam = camera(box);              // messen, solange nichts verschoben ist
+  arm(bayEl);
+  pin(box, cam.r);                      // gleiche Stelle, gleiche Größe — kein Sprung
+  bayEl.classList.add('flying');
+  bayEl.classList.add('open');          // der Deckel schwingt auf …
+
+  // … und im selben Atemzug fährt die Kamera los. Kein requestAnimationFrame
+  // dazwischen: dessen Rückruf kann sich verspäten, und genau dann fühlt
+  // sich der Zoom nicht mehr wie eine Antwort auf den Klick an.
+  box.style.transform = `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.S})`;
+  room.classList.add('zoomed');
+  sfx('open');
+
+  after(() => {
+    disarm(box);                        // neu rastern: der Desktop wird gestochen scharf
+    state.busy = false;
+    const first = bayEl.querySelector('.dsk-body button');
+    if (first) first.focus({ preventScroll: true });
+  });
+}
+
+function close() {
+  const bayEl = state.open;
+  if (!bayEl || state.busy) return;
+  state.busy = true;
+  sfx('close');
+
+  const box = bayEl.querySelector('.bay-box');
+  arm(bayEl);
+  box.style.transform = '';
+  room.classList.remove('zoomed');
+
+  after(() => {
+    bayEl.classList.remove('open');     // der Deckel fällt erst zu, wenn das Fach wieder sitzt
+    bayEl.classList.remove('flying');
+    unpin(box);
+    disarm(box);
+    state.open = null;
+    state.busy = false;
+    bayEl.querySelector('.bay-hit').focus({ preventScroll: true });
+  });
+}
+
+function after(fn) {
+  setTimeout(fn, reduced.matches ? 240 : 880);
+}
+
+/* Sanfte Geräusche — synthetisch, keine Dateien */
+let ac = null;
+function sfx(kind) {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = kind === 'open' ? 900 : 600;
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(kind === 'open' ? 180 : 300, t);
+    o.frequency.exponentialRampToValueAtTime(kind === 'open' ? 420 : 140, t + .34);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(.06, t + .03);
+    g.gain.exponentialRampToValueAtTime(.0001, t + .42);
+    o.connect(f); f.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + .45);
+  } catch (e) { /* Ton ist Zugabe, nie Voraussetzung */ }
+}
+
+/* ============================================================
+   Bedienung: Maus, Tastatur, Steuerkreuz
+   ============================================================ */
+
+wall.addEventListener('pointerover', (e) => { if (!state.open) arm(e.target.closest('.bay')); });
+wall.addEventListener('focusin', (e) => { if (!state.open) arm(e.target.closest('.bay')); });
+
+wall.addEventListener('click', (e) => {
+  const hit = e.target.closest('.bay-hit');
+  if (hit) { open(hit.closest('.bay')); return; }
+  const act = e.target.closest('[data-act]');
+  if (act && act.dataset.act === 'close') close();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.open) { close(); return; }
+  if (state.open) return;
+
+  const hits = [...wall.querySelectorAll('.bay-hit')];
+  const cur = hits.indexOf(document.activeElement);
+  if (cur < 0) return;
+  const cols = +getComputedStyle(wall).getPropertyValue('--cols') || 3;
+  const map = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols };
+  if (map[e.key] != null) {
+    e.preventDefault();
+    const next = hits[cur + map[e.key]];
+    if (next) next.focus();
+  }
+});
+
+document.querySelector('.dock').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  if (b.dataset.act === 'peek') {
+    const on = wall.classList.toggle('peeking');
+    wall.querySelectorAll('.bay').forEach((x) => x.classList.toggle('peek', on));
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+});
+
+addEventListener('resize', () => {
+  paintSky();
+  if (!state.open) { fit(); return; }
+
+  // Fenstergröße geändert, während ein Fach offen ist: ohne Animation neu setzen
+  const bayEl = state.open, box = bayEl.querySelector('.bay-box');
+  const prev = box.style.transition;
+  box.style.transition = 'none';
+  unpin(box); box.style.transform = '';
+  fit();
+  const cam = camera(box);
+  pin(box, cam.r);
+  box.style.transform = `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.S})`;
+  box.getBoundingClientRect();          // Stand festschreiben, bevor die Übergänge zurückkommen
+  box.style.transition = prev;
+});
+
+fit();
+requestAnimationFrame(fit);
+})();
+</script>
+</body>
+</html>
