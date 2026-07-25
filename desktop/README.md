@@ -19,7 +19,7 @@ separate from the Android app.
 | Path | What it is |
 |---|---|
 | `prototype.html` + `css/` + `js/` | The clickable **design prototype** (no build step). Design source of truth for the child shell. |
-| `faecher.html` | The **Fächerwand** home concept — one self-contained file, no build, no assets. Six lidded compartments, a desktop hidden in each; a click opens the lid and the camera flies into that compartment until it fills the screen. See below. |
+| `faecher.html` | The **Fächerwand** home concept — one self-contained file, no build step. Six lidded compartments laid out on the measured reference render, a desktop hidden in each; a click opens the lid and the camera flies into that compartment until it fills the screen. See below. |
 | `index.html` + `src/` | The **child shell** renderer. |
 | `curator.html` + `src/curator/` | The **parent curator** renderer (Familienzentrale). |
 | `electron/` | Main process + the two preload bridges. |
@@ -43,43 +43,46 @@ the child shell: **Elternbereich** tile → PIN (demo: `1234`).
 ## Fächerwand (`faecher.html`)
 
 The home screen as a shelf of six lidded compartments: **Spielen · Apps · Bibliothek ·
-Erschaffen · Schauen · Entdecken**. Each lid carries the world that lives behind it — a
-crystal over a still lake, a lit archway, a wall of books, a desk with a lamp, a castle on
-the river, a cave mouth opening onto a sunlit forest — in that compartment's own colour,
-with the name and icon set into the bottom left. The shelf stands in the habitat: leaves
-frame both edges, and things with lit eyes sit in them. Each lid rests almost closed with
-warm light seeping out of the crack; hover or focus lifts it, so you can peek at the desktop
-inside. Click, and the lid swings open while the camera immediately starts flying into that
-compartment — no pause between the two — until the compartment fills the whole screen and
-its desktop is simply the screen; the same world is waiting there as a dimmed backdrop.
-**Esc** or **Zurück** flies back out; the lid drops shut once the compartment has landed
-again.
+Erschaffen · Schauen · Entdecken**. Hover or focus lifts a lid a crack, so you can see
+there is something inside. Click, and the lid swings open while the camera immediately
+starts flying into that compartment — no pause between the two — until the compartment
+fills the whole screen and its desktop is simply the screen; the same world is waiting
+there as a dimmed backdrop. **Esc** or **Zurück** flies back out and the lid drops shut.
+
+The lids open the way the shelf is built: **the left column swings left, the right column
+swings right, the middle ones up and down.**
 
 How it holds together:
 
-- **One shape everywhere.** The compartment takes the shape of the viewport, so when it
-  fills the screen nothing is cropped and no bar is left over. The desktop is laid out on a
-  fixed 1400 px-wide stage whose height follows the screen (clamped, so the layout can't be
-  squashed flat); on extreme aspect ratios the stage sits centred with dark margins rather
-  than losing its edges.
-- **Only one compartment moves.** The chosen `.bay-box` is pinned to its measured position
-  (`position: fixed`, same geometry, so nothing jumps) and flown from there. The other five
-  stay put under a single scrim that fades in — fading each one separately cost five
-  compositor layers per flight and visibly stuttered.
-- **The flight starts in the click.** The layer is prepared on hover/focus, and the
+- **The compartments come from the template, not from a guess.** The six faces were
+  measured off the magenta-keyed reference by fitting a line to each of the four edges and
+  intersecting them — rounded corners excluded, so the angles are exact. The outer
+  compartments are slightly trapezoidal, the middle column is square-on. The corners live
+  in `QUADS` as fractions of the reference image.
+- **One transform does the whole trick.** Each compartment is a screen-sized element that a
+  homography (`quadMatrix` → `matrix3d`) folds into its measured quad. Opening it simply
+  drops that mapping — `transform: none` — so the compartment lands exactly on the screen
+  with no arithmetic about centres, and nothing is cropped on the way.
+- **The shelf itself is the reference image**, including its frame, hinges, the foliage and
+  the creatures at the edges, the bar at the bottom and the header. The bar's buttons are
+  invisible hit areas laid over the rendered ones, so the picture stays untouched. The
+  third one — the window icon — lifts all six lids at once.
+- **The flight starts in the click.** The layer is prepared on hover/focus and the
   transform is set synchronously in the click handler; going through
   `requestAnimationFrame` delayed the start enough that the zoom stopped feeling like an
-  answer to the click.
-- **No assets.** Every piece of artwork — the six worlds, the card scenes, book covers, the
-  foliage and its inhabitants, the sky — is painted onto canvases in code, so the file
-  stands alone. The six worlds each have their own painter in `WORLD`; the small card art
-  shares the seeded landscape painter in `PAL` / `paint()`.
-- **Keyboard and d-pad.** Arrow keys move across the shelf, Enter opens, Esc goes back.
-  `prefers-reduced-motion` keeps the same path, just short.
+  answer to the click. While it flies, one scrim dims the room instead of six compartments
+  fading separately — that difference is a stutter.
+- **Closed means closed.** A shut compartment's desktop is `inert`, so tabbing moves across
+  the shelf instead of into a screen nobody can see. Arrow keys move across the shelf,
+  Enter opens, Esc goes back. `prefers-reduced-motion` keeps the same path, just short.
+- **Self-contained.** The reference render, the six lid paintings and the avatar are
+  embedded as WebP data URIs (~135 KB all together); the small card and book artwork inside
+  the desktops is still painted procedurally onto canvases.
 
 Prototype scope: the tiles, chips and cards are not wired to anything, and *Ausschalten* /
-*Suche* / *Elternbereich* are placeholders. Content lives in the `BAYS` array at the top of
-the script — that is the place to edit names, sections and scenes.
+*Suche* / *Elternbereich* are hit areas without behaviour. Content lives in the `BAYS`
+array at the top of the script; the artwork in `ART`, the measured faces in `QUADS`, and
+the hinge sides in `RICHTUNG`.
 
 ## How it's wired
 
