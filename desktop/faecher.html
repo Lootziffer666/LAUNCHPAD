@@ -33,7 +33,7 @@
   --dolly: cubic-bezier(.33, .05, .12, 1);
 
   --t-lid:   620ms;
-  --t-dolly: 860ms;
+  --t-dolly: 940ms;
 
   /* Bühne des Desktops: Breite fest, Höhe folgt dem Bildschirm */
   --sw: 1400; --sh: 788;
@@ -64,8 +64,11 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 /* Das Regal ist die Vorlage selbst. Es behält sein Seitenverhältnis,
    damit die ausgemessenen Fachflächen darauf sitzen bleiben. */
 #regal {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
+  position: absolute; left: 0; top: 0;
+  transform-origin: 0 0;
+  /* dauerhaft eigene Ebene: sonst kostet die erste Fahrt den Moment, in
+     dem der Browser das Regal zum ersten Mal vergrößert zeichnet */
+  will-change: transform;
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
@@ -75,7 +78,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .scrim {
   position: fixed; inset: 0; z-index: 50; pointer-events: none;
   background: var(--night); opacity: 0;
-  transition: opacity .52s var(--ease);
+  transition: opacity .72s var(--ease);
 }
 .room.zoomed .scrim { opacity: .95; }
 
@@ -87,15 +90,25 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
    weg — dann liegt das Fach deckungsgleich auf dem Bildschirm.
    ============================================================ */
 
+/* Zwei Ebenen, weil zwei verschiedene Dinge passieren:
+   .bay      fährt heran — reines Verschieben und Vergrößern,
+   .bay-face liegt schräg in der Vorlage und richtet sich dabei auf.
+   In einer einzigen Matrix vermischt, interpoliert der Browser beides
+   zusammen, und aus der Fahrt wird ein Aufpoppen. */
 .bay {
   position: fixed; left: 0; top: 0;
   width: 100vw; height: 100vh;
   transform-origin: 0 0;
-  transform: var(--quad);
-  transition: transform var(--t-dolly) var(--dolly);
+  transform: var(--dolly);
   z-index: 10;
 }
-.bay.open { transform: none; z-index: 60; }
+.bay.open { z-index: 60; }
+
+.bay-face {
+  position: absolute; inset: 0;
+  transform-origin: 0 0;
+  transform: var(--warp);
+}
 
 .bay-inner {
   position: absolute; inset: 0;
@@ -130,32 +143,33 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   backface-visibility: hidden;
 }
 
-/* Richtung und Angelpunkt nach Platz im Regal: außen öffnet nach außen,
-   die Mitte nach oben und unten. */
-/* In Ruhe liegt der Deckel flach auf seiner Fläche — genau so, wie sie in
-   der Vorlage gemessen ist. Gekippt wird erst beim Hinsehen. */
-.bay[data-open="links"]  .lid { transform-origin: 0% 50%; }
-.bay[data-open="rechts"] .lid { transform-origin: 100% 50%; }
-.bay[data-open="oben"]   .lid { transform-origin: 50% 0%; }
-.bay[data-open="unten"]  .lid { transform-origin: 50% 100%; }
+/* Der Angelpunkt liegt innen — die Scharnierbolzen sitzen in der Vorlage
+   auf den senkrechten Innenstegen. Die linke Reihe ist also rechts
+   angeschlagen und geht nach links auf, die rechte umgekehrt; die
+   mittleren hängen an der waagerechten Mitte und gehen nach oben bzw.
+   unten. In Ruhe liegt der Deckel flach auf seiner gemessenen Fläche. */
+.bay[data-open="links"]  .lid { transform-origin: 100% 50%; }
+.bay[data-open="rechts"] .lid { transform-origin: 0% 50%; }
+.bay[data-open="oben"]   .lid { transform-origin: 50% 100%; }
+.bay[data-open="unten"]  .lid { transform-origin: 50% 0%; }
 
 /* Ein Spalt weit, wenn man hinsieht: genug, um zu erkennen, dass etwas
    drin ist, wenig genug, um dem Nachbarfach nicht ins Bild zu schwingen. */
-.bay[data-open="links"]:hover  .lid, .bay[data-open="links"]:focus-within  .lid { transform: perspective(1500px) rotateY(-15deg); }
-.bay[data-open="rechts"]:hover .lid, .bay[data-open="rechts"]:focus-within .lid { transform: perspective(1500px) rotateY(15deg); }
+.bay[data-open="links"]:hover  .lid, .bay[data-open="links"]:focus-within  .lid { transform: perspective(1500px) rotateY(15deg); }
+.bay[data-open="rechts"]:hover .lid, .bay[data-open="rechts"]:focus-within .lid { transform: perspective(1500px) rotateY(-15deg); }
 .bay[data-open="oben"]:hover   .lid, .bay[data-open="oben"]:focus-within   .lid { transform: perspective(1500px) rotateX(-15deg); }
 .bay[data-open="unten"]:hover  .lid, .bay[data-open="unten"]:focus-within  .lid { transform: perspective(1500px) rotateX(15deg); }
 
 /* Alle sechs zugleich: noch zurückhaltender, sonst wird die Wand unruhig. */
-.bay[data-open="links"].peek  .lid { transform: perspective(1500px) rotateY(-9deg); }
-.bay[data-open="rechts"].peek .lid { transform: perspective(1500px) rotateY(9deg); }
+.bay[data-open="links"].peek  .lid { transform: perspective(1500px) rotateY(9deg); }
+.bay[data-open="rechts"].peek .lid { transform: perspective(1500px) rotateY(-9deg); }
 .bay[data-open="oben"].peek   .lid { transform: perspective(1500px) rotateX(-9deg); }
 .bay[data-open="unten"].peek  .lid { transform: perspective(1500px) rotateX(9deg); }
 
-.bay[data-open="links"].open  .lid { transform: perspective(1500px) rotateY(-112deg); opacity: 0; }
-.bay[data-open="rechts"].open .lid { transform: perspective(1500px) rotateY(112deg);  opacity: 0; }
-.bay[data-open="oben"].open   .lid { transform: perspective(1500px) rotateX(-112deg); opacity: 0; }
-.bay[data-open="unten"].open  .lid { transform: perspective(1500px) rotateX(112deg);  opacity: 0; }
+.bay[data-open="links"].open  .lid { transform: perspective(1500px) rotateY(115deg);  opacity: 0; }
+.bay[data-open="rechts"].open .lid { transform: perspective(1500px) rotateY(-115deg); opacity: 0; }
+.bay[data-open="oben"].open   .lid { transform: perspective(1500px) rotateX(-115deg); opacity: 0; }
+.bay[data-open="unten"].open  .lid { transform: perspective(1500px) rotateX(115deg);  opacity: 0; }
 
 .bay-hit { position: absolute; inset: 0; z-index: 7; }
 .bay.open .bay-hit, .room.zoomed .bay-hit { pointer-events: none; }
@@ -676,12 +690,14 @@ const bays = BAYS.map((bay, i) => {
   el.style.setProperty('--art', bay.art);
   el.style.setProperty('--tint', bay.tint);
   el.innerHTML = `
-    <div class="bay-inner">
-      <div class="screen">${screenMarkup(bay)}</div>
-      <div class="spill"></div>
-    </div>
-    <div class="lid"></div>
-    <button class="bay-hit" aria-label="${esc(bay.label)} öffnen"></button>`;
+    <div class="bay-face">
+      <div class="bay-inner">
+        <div class="screen">${screenMarkup(bay)}</div>
+        <div class="spill"></div>
+      </div>
+      <div class="lid"></div>
+      <button class="bay-hit" aria-label="${esc(bay.label)} öffnen"></button>
+    </div>`;
   // Ein geschlossenes Fach ist auch für die Tastatur zu: sonst landet man
   // beim Weiterspringen mitten in einem Desktop, den man gar nicht sieht.
   el.querySelector('.screen').inert = true;
@@ -753,6 +769,7 @@ function quadMatrix(w, h, q) {
 }
 
 const STAGE_W = 1400, SH_MIN = 700, SH_MAX = 1180;
+const geom = [];
 
 function fit() {
   // Bühne des Desktops
@@ -769,11 +786,30 @@ function fit() {
   const rx = (innerWidth - rw) / 2, ry = (innerHeight - rh) / 2;
   regal.style.width = rw + 'px';
   regal.style.height = rh + 'px';
+  regal.style.left = rx + 'px';
+  regal.style.top = ry + 'px';
 
-  // Fachflächen in Bildschirmkoordinaten
+  // Fachflächen in Bildschirmkoordinaten, zerlegt in Anfahrt und Form
   bays.forEach((el, i) => {
     const q = QUADS[i].map(([fx, fy]) => [rx + fx * rw, ry + fy * rh]);
-    el.style.setProperty('--quad', quadMatrix(innerWidth, innerHeight, q));
+    const xs = q.map((c) => c[0]), ys = q.map((c) => c[1]);
+    const bx = Math.min(...xs), by = Math.min(...ys);
+    const bw = Math.max(...xs) - bx, bh = Math.max(...ys) - by;
+    const sx = bw / innerWidth, sy = bh / innerHeight;
+
+    // Die Fahrt: das umschließende Rechteck des Fachs, sonst nichts.
+    el.style.setProperty('--dolly', `translate(${bx}px, ${by}px) scale(${sx}, ${sy})`);
+
+    // Die Form: das Viereck, ausgedrückt im Koordinatensystem der Fahrt.
+    const local = q.map(([x, y]) => [(x - bx) / sx, (y - by) / sy]);
+    el.querySelector('.bay-face').style.setProperty('--warp', quadMatrix(innerWidth, innerHeight, local));
+
+    geom[i] = {
+      bx, by, sx, sy,
+      fx: Math.abs(1 - sx) < 1e-4 ? 0 : bx / (1 - sx),   // Fluchtpunkt der Fahrt
+      fy: Math.abs(1 - sy) < 1e-4 ? 0 : by / (1 - sy),
+      warp: quadMatrix(innerWidth, innerHeight, local)
+    };
   });
 
   hots.forEach((b, i) => {
@@ -789,29 +825,109 @@ function fit() {
    Klick → Deckel auf, Kamera hinein
    ============================================================ */
 
-const state = { open: null, busy: false, armed: null };
+const state = { open: null, busy: false, armed: null, wantsOut: false };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+const running = new Map();
 
+/* Das Fach als eigene Ebene vorbereiten, sobald es ins Visier gerät —
+   nicht erst im Klick, sonst ruckelt der Anfang der Fahrt. */
 function arm(el) {
   if (!el || el === state.armed) return;
   if (state.armed) state.armed.style.willChange = 'auto';
   el.style.willChange = 'transform';
   state.armed = el;
 }
-function disarm(el) { if (el) el.style.willChange = 'auto'; if (state.armed === el) state.armed = null; }
+function disarm(el) {
+  if (el) el.style.willChange = 'auto';
+  if (state.armed === el) state.armed = null;
+}
+
+/* Die Fahrt.
+
+   Ein Maßstab, der gleichmäßig wächst, sieht nicht nach Fahrt aus: von .27
+   auf .6 passiert optisch fast alles, der Rest ist Nachlauf. Wer sich einem
+   Gegenstand mit gleichbleibendem Tempo nähert, sieht ihn dagegen
+   exponentiell wachsen. Genau das wird hier in Stützpunkte gelegt — jeder
+   Schritt vergrößert um denselben Faktor, gegen Ende etwas ausklingend.
+   Und es ist wirklich eine Fahrt: alle Zwischenbilder sind Vergrößerungen
+   um einen festen Fluchtpunkt, nichts wandert quer durchs Bild. */
+const STOPS = 14;
+
+/* Ein Bild der Fahrt: Maßstab k um den Fluchtpunkt, k wächst je Schritt um
+   denselben Faktor. `on` hängt ein feststehendes Ziel darunter — so fährt
+   nicht nur das gewählte Fach, sondern die ganze Wand mit. */
+function flightStep(g, t, world, on) {
+  const e = 1 - Math.pow(1 - t, 1.35);
+  let kx = Math.pow(g.sx, 1 - e), ky = Math.pow(g.sy, 1 - e);
+  if (world) { kx /= g.sx; ky /= g.sy; }        // Sicht des stehenden Regals
+  let tx = g.fx * (1 - kx), ty = g.fy * (1 - ky), ax = kx, ay = ky;
+  if (on) {                                     // hintereinander ausgeführt
+    tx += kx * on.bx; ty += ky * on.by;
+    ax = kx * on.sx;  ay = ky * on.sy;
+  }
+  return `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${ax.toFixed(5)}, ${ay.toFixed(5)})`;
+}
+
+function flightFrames(g, dir, world, on) {
+  const frames = [];
+  for (let n = 0; n <= STOPS; n++) {
+    frames.push({ transform: flightStep(g, n / STOPS, world, on) });
+  }
+  return dir === 'in' ? frames : frames.reverse();
+}
+
+function fly(el, i, dir) {
+  const g = geom[i];
+  const T = reduced.matches ? 200 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--t-dolly')) || 940;
+  const face = el.querySelector('.bay-face');
+
+  const prev = running.get(el);
+  if (prev) prev.forEach((a) => a.cancel());
+
+  const move = el.animate(flightFrames(g, dir), { duration: T, easing: 'linear', fill: 'forwards' });
+
+  // Die ganze Wand fährt mit: Regal und die übrigen fünf Deckel ziehen an
+  // der Kamera vorbei. Ohne das wächst nur eine Fläche über einem
+  // stehenden Bild — und genau das sieht nach Einblenden aus statt nach
+  // Hineinfahren.
+  const opts = { duration: T, easing: 'linear', fill: 'forwards' };
+  const rest = [regal.animate(flightFrames(g, dir, true), opts)];
+  bays.forEach((other, j) => {
+    if (other === el) return;
+    // Vom Nachbarfach ist nur der Deckel zu sehen; sein Desktop muss die
+    // Fahrt nicht mitzeichnen.
+    other.querySelector('.bay-inner').style.visibility = dir === 'in' ? 'hidden' : '';
+    rest.push(other.animate(flightFrames(g, dir, true, geom[j]), opts));
+  });
+
+  // Die Schräge richtet sich früh auf (beim Schließen spät wieder ein),
+  // damit die Fahrt selbst ungestört bleibt.
+  const straight = face.animate(
+    dir === 'in' ? [{ transform: g.warp }, { transform: 'none' }]
+                 : [{ transform: 'none' }, { transform: g.warp }],
+    { duration: T * .58, delay: dir === 'in' ? 0 : T * .42,
+      easing: dir === 'in' ? 'cubic-bezier(.32,0,.24,1)' : 'cubic-bezier(.76,0,.68,1)',
+      fill: 'forwards' });
+
+  running.set(el, [move, straight, ...rest]);
+  return Promise.all([move, straight, ...rest].map((a) => a.finished)).catch(() => {});
+}
 
 function open(el) {
   if (state.open || state.busy) return;
+  const i = bays.indexOf(el);
   state.busy = true;
   state.open = el;
   arm(el);
   el.querySelector('.screen').inert = false;
-  el.classList.add('open');       // Deckel schwingt auf und Fach fährt los —
+  el.classList.add('open');       // Deckel schwingt auf und die Fahrt beginnt —
   room.classList.add('zoomed');   // beides im selben Bild
   sfx('open');
-  after(() => {
+  fly(el, i, 'in').then(() => {
     disarm(el);                   // neu rastern: der Desktop wird scharf
     state.busy = false;
+    // Wer während der Fahrt schon wieder raus wollte, kommt jetzt raus.
+    if (state.wantsOut) { state.wantsOut = false; close(); return; }
     const first = el.querySelector('.dsk-body button');
     if (first) first.focus({ preventScroll: true });
   });
@@ -819,13 +935,19 @@ function open(el) {
 
 function close() {
   const el = state.open;
-  if (!el || state.busy) return;
+  if (!el) return;
+  if (state.busy) { state.wantsOut = true; return; }   // gemerkt, nicht verschluckt
+  const i = bays.indexOf(el);
   state.busy = true;
   sfx('close');
   arm(el);
   el.classList.remove('open');
   room.classList.remove('zoomed');
-  after(() => {
+  fly(el, i, 'out').then(() => {
+    const anims = running.get(el);
+    if (anims) anims.forEach((a) => a.cancel());   // zurück auf die Werte aus fit()
+    running.delete(el);
+    bays.forEach((other) => { other.querySelector('.bay-inner').style.visibility = ''; });
     disarm(el);
     el.querySelector('.screen').inert = true;
     state.open = null;
@@ -833,8 +955,6 @@ function close() {
     el.querySelector('.bay-hit').focus({ preventScroll: true });
   });
 }
-
-function after(fn) { setTimeout(fn, reduced.matches ? 240 : 880); }
 
 /* Sanfte Geräusche — synthetisch, keine Dateien */
 let ac = null;

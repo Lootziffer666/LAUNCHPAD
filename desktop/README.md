@@ -50,7 +50,9 @@ fills the whole screen and its desktop is simply the screen; the same world is w
 there as a dimmed backdrop. **Esc** or **Zurück** flies back out and the lid drops shut.
 
 The lids open the way the shelf is built: **the left column swings left, the right column
-swings right, the middle ones up and down.**
+swings right, the middle ones up and down.** The hinge sits on the inner edge — the
+reference render has the hinge barrels on the vertical inner posts, so the left column is
+hung on its right edge and swings outward, and mirrored on the right.
 
 How it holds together:
 
@@ -59,10 +61,19 @@ How it holds together:
   intersecting them — rounded corners excluded, so the angles are exact. The outer
   compartments are slightly trapezoidal, the middle column is square-on. The corners live
   in `QUADS` as fractions of the reference image.
-- **One transform does the whole trick.** Each compartment is a screen-sized element that a
-  homography (`quadMatrix` → `matrix3d`) folds into its measured quad. Opening it simply
-  drops that mapping — `transform: none` — so the compartment lands exactly on the screen
-  with no arithmetic about centres, and nothing is cropped on the way.
+- **Two layers, because two different things happen.** `.bay` travels — plain translate and
+  scale; `.bay-face` carries the homography (`quadMatrix` → `matrix3d`) that lays the
+  compartment into its measured quad and straightens out during the first half of the
+  flight. Folded into one matrix, the browser interpolates both together and the approach
+  turns into a pop.
+- **The flight is a real approach, not a linear scale.** A scale that grows evenly does not
+  read as movement: from .27 to .6 almost everything visible has already happened and the
+  rest is drift. Someone walking towards an object at a steady pace sees it grow
+  exponentially, so the keyframes step by a constant *factor* (easing out near the end), and
+  every intermediate frame is a magnification about one fixed vanishing point — nothing
+  drifts across the screen. **The whole wall travels with it**: the shelf and the other five
+  lids sweep past the camera. Without that, a panel just grows over a still picture, which
+  is exactly what reads as fading in.
 - **The shelf itself is the reference image**, including its frame, hinges, the foliage and
   the creatures at the edges, the bar at the bottom and the header. The bar's buttons are
   invisible hit areas laid over the rendered ones, so the picture stays untouched. The
@@ -74,7 +85,9 @@ How it holds together:
   fading separately — that difference is a stutter.
 - **Closed means closed.** A shut compartment's desktop is `inert`, so tabbing moves across
   the shelf instead of into a screen nobody can see. Arrow keys move across the shelf,
-  Enter opens, Esc goes back. `prefers-reduced-motion` keeps the same path, just short.
+  Enter opens, Esc goes back — and an Esc pressed *during* the flight in is remembered
+  rather than swallowed, so an impatient hand never gets stuck.
+  `prefers-reduced-motion` keeps the same path, just short.
 - **Self-contained.** The reference render, the six lid paintings and the avatar are
   embedded as WebP data URIs (~135 KB all together); the small card and book artwork inside
   the desktops is still painted procedurally onto canvases.
