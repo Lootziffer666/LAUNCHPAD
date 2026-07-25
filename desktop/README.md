@@ -43,12 +43,17 @@ the child shell: **Elternbereich** tile → PIN (demo: `1234`).
 ## Fächerwand (`faecher.html`)
 
 The home screen as a shelf of six lidded compartments: **Spielen · Apps · Bibliothek ·
-Erschaffen · Schauen · Entdecken**. Each lid rests almost closed with warm light seeping
-out of the crack; hover or focus lifts it a little, so you can peek at the desktop inside.
-Click, and the lid swings open while the camera immediately starts flying into that
+Erschaffen · Schauen · Entdecken**. Each lid carries the world that lives behind it — a
+crystal over a still lake, a lit archway, a wall of books, a desk with a lamp, a castle on
+the river, a cave mouth opening onto a sunlit forest — in that compartment's own colour,
+with the name and icon set into the bottom left. The shelf stands in the habitat: leaves
+frame both edges, and things with lit eyes sit in them. Each lid rests almost closed with
+warm light seeping out of the crack; hover or focus lifts it, so you can peek at the desktop
+inside. Click, and the lid swings open while the camera immediately starts flying into that
 compartment — no pause between the two — until the compartment fills the whole screen and
-its desktop is simply the screen. **Esc** or **Zurück** flies back out; the lid drops shut
-once the compartment has landed again.
+its desktop is simply the screen; the same world is waiting there as a dimmed backdrop.
+**Esc** or **Zurück** flies back out; the lid drops shut once the compartment has landed
+again.
 
 How it holds together:
 
@@ -65,8 +70,10 @@ How it holds together:
   transform is set synchronously in the click handler; going through
   `requestAnimationFrame` delayed the start enough that the zoom stopped feeling like an
   answer to the click.
-- **No assets.** Every piece of artwork — card scenes, book covers, the sky — is painted
-  procedurally onto canvases from a seeded palette, so the file stands alone.
+- **No assets.** Every piece of artwork — the six worlds, the card scenes, book covers, the
+  foliage and its inhabitants, the sky — is painted onto canvases in code, so the file
+  stands alone. The six worlds each have their own painter in `WORLD`; the small card art
+  shares the seeded landscape painter in `PAL` / `paint()`.
 - **Keyboard and d-pad.** Arrow keys move across the shelf, Enter opens, Esc goes back.
   `prefers-reduced-motion` keeps the same path, just short.
 

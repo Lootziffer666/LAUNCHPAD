@@ -137,7 +137,9 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .wall-wrap {
   position: relative;
   display: grid; place-items: center;
-  padding: 22px 42px;
+  /* Der Rand ist kein Verschnitt: dort steht das Blattwerk, in dem die
+     Bewohner sitzen. Ohne ihn steht das Regal im Nichts. */
+  padding: 20px clamp(56px, 7.5vw, 150px);
 }
 
 .wall {
@@ -232,52 +234,61 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   transition: transform var(--t-lid) var(--lid), opacity .3s linear .34s;
   z-index: 5;
   border-radius: 17px;
-  /* lackierter Deckel: Licht fällt von oben ein, unten läuft er in die
-     Schattenkante aus, aus der gleich das warme Licht kommt */
-  background:
-    radial-gradient(100% 78% at 50% -22%, rgba(150,215,255,.34), transparent 60%),
-    linear-gradient(102deg, rgba(255,255,255,.07) 0 34%, rgba(255,255,255,0) 56%),
-    linear-gradient(172deg, #2d63ad 0%, #1b3f7e 30%, #112a58 62%, #08172f 100%);
+  overflow: hidden;
+  /* Der Deckel zeigt, was drin wohnt: das gemalte Bild der Welt, darüber
+     die Farbe des Fachs. Deshalb sind sechs Fächer auch sechs Orte und
+     nicht sechs Kisten. */
+  background: var(--tint);
   box-shadow:
     0 30px 52px -16px rgba(0,0,0,.85),
-    inset 0 0 0 1px rgba(150,205,255,.20),
-    inset 0 3px 0 rgba(205,232,255,.36),
-    inset 0 -34px 52px rgba(2,7,20,.72);
-  display: grid; place-items: center;
+    inset 0 0 0 1px rgba(255,255,255,.14),
+    inset 0 2px 0 rgba(255,255,255,.22);
   backface-visibility: hidden;
+}
+
+.lid-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.lid-wash { /* Farbfeld links, Bild rechts — wie im Entwurf */
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(94deg, var(--tint) 0%, var(--tint) 24%, rgba(0,0,0,0) 64%),
+    linear-gradient(0deg, rgba(3,8,18,.5) 0%, rgba(3,8,18,0) 42%);
 }
 .bay:hover .lid, .bay.peek .lid, .bay:focus-within .lid { transform: rotateX(-26deg); }
 .bay.open .lid { transform: rotateX(-118deg); opacity: 0; }
 
-/* Lichtspalt unter der Deckelkante */
-.lid::after {
-  content: ""; position: absolute; left: 8%; right: 8%; bottom: -3px; height: 6px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, transparent, rgba(255,200,61,.85), transparent);
-  filter: blur(3px); opacity: .8;
+/* Lichtspalt unter der Deckelkante — bleibt an der Fachkante, auch wenn
+   der Deckel sich hebt; dann quillt mehr Licht heraus. */
+.bay-box::after {
+  content: ""; position: absolute; left: 7%; right: 7%; bottom: -3px; height: 7px;
+  border-radius: 7px; z-index: 4; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,200,61,.8), transparent);
+  filter: blur(3px); opacity: .55;
   transition: opacity .3s var(--ease);
 }
-.bay:hover .lid::after, .bay.peek .lid::after { opacity: 1; }
+.bay:hover .bay-box::after, .bay.peek .bay-box::after { opacity: 1; }
+.bay.open .bay-box::after { opacity: 0; }
 
-.lid-face { text-align: center; transform: translateZ(1px); padding: 0 20px; }
-.lid-face .glyph {
-  width: 78px; height: 78px; margin: 0 auto 14px;
-  display: grid; place-items: center; border-radius: 22px;
-  background: rgba(6,16,38,.5);
-  box-shadow: inset 0 0 0 1px rgba(160,210,255,.28), 0 10px 22px rgba(0,0,0,.4);
+/* Name und Zeichen sitzen unten links im Bild — das Bild bleibt Bild */
+.lid-face {
+  position: absolute; left: 8%; right: 8%; bottom: 9%;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
 }
-.lid-face .glyph svg { width: 40px; height: 40px; }
-.lid-face h2 { font-size: 34px; font-weight: 800; letter-spacing: .4px; text-shadow: 0 2px 14px rgba(0,0,0,.55); }
-.lid-face p { margin-top: 5px; font-size: 14.5px; font-weight: 600; color: rgba(200,222,255,.66); letter-spacing: .3px; }
+.lid-face .glyph { color: #fff; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); }
+.lid-face .glyph svg { width: 38px; height: 38px; display: block; stroke-width: 1.7; }
+.lid-face h2 {
+  font-size: 33px; font-weight: 500; letter-spacing: .1px; line-height: 1;
+  text-shadow: 0 2px 16px rgba(0,0,0,.55);
+}
 
-/* Scharniere */
+/* Scharniere: nur angedeutet, sonst erschlagen sie das Bild */
 .hinge {
-  position: absolute; top: -6px; width: 46px; height: 13px; z-index: 6;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #21304d, #0c1526);
-  box-shadow: inset 0 1px 0 rgba(180,210,255,.35), 0 2px 5px rgba(0,0,0,.6);
+  position: absolute; top: -3px; width: 40px; height: 7px; z-index: 6;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #1a2740, #0a1220);
+  box-shadow: inset 0 1px 0 rgba(180,210,255,.22);
+  opacity: .8;
 }
-.hinge.l { left: 21%; } .hinge.r { right: 21%; }
+.hinge.l { left: 20%; } .hinge.r { right: 20%; }
 .bay.open .hinge { opacity: 0; transition: opacity .25s linear; }
 
 .bay-hit { position: absolute; inset: 0; z-index: 7; border-radius: 16px; }
@@ -318,8 +329,14 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .screen-bg::after { /* die Kulisse bleibt Kulisse — Inhalt zuerst */
   content: ""; position: absolute; inset: 0;
   background:
-    linear-gradient(180deg, rgba(4,9,24,.86) 0%, rgba(4,9,24,.6) 34%, rgba(4,9,24,.94) 100%),
-    linear-gradient(96deg, rgba(4,9,24,.72) 0%, rgba(4,9,24,.1) 62%);
+    linear-gradient(180deg, rgba(4,9,24,.9) 0%, rgba(4,9,24,.74) 34%, rgba(4,9,24,.95) 100%),
+    linear-gradient(98deg, rgba(4,9,24,.9) 0%, rgba(4,9,24,.34) 62%);
+}
+/* … in der Farbe ihres Fachs: drinnen ist man in derselben Welt,
+   die vorher auf dem Deckel zu sehen war */
+.screen-tint {
+  position: absolute; inset: 0; opacity: .42;
+  background: linear-gradient(98deg, var(--tint) 0%, rgba(0,0,0,0) 62%);
 }
 
 .dsk { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 34px 56px 0; }
@@ -403,19 +420,14 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 
 /* ============================================================
-   Kleine Bewohner am Rand
+   Vordergrund — Blattwerk und Bewohner, über der Wand
    ============================================================ */
 
-.critter { position: absolute; z-index: 1; pointer-events: none; opacity: .9; }
-.critter svg { display: block; }
-.critter .eye { transform-origin: center; animation: blink 7s infinite; }
-.critter.b .eye { animation-delay: 2.6s; }
-.critter.c .eye { animation-delay: 4.4s; }
-@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
-/* sie sitzen vor dem Regal, nicht davor im Weg */
-.critter.a { left: 92px;   bottom: 76px; }
-.critter.b { right: 128px; bottom: 80px; }
-.critter.c { left: 286px;  top: 92px; }
+#fg {
+  position: absolute; inset: 0; z-index: 3;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
 
 /* ============================================================
    Zurückhaltung, wenn gewünscht
@@ -440,6 +452,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 
 <div class="room" id="room">
   <canvas id="sky"></canvas>
+  <canvas id="fg" aria-hidden="true"></canvas>
 
   <header class="hud">
     <div class="who">
@@ -633,12 +646,384 @@ function paint(cv, key, seed, w, h) {
 }
 
 /* ============================================================
+   Die sechs Welten
+
+   Jedes Fach ist ein eigener Ort mit eigener Farbe — das ist der
+   Unterschied zwischen sechs Kisten und sechs Türen. Gemalt, nicht
+   geladen: ein Kristall über dem See, ein Torbogen mit Licht dahinter,
+   eine Regalwand, ein Schreibtisch mit Lampe, eine Burg am Fluss, ein
+   Höhlenausgang in den Wald.
+   ============================================================ */
+
+const lin = (c, x0, y0, x1, y1, stops) => {
+  const g = c.createLinearGradient(x0, y0, x1, y1);
+  stops.forEach(([o, col]) => g.addColorStop(o, col));
+  return g;
+};
+const rad = (c, x, y, r0, r1, stops) => {
+  const g = c.createRadialGradient(x, y, r0, x, y, r1);
+  stops.forEach(([o, col]) => g.addColorStop(o, col));
+  return g;
+};
+function glow(c, x, y, r0, col) {
+  c.fillStyle = rad(c, x, y, 0, r0, [[0, col], [1, 'rgba(0,0,0,0)']]);
+  c.beginPath(); c.arc(x, y, r0, 0, 6.284); c.fill();
+}
+function speckle(c, w, h, n, rnd, maxY, cols) {
+  for (let i = 0; i < n; i++) {
+    const x = rnd() * w, y = rnd() * (maxY || h), s = rnd() * 1.4 + .25;
+    c.globalAlpha = .2 + rnd() * .65;
+    c.fillStyle = cols[(rnd() * cols.length) | 0];
+    c.beginPath(); c.arc(x, y, s, 0, 6.284); c.fill();
+  }
+  c.globalAlpha = 1;
+}
+function hills(c, w, h, baseY, amp, col, rnd, phase) {
+  c.fillStyle = col;
+  c.beginPath(); c.moveTo(-4, h);
+  let y = baseY;
+  for (let x = -4; x <= w + 30; x += w / 6) {
+    const ny = baseY - Math.abs(Math.sin(x / w * 2.4 + phase)) * amp * (.55 + rnd() * .6);
+    c.quadraticCurveTo(x - w / 12, (y + ny) / 2 - amp * .18, x, ny);
+    y = ny;
+  }
+  c.lineTo(w + 30, h); c.closePath(); c.fill();
+}
+function conifer(c, x, base, hgt, col) {
+  c.fillStyle = col;
+  for (let i = 0; i < 3; i++) {
+    const t = i / 3, y = base - hgt * t, wd = hgt * .34 * (1 - t * .55);
+    c.beginPath();
+    c.moveTo(x, y - hgt * .42); c.lineTo(x + wd, y); c.lineTo(x - wd, y);
+    c.closePath(); c.fill();
+  }
+}
+
+const WORLD = {
+  /* Spielen — Kristall über dem stillen See */
+  spielen(c, w, h, r) {
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#31459b'], [.5, '#1b2a66'], [1, '#0b1234']]);
+    c.fillRect(0, 0, w, h);
+    speckle(c, w, h * .7, 40, r, h * .66, ['#ffffff', '#cfe0ff', '#ffe9bb']);
+    glow(c, w * .66, h * .48, h * .78, 'rgba(130,180,255,.34)');
+    hills(c, w, h, h * .6, h * .17, '#22306f', r, 1.2);
+    hills(c, w, h, h * .66, h * .1, '#18234f', r, 2.6);
+
+    const water = h * .7;
+    c.fillStyle = lin(c, 0, water, 0, h, [[0, '#16255c'], [1, '#0c1538']]);
+    c.fillRect(0, water, w, h - water);
+
+    // Kristall
+    const cx = w * .68, cy = water + h * .02, ch = h * .46, cw = h * .1;
+    const shard = (dir) => {
+      c.beginPath();
+      c.moveTo(cx, cy - dir * ch);
+      c.lineTo(cx + cw, cy - dir * ch * .42);
+      c.lineTo(cx + cw * .5, cy);
+      c.lineTo(cx - cw * .5, cy);
+      c.lineTo(cx - cw, cy - dir * ch * .42);
+      c.closePath();
+    };
+    c.globalAlpha = .3; shard(-1);
+    c.fillStyle = lin(c, cx, cy, cx, cy + ch, [[0, '#9fd8ff'], [1, 'rgba(159,216,255,0)']]);
+    c.fill(); c.globalAlpha = 1;
+
+    glow(c, cx, cy - ch * .5, ch * .95, 'rgba(150,220,255,.4)');
+    shard(1);
+    c.fillStyle = lin(c, cx - cw, cy - ch, cx + cw, cy, [[0, '#e8f6ff'], [.45, '#8fc6f5'], [1, '#3f6fc4']]);
+    c.fill();
+    c.strokeStyle = 'rgba(230,246,255,.75)'; c.lineWidth = Math.max(1, h * .006);
+    c.beginPath(); c.moveTo(cx, cy - ch); c.lineTo(cx, cy); c.stroke();
+
+    c.fillStyle = '#101c4a';                       // die Klippe, auf der er steht
+    c.beginPath(); c.ellipse(cx, cy + h * .015, cw * 1.9, h * .026, 0, 0, 6.284); c.fill();
+    c.fillStyle = '#080d26';
+    c.beginPath(); c.ellipse(w * .1, h * 1.03, w * .3, h * .16, 0, 0, 6.284); c.fill();
+  },
+
+  /* Apps — Torbogen, dahinter brennt Licht */
+  apps(c, w, h, r) {
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#1d6f74'], [.55, '#0d434c'], [1, '#062028']]);
+    c.fillRect(0, 0, w, h);
+    glow(c, w * .68, h * .62, h * .8, 'rgba(255,214,140,.2)');
+    hills(c, w, h, h * .62, h * .12, '#0c3d45', r, .6);
+
+    const bx = w * .5, bw = w * .42, by = h * .18, bh = h * .64;
+    const slab = (x, y, ww, hh, col, lip) => {
+      c.fillStyle = col; c.fillRect(x, y, ww, hh);
+      c.fillStyle = lip; c.fillRect(x, y, ww, Math.max(2, h * .016));   // Lichtkante oben
+      c.fillStyle = 'rgba(2,14,18,.5)'; c.fillRect(x, y, ww * .12, hh); // Schattenseite
+    };
+    slab(bx + bw * .04, by + bh * .08, bw * .92, bh * .92, '#07333b', 'rgba(160,225,220,.24)');
+    slab(bx - bw * .06, by + bh * .34, bw * 1.14, bh * .66, '#0c4753', 'rgba(190,245,240,.4)');
+    slab(bx + bw * .16, by, bw * .54, bh * .36, '#052a31', 'rgba(150,220,215,.32)');
+    c.fillStyle = 'rgba(3,20,25,.55)';                                  // Sockelstufen
+    c.fillRect(bx - bw * .16, by + bh * .94, bw * 1.34, h * .03);
+    c.fillRect(bx - bw * .24, by + bh * .99, bw * 1.5, h * .03);
+
+    // Bogen
+    const ax = bx + bw * .42, aw = bw * .3, ay = by + bh * .42, ah = bh * .58;
+    c.save();
+    c.beginPath();
+    c.moveTo(ax, ay + ah);
+    c.lineTo(ax, ay + aw * .5);
+    c.arc(ax + aw / 2, ay + aw * .5, aw / 2, Math.PI, 0);
+    c.lineTo(ax + aw, ay + ah);
+    c.closePath();
+    c.clip();
+    c.fillStyle = lin(c, ax, ay, ax, ay + ah, [[0, '#fff0c2'], [.5, '#ffc873'], [1, '#e08a3c']]);
+    c.fillRect(ax, ay, aw, ah);
+    c.restore();
+    glow(c, ax + aw / 2, ay + ah * .55, aw * 2.3, 'rgba(255,200,110,.4)');
+
+    // Wasser mit Spiegelung
+    const water = h * .82;
+    c.fillStyle = lin(c, 0, water, 0, h, [[0, '#0b3b44'], [1, '#062229']]);
+    c.fillRect(0, water, w, h - water);
+    c.fillStyle = lin(c, 0, water, 0, h, [[0, 'rgba(255,200,110,.5)'], [1, 'rgba(255,200,110,0)']]);
+    c.fillRect(ax, water, aw, h - water);
+    c.globalAlpha = .5; c.strokeStyle = 'rgba(200,240,235,.35)'; c.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = water + (h - water) * (i / 5) + 2;
+      c.beginPath(); c.moveTo(ax - aw * (.4 + r()), y); c.lineTo(ax + aw * (1 + r()), y); c.stroke();
+    }
+    c.globalAlpha = 1;
+  },
+
+  /* Bibliothek — Regalwand mit warmer Nische */
+  bibliothek(c, w, h, r) {
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#54398f'], [1, '#1d1140']]);
+    c.fillRect(0, 0, w, h);
+    glow(c, w * .82, h * .62, h * .8, 'rgba(255,196,120,.3)');
+
+    // Regale
+    const x0 = w * .34, x1 = w * .78, top = h * .1, bot = h * .86;
+    c.fillStyle = '#2b1c56'; c.fillRect(x0, top, x1 - x0, bot - top);
+    const shelves = 4, sh = (bot - top) / shelves;
+    for (let s = 0; s < shelves; s++) {
+      const y = top + s * sh;
+      c.fillStyle = '#1d1140'; c.fillRect(x0, y + sh - h * .022, x1 - x0, h * .022);
+      let x = x0 + w * .012;
+      while (x < x1 - w * .02) {
+        const bw2 = w * (.008 + r() * .014);
+        const bh2 = sh * (.5 + r() * .3);
+        const hue = r();
+        c.fillStyle = hue > .72 ? '#d9a05c' : hue > .45 ? '#7f6ac0' : hue > .2 ? '#4d8ec4' : '#b4667f';
+        c.globalAlpha = .55 + r() * .45;
+        c.fillRect(x, y + sh - h * .022 - bh2, bw2, bh2);
+        c.globalAlpha = 1;
+        x += bw2 + w * .003;
+      }
+    }
+    // Nische
+    const nx = w * .8, nw = w * .17, ny = h * .34, nh = h * .5;
+    c.fillStyle = '#3a2865';
+    c.beginPath();
+    c.moveTo(nx, ny + nh); c.lineTo(nx, ny + nw * .5);
+    c.arc(nx + nw / 2, ny + nw * .5, nw / 2, Math.PI, 0);
+    c.lineTo(nx + nw, ny + nh); c.closePath(); c.fill();
+    glow(c, nx + nw / 2, ny + nh * .72, nw * 1.9, 'rgba(255,198,118,.55)');
+    c.fillStyle = '#6b4f96';
+    c.beginPath(); c.ellipse(nx + nw / 2, ny + nh * .93, nw * .42, nh * .12, 0, 0, 6.284); c.fill();
+    // Boden
+    c.fillStyle = lin(c, 0, h * .86, 0, h, [[0, '#241553'], [1, '#180d38']]);
+    c.fillRect(0, h * .86, w, h * .14);
+  },
+
+  /* Erschaffen — Tisch, Lampe, Stifte */
+  erschaffen(c, w, h, r) {
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#2a8792'], [.6, '#12626e'], [1, '#0a3a44']]);
+    c.fillRect(0, 0, w, h);
+    glow(c, w * .72, h * .52, h * .7, 'rgba(255,232,180,.34)');
+
+    // Tischplatte
+    const ty = h * .68;
+    c.fillStyle = '#1d6d78';
+    c.beginPath();
+    c.moveTo(w * .3, ty); c.lineTo(w * 1.05, ty - h * .06);
+    c.lineTo(w * 1.05, h * 1.05); c.lineTo(w * .18, h * 1.05);
+    c.closePath(); c.fill();
+    c.fillStyle = 'rgba(210,255,250,.16)';
+    c.fillRect(w * .3, ty - h * .012, w * .75, h * .014);
+
+    // Lampe
+    const lx = w * .72, ly = ty - h * .16;
+    c.fillStyle = '#0f4a54';
+    c.fillRect(lx - w * .035, ly + h * .1, w * .07, h * .03);
+    c.fillRect(lx - w * .008, ly + h * .05, w * .016, h * .06);
+    glow(c, lx, ly, h * .5, 'rgba(255,235,175,.55)');
+    c.fillStyle = rad(c, lx - h * .03, ly - h * .03, 0, h * .13, [[0, '#fffdf2'], [.6, '#ffe9b0'], [1, '#f0c877']]);
+    c.beginPath(); c.arc(lx, ly, h * .11, 0, 6.284); c.fill();
+
+    // Stiftebecher
+    const cx = w * .48, cyy = ty - h * .04;
+    const pencils = [[-.5, -.26], [-.2, -.34], [.1, -.3], [.35, -.22], [-.05, -.4]];
+    pencils.forEach(([dx, dy], i) => {
+      c.save();
+      c.translate(cx + w * .03 * dx, cyy);
+      c.rotate(dx * .5);
+      c.fillStyle = ['#e8734a', '#f0b73c', '#5fb0d8', '#7f6ac0', '#e0e6ea'][i];
+      c.fillRect(-w * .008, h * dy, w * .016, h * -dy + h * .02);
+      c.fillStyle = '#2b2118';
+      c.beginPath();
+      c.moveTo(-w * .008, h * dy); c.lineTo(w * .008, h * dy); c.lineTo(0, h * dy - h * .035);
+      c.closePath(); c.fill();
+      c.restore();
+    });
+    c.fillStyle = '#bfe4e2';
+    c.beginPath();
+    c.moveTo(cx - w * .045, cyy - h * .12); c.lineTo(cx + w * .045, cyy - h * .12);
+    c.lineTo(cx + w * .036, cyy); c.lineTo(cx - w * .036, cyy);
+    c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.35)';
+    c.fillRect(cx - w * .045, cyy - h * .12, w * .09, h * .012);
+
+    // Buch flach
+    c.fillStyle = '#12525c';
+    c.fillRect(w * .3, ty + h * .1, w * .16, h * .035);
+    c.fillStyle = '#2a8792';
+    c.fillRect(w * .3, ty + h * .09, w * .16, h * .014);
+  },
+
+  /* Schauen — Burg am Fluss, spät */
+  schauen(c, w, h, r) {
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#24397a'], [.5, '#111f4c'], [1, '#070d24']]);
+    c.fillRect(0, 0, w, h);
+    speckle(c, w, h, 46, r, h * .6, ['#ffffff', '#bcd4ff', '#ffe6b0']);
+    glow(c, w * .62, h * .5, h * .72, 'rgba(150,180,255,.26)');
+    hills(c, w, h, h * .62, h * .1, '#16234f', r, 3.1);
+
+    // Burg
+    const bx = w * .56, base = h * .62;
+    const tower = (x, wd, hgt) => {
+      c.fillStyle = '#0d1636';
+      c.fillRect(x - wd / 2, base - hgt, wd, hgt);
+      c.beginPath();
+      c.moveTo(x - wd * .72, base - hgt); c.lineTo(x + wd * .72, base - hgt);
+      c.lineTo(x, base - hgt - wd * 1.5); c.closePath(); c.fill();
+      for (let i = 0; i < 3; i++) {
+        if (r() > .45) continue;
+        c.fillStyle = 'rgba(255,206,130,.9)';
+        c.fillRect(x - wd * .16, base - hgt * (.3 + i * .22), wd * .3, hgt * .07);
+      }
+    };
+    glow(c, bx + w * .04, base - h * .2, h * .42, 'rgba(255,200,130,.22)');
+    tower(bx - w * .08, w * .035, h * .2);
+    tower(bx + w * .12, w * .03, h * .17);
+    tower(bx + w * .02, w * .05, h * .34);
+    c.fillStyle = '#0d1636';
+    c.fillRect(bx - w * .11, base - h * .12, w * .26, h * .12);
+
+    // Fluss
+    const water = h * .62;
+    c.fillStyle = lin(c, 0, water, 0, h, [[0, '#15254a'], [1, '#0a1130']]);
+    c.fillRect(0, water, w, h - water);
+    c.globalAlpha = .5;
+    for (let i = 0; i < 12; i++) {
+      const y = water + (h - water) * (i / 12);
+      c.strokeStyle = i % 3 ? 'rgba(255,206,130,.35)' : 'rgba(190,215,255,.3)';
+      c.lineWidth = Math.max(1, h * .008);
+      const len = w * (.03 + r() * .1);
+      const x = bx + (r() - .5) * w * .3;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y); c.stroke();
+    }
+    c.globalAlpha = 1;
+    c.fillStyle = '#070d24';
+    conifer(c, w * .1, water + h * .04, h * .3, '#070d24');
+    conifer(c, w * .04, water + h * .07, h * .24, '#070d24');
+  },
+
+  /* Entdecken — man steht im Dunkeln und schaut hinaus */
+  entdecken(c, w, h, r) {
+    // draußen: Wald im Gegenlicht
+    c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#f2ffe4'], [.3, '#a8dd97'], [.7, '#4c9c66'], [1, '#226b46']]);
+    c.fillRect(0, 0, w, h);
+    glow(c, w * .62, h * .26, h * .8, 'rgba(255,255,205,.75)');
+    hills(c, w, h, h * .5, h * .16, '#63ab74', r, 1.9);
+    hills(c, w, h, h * .62, h * .11, '#3a8a5c', r, 3.4);
+    for (let i = 0; i < 22; i++) {
+      const t = r();
+      const x = w * (.28 + t * .68), b = h * (.55 + r() * .3);
+      conifer(c, x, b, h * (.14 + r() * .22), b > h * .68 ? '#144a30' : '#1f6642');
+    }
+    c.fillStyle = '#d8cfa0';
+    c.beginPath();
+    c.moveTo(w * .42, h * 1.02); c.lineTo(w * .58, h * .66);
+    c.lineTo(w * .64, h * .66); c.lineTo(w * .78, h * 1.02);
+    c.closePath(); c.fill();
+    c.fillStyle = '#20321f';                       // zwei, die schon draußen sind
+    c.fillRect(w * .585, h * .70, w * .009, h * .048);
+    c.fillRect(w * .607, h * .712, w * .008, h * .042);
+
+    // Der Fels, in dem man steht: alles außerhalb der Öffnung. Die Kontur
+    // ist bewusst unruhig und unten abgeflacht — ein runder Ausschnitt
+    // sieht aus wie ein Ball, kein Höhlenausgang.
+    const cx = w * .64, cy = h * .56, rx = w * .32, ry = h * .5;
+    const floor = h * .97, N = 16;
+    const mouth = [];
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + (i / N) * Math.PI * 2;
+      const n = .9 + Math.sin(i * 1.1 + .4) * .07 + Math.sin(i * 2.3) * .04;
+      mouth.push([cx + Math.cos(a) * rx * n, Math.min(floor, cy + Math.sin(a) * ry * n)]);
+    }
+    // weich durch die Stützpunkte, sonst wird aus der Höhle ein Stern
+    const mid = (i) => [
+      (mouth[i][0] + mouth[(i + 1) % N][0]) / 2,
+      (mouth[i][1] + mouth[(i + 1) % N][1]) / 2
+    ];
+    const traceMouth = () => {
+      const s = mid(N - 1);
+      c.moveTo(s[0], s[1]);
+      for (let i = 0; i < N; i++) {
+        const e = mid(i);
+        c.quadraticCurveTo(mouth[i][0], mouth[i][1], e[0], e[1]);
+      }
+      c.closePath();
+    };
+
+    c.beginPath();
+    c.rect(0, 0, w, h);
+    traceMouth();
+    c.fillStyle = '#030b07'; c.fill('evenodd');
+
+    c.beginPath(); traceMouth();                       // Lichtsaum an der Kante
+    c.strokeStyle = 'rgba(190,245,190,.22)'; c.lineWidth = Math.max(1.5, h * .012);
+    c.stroke();
+
+    // Moos auf der oberen Felskante, dem Ausschnitt folgend
+    mouth.forEach(([x, y], i) => {
+      if (i > N * .45 && i < N * .9) return;              // nur oben herum
+      for (let k = 0; k < 3; k++) {
+        c.fillStyle = k ? '#12321f' : '#20512f';
+        c.beginPath();
+        c.ellipse(x + (r() - .5) * w * .05, y - h * .01 + (r() - .5) * h * .03,
+          h * (.012 + r() * .02), h * (.008 + r() * .012), r() * 3, 0, 6.284);
+        c.fill();
+      }
+    });
+
+    // Steine im Dunkeln, direkt vor den Füßen
+    c.fillStyle = '#020806';
+    c.beginPath(); c.ellipse(w * .12, h * 1.04, w * .32, h * .18, 0, 0, 6.284); c.fill();
+    c.beginPath(); c.ellipse(w * .82, h * 1.06, w * .26, h * .14, 0, 0, 6.284); c.fill();
+  }
+};
+
+function paintWorld(cv, key, w, h, seed) {
+  const dpr = 1.5;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d');
+  c.scale(dpr, dpr);
+  (WORLD[key] || WORLD.spielen)(c, w, h, mulberry(seed || 7));
+}
+
+/* ============================================================
    Inhalt der sechs Fächer
    ============================================================ */
 
 const BAYS = [
   {
-    id: 'spielen', label: 'Spielen', kicker: '8 Spiele', icon: 'play', scene: 'castle',
+    id: 'spielen', label: 'Spielen', icon: 'play', tint: '#2b3c86', world: 'spielen',
     title: 'Spielen', sub: 'Spring rein in deine Spiele und Abenteuer.',
     sections: [
       { kind: 'cards', title: 'Meine Spiele', items: [
@@ -656,7 +1041,7 @@ const BAYS = [
     ]
   },
   {
-    id: 'apps', label: 'Apps', kicker: '3 erlaubt', icon: 'apps', scene: 'desk',
+    id: 'apps', label: 'Apps', icon: 'apps', tint: '#175f66', world: 'apps',
     title: 'Apps', sub: 'Deine Werkzeuge, Medien und mehr.',
     sections: [
       { kind: 'tiles', title: 'Erlaubte Apps', items: [
@@ -675,7 +1060,7 @@ const BAYS = [
     ]
   },
   {
-    id: 'bibliothek', label: 'Bibliothek', kicker: '4 Bücher', icon: 'book', scene: 'library',
+    id: 'bibliothek', label: 'Bibliothek', icon: 'book', tint: '#5b3f96', world: 'bibliothek',
     title: 'Bibliothek', sub: 'Bücher, Spielstände und Gesammeltes.',
     sections: [
       { kind: 'chips', items: ['Bücher', 'Spielstände', 'Downloads', 'Sammlungen'] },
@@ -694,7 +1079,7 @@ const BAYS = [
     ]
   },
   {
-    id: 'erschaffen', label: 'Erschaffen', kicker: '4 Werke', icon: 'pencil', scene: 'desk',
+    id: 'erschaffen', label: 'Erschaffen', icon: 'pencil', tint: '#186b78', world: 'erschaffen',
     title: 'Erschaffen', sub: 'Mach etwas, das es noch nicht gibt.',
     sections: [
       { kind: 'tiles', title: 'Neu anfangen', items: [
@@ -712,7 +1097,7 @@ const BAYS = [
     ]
   },
   {
-    id: 'schauen', label: 'Schauen', kicker: '3 laufen', icon: 'tv', scene: 'castle',
+    id: 'schauen', label: 'Schauen', icon: 'tv', tint: '#1b2f66', world: 'schauen',
     title: 'Schauen', sub: 'Filme und Serien für dich.',
     sections: [
       { kind: 'cards', title: 'Weiterschauen', n: 3, items: [
@@ -724,7 +1109,7 @@ const BAYS = [
     ]
   },
   {
-    id: 'entdecken', label: 'Entdecken', kicker: '4 Welten', icon: 'compass', scene: 'meadow',
+    id: 'entdecken', label: 'Entdecken', icon: 'compass', tint: '#33613c', world: 'entdecken',
     title: 'Entdecken', sub: 'Neue Orte und Ideen.',
     sections: [
       { kind: 'tiles', title: 'Wohin heute?', items: [
@@ -792,7 +1177,10 @@ function sectionMarkup(sec) {
 
 function screenMarkup(bay) {
   return `
-    <div class="screen-bg"><canvas data-scene="${bay.scene}" data-w="700" data-h="394" aria-hidden="true"></canvas></div>
+    <div class="screen-bg">
+      <canvas data-world="${bay.world}" data-w="900" data-h="506" aria-hidden="true"></canvas>
+      <div class="screen-tint"></div>
+    </div>
     <div class="dsk">
       <div class="dsk-top">
         <div class="who">
@@ -827,20 +1215,24 @@ BAYS.forEach((bay, i) => {
       </div>
       <div class="rim"></div>
       <div class="lid">
+        <canvas class="lid-art" data-world="${bay.world}" data-w="520" data-h="300" aria-hidden="true"></canvas>
+        <div class="lid-wash"></div>
         <div class="lid-face">
           <div class="glyph">${ICON[bay.icon]}</div>
           <h2>${esc(bay.label)}</h2>
-          <p>${esc(bay.kicker)}</p>
         </div>
       </div>
       <div class="hinge l"></div><div class="hinge r"></div>
     </div>
     <button class="bay-hit" aria-label="${esc(bay.label)} öffnen"></button>`;
-  el.style.setProperty('--i', i);
+  el.style.setProperty('--tint', bay.tint);
   wall.appendChild(el);
 });
 
 // alle Motive einmal malen
+document.querySelectorAll('canvas[data-world]').forEach((cv) => {
+  paintWorld(cv, cv.dataset.world, +cv.dataset.w, +cv.dataset.h, seedCount++ * 977);
+});
 document.querySelectorAll('canvas[data-scene]').forEach((cv) => {
   paint(cv, cv.dataset.scene, seedCount++ * 977, +cv.dataset.w, +cv.dataset.h);
 });
@@ -874,21 +1266,88 @@ function paintSky() {
 }
 paintSky();
 
-/* kleine Bewohner */
-const critter = (cls, scale, tint) => {
-  const d = document.createElement('div');
-  d.className = 'critter ' + cls;
-  d.innerHTML = `<svg width="${86 * scale}" height="${78 * scale}" viewBox="0 0 86 78">
-    <ellipse cx="43" cy="52" rx="26" ry="24" fill="${tint}"/>
-    <path d="M24 32 L18 10 L36 24 Z M62 32 L68 10 L50 24 Z" fill="${tint}"/>
-    <g class="eye"><ellipse cx="34" cy="48" rx="6.5" ry="7" fill="#ffe9b0"/><ellipse cx="52" cy="48" rx="6.5" ry="7" fill="#ffe9b0"/></g>
-    <circle cx="35.5" cy="49" r="2.6" fill="#1a1206"/><circle cx="53.5" cy="49" r="2.6" fill="#1a1206"/>
-  </svg>`;
-  room.appendChild(d);
-};
-critter('a', 1.05, '#1b2440');
-critter('b', .82, '#141d36');
-critter('c', .62, '#18213c');
+/* ============================================================
+   Der Vordergrund: Blattwerk am Bildrand, und wer darin wohnt.
+   Das Regal steht nicht im Nichts, sondern im Habitat — genau das
+   macht den Unterschied zwischen einem Menü und einem Ort.
+   ============================================================ */
+
+const fgc = document.getElementById('fg');
+
+function leaves(c, x, y, s, rnd, n, accent) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd() * 6.284, d = rnd() * s;
+    const lx = x + Math.cos(a) * d * 1.15, ly = y + Math.sin(a) * d * .85;
+    const len = s * (.16 + rnd() * .2), wid = len * (.3 + rnd() * .24);
+    c.save(); c.translate(lx, ly); c.rotate(rnd() * 6.284);
+    c.fillStyle = rnd() > .82 ? accent : (rnd() > .5 ? '#04100c' : '#071a14');
+    c.beginPath(); c.ellipse(0, 0, len, wid, 0, 0, 6.284); c.fill();
+    c.restore();
+  }
+}
+
+function beast(c, x, y, s, body, ears) {
+  c.fillStyle = body;
+  if (ears === 'lang') {                       // Langohr
+    [-1, 1].forEach((d) => {
+      c.save(); c.translate(x + s * .42 * d, y - s * .5); c.rotate(d * .28);
+      c.beginPath(); c.ellipse(0, 0, s * .17, s * .62, 0, 0, 6.284); c.fill();
+      c.restore();
+    });
+  } else if (ears === 'spitz') {               // Spitzohr
+    [-1, 1].forEach((d) => {
+      c.beginPath();
+      c.moveTo(x + s * .58 * d, y - s * .3);
+      c.lineTo(x + s * .8 * d, y - s * 1.12);
+      c.lineTo(x + s * .16 * d, y - s * .62);
+      c.closePath(); c.fill();
+    });
+  }
+  c.beginPath(); c.ellipse(x, y, s * .82, s * .74, 0, 0, 6.284); c.fill();
+
+  [-.32, .32].forEach((d) => {
+    glow(c, x + s * d, y - s * .06, s * .62, 'rgba(255,214,130,.3)');
+    c.fillStyle = '#ffe6a8';
+    c.beginPath(); c.ellipse(x + s * d, y - s * .06, s * .2, s * .21, 0, 0, 6.284); c.fill();
+    c.fillStyle = '#1c1408';
+    c.beginPath(); c.arc(x + s * d + s * .04, y - s * .04, s * .085, 0, 6.284); c.fill();
+  });
+}
+
+function paintFg() {
+  const dpr = 1.5;
+  const w = innerWidth, h = innerHeight;
+  fgc.width = Math.round(w * dpr); fgc.height = Math.round(h * dpr);
+  const c = fgc.getContext('2d');
+  c.scale(dpr, dpr);
+  const r = mulberry(4242);
+
+  // Blattwerk bleibt am Rand: die Ballen sitzen halb außerhalb des Bildes,
+  // sichtbar ist nur die Kante, die ins Bild ragt.
+  leaves(c, -h * .04, h * .5,  h * .17, r, 40, '#0e3527');
+  leaves(c, h * .02,  h * .92, h * .15, r, 30, '#11402c');
+  leaves(c, -h * .05, h * .16, h * .12, r, 22, '#0c2c20');
+  beast(c, h * .052, h * .66, h * .027, '#0a1a16', 'spitz');
+
+  leaves(c, w + h * .04, h * .44, h * .18, r, 42, '#0e3527');
+  leaves(c, w - h * .02, h * .94, h * .15, r, 30, '#11402c');
+  leaves(c, w + h * .05, h * .12, h * .13, r, 24, '#0c2c20');
+  beast(c, w - h * .055, h * .56, h * .025, '#0b1712', 'lang');
+  beast(c, w - h * .022, h * .27, h * .02, '#0a1a16', 'spitz');
+
+  // der kleine Begleiter, zwischen Regal und Leiste
+  const bx = w * .5, by = h * .862, bs = h * .024;
+  glow(c, bx, by, bs * 3.4, 'rgba(150,110,230,.3)');
+  c.fillStyle = '#3b2a63';
+  c.beginPath(); c.ellipse(bx, by, bs * .88, bs * .8, 0, 0, 6.284); c.fill();
+  c.beginPath(); c.ellipse(bx, by - bs * .72, bs * .5, bs * .34, 0, 0, 6.284); c.fill();
+  [-.3, .3].forEach((d) => {
+    c.fillStyle = '#ffd9f2';
+    c.beginPath(); c.ellipse(bx + bs * d, by - bs * .1, bs * .2, bs * .22, 0, 0, 6.284); c.fill();
+    c.fillStyle = '#241033';
+    c.beginPath(); c.arc(bx + bs * d, by - bs * .08, bs * .1, 0, 6.284); c.fill();
+  });
+}
 
 /* ============================================================
    Uhr
@@ -1099,6 +1558,7 @@ document.querySelector('.dock').addEventListener('click', (e) => {
 
 addEventListener('resize', () => {
   paintSky();
+  paintFg();
   if (!state.open) { fit(); return; }
 
   // Fenstergröße geändert, während ein Fach offen ist: ohne Animation neu setzen
@@ -1115,6 +1575,7 @@ addEventListener('resize', () => {
 });
 
 fit();
+paintFg();
 requestAnimationFrame(fit);
 })();
 </script>
