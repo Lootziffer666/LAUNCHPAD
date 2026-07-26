@@ -84,10 +84,19 @@ How it holds together:
   `requestAnimationFrame` delayed the start enough that the zoom stopped feeling like an
   answer to the click. While it flies, one scrim dims the room instead of six compartments
   fading separately — that difference is a stutter.
+- **The lid is a door, not a wall.** Its perspective distance is derived from the viewport
+  width (`--lid-persp`, ~4.5×). At a fixed 1500px it was far too near for a screen-sized
+  lid: swung past square, the free edge landed *behind the camera*, so the door ballooned
+  over half the picture instead of swinging aside. The swing is also shorter than the
+  flight, so the door is out of the way before the approach really gets going — and on the
+  way back it only drops shut once the compartment has landed, otherwise it wipes across
+  the screen while everything is still moving.
 - **Closed means closed.** A shut compartment's desktop is `inert`, so tabbing moves across
   the shelf instead of into a screen nobody can see. Arrow keys move across the shelf,
   Enter opens, Esc goes back — and an Esc pressed *during* the flight in is remembered
-  rather than swallowed, so an impatient hand never gets stuck.
+  rather than swallowed, so an impatient hand never gets stuck. The lid only lifts for a
+  pointer that can hover, or for keyboard focus while keyboard navigation is actually in
+  use; on a touch screen focus sticks after every tap and would leave a lid standing open.
   `prefers-reduced-motion` keeps the same path, just short.
 - **Self-contained.** The reference render, the six lid paintings and the avatar are
   embedded as WebP data URIs (~135 KB all together); the small card and book artwork inside

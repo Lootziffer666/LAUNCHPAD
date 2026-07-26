@@ -29,10 +29,10 @@
   --ink-mute:   #7b8bb4;
 
   --ease:  cubic-bezier(.25, 1, .5, 1);
-  --lid:   cubic-bezier(.22, .9, .24, 1.02);
+  --lid:   cubic-bezier(.3, .86, .3, 1);
   --dolly: cubic-bezier(.33, .05, .12, 1);
 
-  --t-lid:   620ms;
+  --t-lid:   470ms;
   --t-dolly: 940ms;
 
   /* Bühne des Desktops: Breite fest, Höhe folgt dem Bildschirm */
@@ -78,9 +78,9 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .scrim {
   position: fixed; inset: 0; z-index: 50; pointer-events: none;
   background: var(--night); opacity: 0;
-  transition: opacity .72s var(--ease);
+  transition: opacity .85s var(--ease);
 }
-.room.zoomed .scrim { opacity: .95; }
+.room.zoomed .scrim { opacity: .88; }
 
 /* ============================================================
    Ein Fach
@@ -139,7 +139,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   background-image: var(--art);
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  transition: transform var(--t-lid) var(--lid), opacity .3s linear .46s;
+  transition: transform var(--t-lid) var(--lid), opacity .24s linear .2s;
 }
 
 /* Der Angelpunkt liegt außen — so zeigen es die Vorlagen: an der Tür des
@@ -153,24 +153,36 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .bay[data-open="oben"]   .lid { transform-origin: 50% 0%; }
 .bay[data-open="unten"]  .lid { transform-origin: 50% 100%; }
 
-/* Ein Spalt weit, wenn man hinsieht: die freie Kante kommt einem entgegen. */
-.bay[data-open="links"]:hover  .lid, .bay[data-open="links"]:focus-within  .lid { transform: perspective(1500px) rotateY(-15deg); }
-.bay[data-open="rechts"]:hover .lid, .bay[data-open="rechts"]:focus-within .lid { transform: perspective(1500px) rotateY(15deg); }
-.bay[data-open="oben"]:hover   .lid, .bay[data-open="oben"]:focus-within   .lid { transform: perspective(1500px) rotateX(15deg); }
-.bay[data-open="unten"]:hover  .lid, .bay[data-open="unten"]:focus-within  .lid { transform: perspective(1500px) rotateX(-15deg); }
+/* Ein Spalt weit, wenn man hinsieht: die freie Kante kommt einem entgegen.
+   Nur mit echtem Zeigegerät — auf dem Handy bliebe sonst der zuletzt
+   berührte Deckel offen stehen. */
+@media (hover: hover) {
+  .bay[data-open="links"]:hover  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(-14deg); }
+  .bay[data-open="rechts"]:hover .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(14deg); }
+  .bay[data-open="oben"]:hover   .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(14deg); }
+  .bay[data-open="unten"]:hover  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(-14deg); }
+}
+/* Beim Weiterspringen mit der Tastatur genauso — aber nur dann. Ohne die
+   Bedingung bliebe auf dem Handy nach jedem Antippen ein Deckel offen
+   stehen, weil der Fokus dort kleben bleibt; :focus-visible allein reicht
+   nicht, weil der Fokus hier beim Schließen selbst gesetzt wird. */
+.room.kbd .bay[data-open="links"]:has(.bay-hit:focus)  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(-14deg); }
+.room.kbd .bay[data-open="rechts"]:has(.bay-hit:focus) .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(14deg); }
+.room.kbd .bay[data-open="oben"]:has(.bay-hit:focus)   .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(14deg); }
+.room.kbd .bay[data-open="unten"]:has(.bay-hit:focus)  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(-14deg); }
 
 /* Alle sechs zugleich: zurückhaltender, sonst wird die Wand unruhig. */
-.bay[data-open="links"].peek  .lid { transform: perspective(1500px) rotateY(-9deg); }
-.bay[data-open="rechts"].peek .lid { transform: perspective(1500px) rotateY(9deg); }
-.bay[data-open="oben"].peek   .lid { transform: perspective(1500px) rotateX(9deg); }
-.bay[data-open="unten"].peek  .lid { transform: perspective(1500px) rotateX(-9deg); }
+.bay[data-open="links"].peek  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(-9deg); }
+.bay[data-open="rechts"].peek .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(9deg); }
+.bay[data-open="oben"].peek   .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(9deg); }
+.bay[data-open="unten"].peek  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(-9deg); }
 
 /* Offen: gut über den rechten Winkel hinaus, wie in den Vorlagen — die Tür
    steht dann neben dem Fach, der Truhendeckel darüber. */
-.bay[data-open="links"].open  .lid { transform: perspective(1500px) rotateY(-105deg); opacity: 0; }
-.bay[data-open="rechts"].open .lid { transform: perspective(1500px) rotateY(105deg);  opacity: 0; }
-.bay[data-open="oben"].open   .lid { transform: perspective(1500px) rotateX(105deg);  opacity: 0; }
-.bay[data-open="unten"].open  .lid { transform: perspective(1500px) rotateX(-105deg); opacity: 0; }
+.bay[data-open="links"].open  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(-105deg); opacity: 0; }
+.bay[data-open="rechts"].open .lid { transform: perspective(var(--lid-persp, 4500px)) rotateY(105deg);  opacity: 0; }
+.bay[data-open="oben"].open   .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(105deg);  opacity: 0; }
+.bay[data-open="unten"].open  .lid { transform: perspective(var(--lid-persp, 4500px)) rotateX(-105deg); opacity: 0; }
 
 .bay-hit { position: absolute; inset: 0; z-index: 7; }
 .bay.open .bay-hit, .room.zoomed .bay-hit { pointer-events: none; }
@@ -776,6 +788,7 @@ function fit() {
   // Bühne des Desktops
   const sh = Math.round(Math.min(SH_MAX, Math.max(SH_MIN, STAGE_W * innerHeight / innerWidth)));
   const rs = document.documentElement.style;
+  rs.setProperty('--lid-persp', Math.round(innerWidth * 4.5) + 'px');
   rs.setProperty('--sw', STAGE_W);
   rs.setProperty('--sh', sh);
   const k = Math.min(innerWidth / STAGE_W, innerHeight / sh);
@@ -942,9 +955,11 @@ function close() {
   state.busy = true;
   sfx('close');
   arm(el);
-  el.classList.remove('open');
   room.classList.remove('zoomed');
+  // .open bleibt bis zur Landung: sonst schwingt die Tür schon während der
+  // Rückfahrt zu und wischt als Platte über das halbe Bild.
   fly(el, i, 'out').then(() => {
+    el.classList.remove('open');   // jetzt erst fällt der Deckel zu
     const anims = running.get(el);
     if (anims) anims.forEach((a) => a.cancel());   // zurück auf die Werte aus fit()
     running.delete(el);
@@ -979,6 +994,12 @@ function sfx(kind) {
 /* ============================================================
    Bedienung: Maus, Tastatur, Steuerkreuz
    ============================================================ */
+
+/* Merken, ob gerade mit der Tastatur navigiert wird */
+addEventListener('keydown', (e) => {
+  if (e.key === 'Tab' || e.key.startsWith('Arrow')) room.classList.add('kbd');
+}, true);
+addEventListener('pointerdown', () => room.classList.remove('kbd'), true);
 
 room.addEventListener('pointerover', (e) => {
   if (state.open) return;
