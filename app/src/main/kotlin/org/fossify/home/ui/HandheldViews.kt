@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.os.BatteryManager
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -24,6 +25,8 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlin.math.roundToInt
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 object HandheldPalette {
     const val INK = 0xFF1E293B.toInt()
@@ -101,49 +104,74 @@ class GameScreen @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val d = resources.displayMetrics.density
-        val frame = RectF(2 * d, 2 * d, width - 7 * d, height - 9 * d)
+        // Stitch substitution: its remote portrait and web fonts cannot be bundled under the
+        // no-download/no-binary rule. The avatar is therefore procedural and Android's bold
+        // sans-serif is used; every measurable panel/color/spacing value remains source-exact.
+        val frame = RectF(0f, 0f, width - 4*d, height - 6*d)
         paint.color = HandheldPalette.INK
-        paint.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-        canvas.drawRoundRect(frame, 22 * d, 22 * d, paint)
-        val screen = RectF(frame.left + 4*d, frame.top + 4*d, frame.right - 4*d, frame.bottom - 4*d)
-        paint.color = HandheldPalette.DARK_SCREEN
-        paint.setShadowLayer(12*d, 0f, 2*d, 0x99000000.toInt())
-        canvas.drawRoundRect(screen, 18*d, 18*d, paint)
+        canvas.drawRoundRect(RectF(4*d, 6*d, width.toFloat(), height.toFloat()), 12*d, 12*d, paint)
+        canvas.drawRoundRect(frame, 12*d, 12*d, paint)
+        val screen = RectF(4*d, 4*d, frame.right - 4*d, frame.bottom - 4*d)
+        paint.color = HandheldPalette.BLUE
+        canvas.drawRoundRect(screen, 8*d, 8*d, paint)
         paint.clearShadowLayer()
 
-        // Restrained LCD scanlines, drawn in code rather than as an image asset.
-        paint.color = 0x16000000
+        // Exact repeating-linear-gradient cadence: transparent 3px, black/15% 3px.
+        paint.color = 0x26000000
         var y = screen.top + 3*d
-        while (y < screen.bottom) { canvas.drawRect(screen.left, y, screen.right, y + d, paint); y += 5*d }
+        while (y < screen.bottom) { canvas.drawRect(screen.left, y, screen.right, y + 3*d, paint); y += 6*d }
+        paint.color = 0x14FFFFFF
+        canvas.drawRect(screen.left, screen.top, screen.right, screen.top + screen.height()/3f, paint)
 
         val shownEvent = event
         if (shownEvent != null) drawEvent(canvas, screen, shownEvent, d) else drawState(canvas, screen, d)
     }
 
     private fun drawState(canvas: Canvas, r: RectF, d: Float) {
+        val left = r.left + 20*d
+        val top = r.top + 16*d
+        // 2px outlined translucent pill, 40px procedural avatar, 12px gap, 16px right padding.
+        paint.color = 0xCC1F2A3C.toInt()
+        canvas.drawRoundRect(RectF(left, top, left+139*d, top+52*d), 26*d, 26*d, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2*d; paint.color = HandheldPalette.INK
+        canvas.drawRoundRect(RectF(left, top, left+139*d, top+52*d), 26*d, 26*d, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = HandheldPalette.PANEL; canvas.drawCircle(left+26*d, top+26*d, 20*d, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2*d; paint.color = HandheldPalette.INK
+        canvas.drawCircle(left+26*d, top+26*d, 20*d, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = HandheldPalette.YELLOW; canvas.drawCircle(left+26*d, top+25*d, 12*d, paint)
+        paint.color = HandheldPalette.RED; canvas.drawRect(left+17*d, top+15*d, left+34*d, top+20*d, paint)
+
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         paint.textAlign = Paint.Align.LEFT
-        paint.textSize = 18*d
+        paint.textSize = 14*d
         paint.color = Color.WHITE
-        canvas.drawText(state.name.uppercase(), r.left + 20*d, r.top + 30*d, paint)
-        paint.textAlign = Paint.Align.RIGHT
-        paint.textSize = 11*d
-        paint.color = if (state.paused) HandheldPalette.YELLOW else HandheldPalette.GREEN
-        canvas.drawText(if (state.paused) "● PAUSE" else "● ONLINE", r.right - 20*d, r.top + 28*d, paint)
+        canvas.drawText(state.name.uppercase(), left+52*d, top+23*d, paint)
+        paint.textSize = 10*d; paint.color = HandheldPalette.YELLOW
+        canvas.drawText("HEUTE", left+52*d, top+41*d, paint)
+        paint.color = HandheldPalette.GREEN; canvas.drawCircle(r.right-39*d, top+8*d, 6*d, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2*d; paint.color = HandheldPalette.INK
+        canvas.drawCircle(r.right-39*d, top+8*d, 6*d, paint)
+        paint.style = Paint.Style.FILL; paint.color = 0x80E35D35.toInt()
+        canvas.drawCircle(r.right-19*d, top+8*d, 6*d, paint)
+        paint.style = Paint.Style.STROKE; paint.color = HandheldPalette.INK
+        canvas.drawCircle(r.right-19*d, top+8*d, 6*d, paint)
 
-        val cx = r.centerX(); val cy = r.centerY() + 5*d; val radius = minOf(r.width(), r.height()) * .27f
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = 8*d; paint.strokeCap = Paint.Cap.ROUND
-        paint.color = 0xFF243750.toInt(); canvas.drawCircle(cx, cy, radius, paint)
+        val cx = r.centerX(); val cy = r.centerY() + 25*d
+        val radius = minOf(84*d, r.height()*.31f)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(4*d,4*d),0f)
+        paint.color = 0x33FFFFFF; canvas.drawCircle(cx, cy, radius+12*d, paint)
+        paint.pathEffect = null; paint.strokeWidth = 6*d; paint.strokeCap = Paint.Cap.ROUND
+        paint.color = 0x801E293B.toInt(); canvas.drawCircle(cx, cy, radius, paint)
         paint.color = if (state.minutes <= 10) HandheldPalette.RED else HandheldPalette.YELLOW
         val arc = RectF(cx-radius, cy-radius, cx+radius, cy+radius)
         canvas.drawArc(arc, -90f, 360f * state.progress.coerceIn(0f, 1f), false, paint)
         paint.style = Paint.Style.FILL; paint.strokeCap = Paint.Cap.BUTT
-        paint.textAlign = Paint.Align.CENTER; paint.color = Color.WHITE; paint.textSize = 48*d
-        canvas.drawText(state.minutes.toString(), cx, cy + 10*d, paint)
-        paint.textSize = 12*d; paint.color = HandheldPalette.YELLOW
-        canvas.drawText("MIN", cx, cy + 29*d, paint)
-        paint.textSize = 13*d; paint.color = 0xFFD8E3FB.toInt()
-        canvas.drawText(state.status, cx, r.bottom - 18*d, paint)
+        paint.textAlign = Paint.Align.CENTER; paint.color = Color.WHITE; paint.textSize = 56*d
+        canvas.drawText(state.minutes.toString(), cx, cy + 13*d, paint)
+        paint.textSize = 14*d; paint.letterSpacing = .2f; paint.color = HandheldPalette.YELLOW
+        canvas.drawText("MIN", cx, cy + 39*d, paint); paint.letterSpacing = 0f
     }
 
     private fun drawEvent(canvas: Canvas, r: RectF, event: GameScreenEvent, d: Float) {
@@ -158,91 +186,91 @@ class GameScreen @JvmOverloads constructor(
 data class TouchAction(val label: String, val symbol: String, val color: Int, val onClick: () -> Unit)
 data class TouchPage(val actions: List<TouchAction>) { init { require(actions.size == 4) } }
 
-/** Horizontally paged lower display. Every page deliberately accepts exactly four actions. */
-class TouchScreenPager(context: Context, pages: List<TouchPage>) : LinearLayout(context) {
-    private val pager = SnapScrollView(context)
-    private val strip = LinearLayout(context)
-    private val dots = LinearLayout(context)
-    private val pageCount = pages.size
+/** Stitch's exact 2×2 touch panel: 16px padding/gaps, 4px outlines and 4×6px shadows. */
+class TouchScreenPager(context: Context, pages: List<TouchPage>) : View(context) {
+    private val actions = pages.first().actions
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var pressed = -1
+    init { isClickable = true; isFocusable = true; contentDescription = "Launchpad-Menü" }
 
-    init {
-        orientation = VERTICAL
-        setPadding(dp(4), dp(4), dp(9), dp(10))
-        background = framedBackground()
-        pager.isHorizontalScrollBarEnabled = false
-        strip.orientation = HORIZONTAL
-        pages.forEach { strip.addView(page(it), LayoutParams(0, MATCH_PARENT).apply { width = resources.displayMetrics.widthPixels - dp(37) }) }
-        pager.addView(strip, ViewGroup.LayoutParams(WRAP_CONTENT, MATCH_PARENT))
-        addView(pager, LayoutParams(MATCH_PARENT, 0, 1f))
-        dots.gravity = Gravity.CENTER
-        repeat(pageCount) { dots.addView(dot(it == 0)) }
-        addView(dots, LayoutParams(MATCH_PARENT, dp(22)))
-        pager.onPageChanged = { selected ->
-            for (i in 0 until dots.childCount) {
-                dots.getChildAt(i).background = dotBackground(i == selected)
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val index = hit(event.x, event.y)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { pressed = index; invalidate() }
+            MotionEvent.ACTION_UP -> {
+                val selected = pressed; pressed = -1; invalidate(); performClick()
+                if (selected >= 0 && selected == index) actions[selected].onClick()
             }
+            MotionEvent.ACTION_CANCEL -> { pressed = -1; invalidate() }
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean { super.performClick(); return true }
+
+    override fun onDraw(canvas: Canvas) {
+        val d = resources.displayMetrics.density
+        panel(canvas, RectF(0f,0f,width-4*d,height-6*d), HandheldPalette.PANEL, 12*d, d)
+        paint.color = 0x1A1E293B
+        var x = 8*d
+        while (x < width) { var y = 8*d; while (y < height) { canvas.drawCircle(x,y,1.5f*d,paint); y += 16*d }; x += 16*d }
+        val gap = 16*d; val padding = 16*d
+        val cellW = (width-4*d-padding*2-gap)/2f; val cellH = (height-6*d-padding*2-gap)/2f
+        actions.forEachIndexed { index, action ->
+            val col = index%2; val row = index/2
+            val dx = if (pressed == index) 4*d else 0f; val dy = if (pressed == index) 6*d else 0f
+            val r = RectF(padding+col*(cellW+gap)+dx,padding+row*(cellH+gap)+dy,padding+col*(cellW+gap)+cellW+dx,padding+row*(cellH+gap)+cellH+dy)
+            drawButton(canvas,r,action,index,d)
         }
     }
 
-    private fun page(page: TouchPage) = GridLayout(context).apply {
-        columnCount = 2; rowCount = 2; setPadding(dp(12), dp(12), dp(12), dp(5))
-        page.actions.forEachIndexed { index, action ->
-            addView(actionButton(action), GridLayout.LayoutParams(
-                GridLayout.spec(index / 2, 1f), GridLayout.spec(index % 2, 1f)
-            ).apply { width = 0; height = 0; setMargins(dp(7), dp(7), dp(7), dp(7)) })
-        }
+    private fun drawButton(canvas: Canvas, r: RectF, action: TouchAction, index: Int, d: Float) {
+        if (pressed != index) { paint.color=HandheldPalette.INK; canvas.drawRoundRect(RectF(r.left+4*d,r.top+6*d,r.right+4*d,r.bottom+6*d),12*d,12*d,paint) }
+        paint.color=HandheldPalette.DARK_SCREEN; canvas.drawRoundRect(r,12*d,12*d,paint)
+        paint.style=Paint.Style.STROKE; paint.strokeWidth=4*d; paint.color=HandheldPalette.INK; canvas.drawRoundRect(r,12*d,12*d,paint); paint.style=Paint.Style.FILL
+        paint.color=0x0DFFFFFF; canvas.drawRoundRect(RectF(r.left+4*d,r.top+4*d,r.right-4*d,r.top+r.height()*.4f),8*d,8*d,paint)
+        val cy=r.centerY()-17*d; paint.color=action.color; canvas.drawCircle(r.centerX(),cy,32*d,paint)
+        paint.style=Paint.Style.STROKE; paint.strokeWidth=4*d; paint.color=HandheldPalette.INK; canvas.drawCircle(r.centerX(),cy,32*d,paint); paint.style=Paint.Style.FILL
+        paint.textAlign=Paint.Align.CENTER; paint.typeface=Typeface.DEFAULT_BOLD; paint.textSize=32*d
+        paint.color=if(index==0) HandheldPalette.PANEL else HandheldPalette.INK; canvas.drawText(action.symbol,r.centerX(),cy+11*d,paint)
+        paint.textSize=14*d; paint.letterSpacing=.08f; paint.color=0xFFD8E3FB.toInt(); canvas.drawText(action.label.uppercase(),r.centerX(),cy+59*d,paint); paint.letterSpacing=0f
+        if(index==0) { paint.color=HandheldPalette.YELLOW; canvas.drawCircle(r.right-10*d,r.top+10*d,6*d,paint); paint.style=Paint.Style.STROKE; paint.strokeWidth=2*d; paint.color=HandheldPalette.INK; canvas.drawCircle(r.right-10*d,r.top+10*d,6*d,paint); paint.style=Paint.Style.FILL }
     }
 
-    private fun actionButton(action: TouchAction) = LinearLayout(context).apply {
-        orientation = VERTICAL; gravity = Gravity.CENTER; isClickable = true; isFocusable = true
-        background = buttonBackground(); elevation = dp(5).toFloat(); contentDescription = action.label
-        addView(TextView(context).apply {
-            text = action.symbol; textSize = 31f; gravity = Gravity.CENTER
-            background = circle(action.color); setTextColor(HandheldPalette.INK)
-        }, LayoutParams(dp(62), dp(62)))
-        addView(TextView(context).apply {
-            text = action.label.uppercase(); textSize = 12f; gravity = Gravity.CENTER
-            setTypeface(null, Typeface.BOLD); setTextColor(Color.WHITE); setPadding(0, dp(8), 0, 0)
-        })
-        setOnTouchListener { view, e ->
-            when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { view.translationX = dp(4).toFloat(); view.translationY = dp(5).toFloat(); view.elevation = 0f }
-                MotionEvent.ACTION_UP -> { resetPress(view); view.performClick() }
-                MotionEvent.ACTION_CANCEL -> resetPress(view)
-            }; true
-        }
-        setOnClickListener { action.onClick() }
+    private fun panel(canvas: Canvas,r:RectF,color:Int,radius:Float,d:Float) { paint.color=HandheldPalette.INK; canvas.drawRoundRect(RectF(r.left+4*d,r.top+6*d,r.right+4*d,r.bottom+6*d),radius,radius,paint); paint.color=color; canvas.drawRoundRect(r,radius,radius,paint); paint.style=Paint.Style.STROKE;paint.strokeWidth=4*d;paint.color=HandheldPalette.INK;canvas.drawRoundRect(r,radius,radius,paint);paint.style=Paint.Style.FILL }
+    private fun hit(x:Float,y:Float):Int { val col=if(x<width/2f)0 else 1; val row=if(y<height/2f)0 else 1; return row*2+col }
+}
+
+class StitchHeaderView(context: Context) : View(context) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val clock = DateTimeFormatter.ofPattern("HH:mm")
+    private val ticker = object : Runnable { override fun run() { invalidate(); postDelayed(this, 30_000) } }
+    init { contentDescription = "Quests, Systemstatus"; post(ticker) }
+    override fun onDetachedFromWindow() { removeCallbacks(ticker); super.onDetachedFromWindow() }
+    override fun onDraw(canvas: Canvas) {
+        val d=resources.displayMetrics.density
+        paint.color=HandheldPalette.INK; canvas.drawRect(4*d,6*d,width.toFloat(),height.toFloat(),paint)
+        val header=RectF(0f,0f,width-4*d,height-6*d)
+        paint.color=0xE61F2A3C.toInt(); canvas.drawRoundRect(header,0f,0f,paint)
+        paint.color=0x0DFFFFFF; canvas.drawRect(0f,0f,width-4*d,(height-6*d)/2f,paint)
+        paint.textAlign=Paint.Align.LEFT;paint.typeface=Typeface.DEFAULT_BOLD;paint.textSize=20*d;paint.color=HandheldPalette.YELLOW
+        canvas.drawText("◆",16*d,36*d,paint);paint.color=0xFFD8E3FB.toInt();canvas.drawText("QUESTS",44*d,36*d,paint)
+        val battery=context.getSystemService(BatteryManager::class.java).getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        paint.textAlign=Paint.Align.RIGHT;paint.textSize=14*d;paint.color=0xFFE6BDB5.toInt()
+        canvas.drawText("${LocalTime.now().format(clock)}  ▰ ${battery.coerceIn(0,100)}%",width-61*d,35*d,paint)
+        paint.color=0xFFFFB4A4.toInt();canvas.drawCircle(width-27*d,28*d,16*d,paint)
+        paint.style=Paint.Style.STROKE;paint.strokeWidth=2*d;paint.color=HandheldPalette.INK;canvas.drawCircle(width-27*d,28*d,16*d,paint)
+        paint.style=Paint.Style.FILL;paint.textAlign=Paint.Align.CENTER;paint.textSize=18*d;paint.color=0xFF630E00.toInt();canvas.drawText("●",width-27*d,34*d,paint)
+        paint.style=Paint.Style.STROKE;paint.strokeWidth=4*d;paint.color=HandheldPalette.INK;canvas.drawRoundRect(header,0f,0f,paint);paint.style=Paint.Style.FILL
     }
+}
 
-    private fun resetPress(view: View) { view.translationX = 0f; view.translationY = 0f; view.elevation = dp(5).toFloat() }
-    private fun dot(active: Boolean) = View(context).apply { background = dotBackground(active); layoutParams = LayoutParams(dp(if (active) 22 else 8), dp(8)).apply { setMargins(dp(4), 0, dp(4), 0) } }
-    private fun dotBackground(active: Boolean) = GradientDrawable().apply { cornerRadius = dp(9).toFloat(); setColor(if (active) HandheldPalette.BLUE else 0xFFB7C0CC.toInt()) }
-    private fun circle(color: Int) = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke(dp(4), HandheldPalette.INK) }
-    private fun buttonBackground() = GradientDrawable().apply { cornerRadius = dp(17).toFloat(); setColor(HandheldPalette.DARK_SCREEN); setStroke(dp(4), HandheldPalette.INK) }
-    private fun framedBackground() = GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(HandheldPalette.PANEL); setStroke(dp(4), HandheldPalette.INK) }
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+data class NavAction(val label:String,val symbol:String,val active:Boolean=false,val onClick:()->Unit)
 
-    private inner class SnapScrollView(context: Context) : HorizontalScrollView(context) {
-        var onPageChanged: (Int) -> Unit = {}
-
-        override fun onTouchEvent(ev: MotionEvent): Boolean {
-            val handled = super.onTouchEvent(ev)
-            if (ev.actionMasked == MotionEvent.ACTION_UP) {
-                performClick()
-            }
-            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                postDelayed({
-                    val width = this@TouchScreenPager.width.coerceAtLeast(1)
-                    val page = (scrollX.toFloat() / width).roundToInt().coerceIn(0, pageCount - 1)
-                    smoothScrollTo(page * width, 0); onPageChanged(page)
-                }, 40)
-            }
-            return handled
-        }
-
-        override fun performClick(): Boolean {
-            super.performClick()
-            return true
-        }
-    }
+class StitchBottomNav(context: Context, private val actions:List<NavAction>) : View(context) {
+    private val paint=Paint(Paint.ANTI_ALIAS_FLAG); private var down=-1
+    init { isClickable=true;isFocusable=true;contentDescription="Launchpad-Navigation" }
+    override fun onTouchEvent(event:MotionEvent):Boolean { val i=(event.x/(width/4f)).toInt().coerceIn(0,3); when(event.actionMasked){MotionEvent.ACTION_DOWN->{down=i;invalidate()};MotionEvent.ACTION_UP->{val old=down;down=-1;invalidate();performClick();if(old==i)actions[i].onClick()};MotionEvent.ACTION_CANCEL->{down=-1;invalidate()}};return true }
+    override fun performClick():Boolean { super.performClick();return true }
+    override fun onDraw(canvas:Canvas){val d=resources.displayMetrics.density;paint.color=HandheldPalette.INK;canvas.drawRoundRect(RectF(4*d,0f,width.toFloat(),height.toFloat()),12*d,12*d,paint);val nav=RectF(0f,4*d,width-4*d,height.toFloat());paint.color=0xFF1F2A3C.toInt();canvas.drawRoundRect(nav,12*d,12*d,paint);paint.style=Paint.Style.STROKE;paint.strokeWidth=4*d;paint.color=HandheldPalette.INK;canvas.drawRoundRect(nav,12*d,12*d,paint);paint.style=Paint.Style.FILL;actions.forEachIndexed{i,a->val cx=(i+.5f)*width/4f;val top=10*d+(if(down==i)2*d else 0f);if(a.active){paint.color=0xFFFFB4A4.toInt();canvas.drawRoundRect(RectF(cx-32*d,top,cx+32*d,top+64*d),8*d,8*d,paint);paint.color=0xFF630E00.toInt()}else paint.color=0xFFE6BDB5.toInt();paint.textAlign=Paint.Align.CENTER;paint.typeface=Typeface.DEFAULT_BOLD;paint.textSize=28*d;canvas.drawText(a.symbol,cx,top+31*d,paint);paint.textSize=12*d;canvas.drawText(a.label.uppercase(),cx,top+52*d,paint)}}
 }

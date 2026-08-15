@@ -23,6 +23,7 @@ import org.fossify.home.helpers.ConnectivityStateMonitor
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TimeBudgetManager
+import org.fossify.home.helpers.TimeBudgetController
 import org.fossify.home.ui.GameScreen
 import org.fossify.home.ui.GameScreenEvent
 import org.fossify.home.ui.GameScreenState
@@ -31,6 +32,9 @@ import org.fossify.home.ui.OfflineMode
 import org.fossify.home.ui.SoundCue
 import org.fossify.home.ui.SoundFeedback
 import org.fossify.home.ui.SystemSoundFeedback
+import org.fossify.home.ui.StitchBottomNav
+import org.fossify.home.ui.StitchHeaderView
+import org.fossify.home.ui.NavAction
 import org.fossify.home.ui.TouchAction
 import org.fossify.home.ui.TouchPage
 import org.fossify.home.ui.TouchScreenPager
@@ -73,20 +77,22 @@ class JakeDashboardActivity : AppCompatActivity() {
 
     private fun buildHandheld() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(14), dp(10), dp(14), dp(14))
-        setBackgroundColor(0xFF182337.toInt())
-        addView(TextView(this@JakeDashboardActivity).apply {
-            text = "‹  LAUNCHPAD"; textSize = 13f; setTextColor(Color.WHITE); gravity = Gravity.CENTER_VERTICAL
-            setOnClickListener { finish() }; setPadding(dp(4), 0, 0, dp(5))
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(31)))
-        upperHolder = FrameLayout(this@JakeDashboardActivity)
-        gameScreen = GameScreen(this@JakeDashboardActivity)
-        upperHolder.addView(gameScreen, matchParent())
-        addView(upperHolder, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 43f))
-        lowerHolder = FrameLayout(this@JakeDashboardActivity)
-        normalControls = buildTouchScreen()
-        lowerHolder.addView(normalControls, matchParent())
-        addView(lowerHolder, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 57f).apply { topMargin = dp(8) })
+        setBackgroundColor(HandheldPalette.DARK_SCREEN)
+        addView(StitchHeaderView(this@JakeDashboardActivity), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)))
+        addView(LinearLayout(this@JakeDashboardActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), 0, dp(24), dp(16))
+            upperHolder = FrameLayout(this@JakeDashboardActivity)
+            gameScreen = GameScreen(this@JakeDashboardActivity)
+            upperHolder.addView(gameScreen, matchParent())
+            addView(upperHolder, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(260)))
+            lowerHolder = FrameLayout(this@JakeDashboardActivity)
+            normalControls = buildTouchScreen()
+            lowerHolder.addView(normalControls, matchParent())
+            lowerHolder.minimumHeight = dp(320)
+            addView(lowerHolder, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = dp(12) })
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        addView(buildBottomNav(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(80)))
     }
 
     private fun buildTouchScreen() = TouchScreenPager(this, listOf(TouchPage(listOf(
@@ -96,13 +102,20 @@ class JakeDashboardActivity : AppCompatActivity() {
         TouchAction("Versprechen", "✓", HandheldPalette.GREEN) {
             startActivity(Intent(this, ZusagenActivity::class.java).putExtra("isParentMode", false))
         },
-        TouchAction("Apps", "▦", HandheldPalette.YELLOW) {
+        TouchAction("Karte", "⌖", HandheldPalette.YELLOW) {
+            startActivity(Intent(this, EntdeckenActivity::class.java))
+        },
+        TouchAction("Rucksack", "▣", 0xFFABC7FF.toInt()) {
             startActivity(Intent(this, MainActivity::class.java))
         },
-        TouchAction("Heute", "◷", HandheldPalette.BLUE) {
-            startActivity(Intent(this, DailyReportActivity::class.java))
-        },
     ))))
+
+    private fun buildBottomNav() = StitchBottomNav(this, listOf(
+        NavAction("Quests", "⚔", true) { Unit },
+        NavAction("Gear", "◆") { startActivity(Intent(this, MainActivity::class.java)) },
+        NavAction("Map", "⌖") { startActivity(Intent(this, EntdeckenActivity::class.java)) },
+        NavAction("Journal", "▤") { startActivity(Intent(this, DailyReportActivity::class.java)) },
+    ))
 
     private fun load() = scope.launch {
         val data = withContext(Dispatchers.IO) {
@@ -123,9 +136,10 @@ class JakeDashboardActivity : AppCompatActivity() {
             spent > 0 -> "HEUTE $spent MIN GENUTZT"
             else -> "BEREIT"
         }
+        val available = TimeBudgetController(this@JakeDashboardActivity).state().availableToday.coerceAtLeast(1)
         gameScreen.render(GameScreenState(
             ChildProfile.name(this@JakeDashboardActivity), minutes,
-            minutes / 120f, status, budget.inCooldown || budget.balanceMinutes <= 0,
+            minutes.toFloat() / available, status, budget.inCooldown || budget.balanceMinutes <= 0,
         ))
         previousMinutes?.let { old ->
             when {
