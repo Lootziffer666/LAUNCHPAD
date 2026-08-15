@@ -89,6 +89,7 @@ import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.NewAppsTracker
 import org.fossify.home.helpers.NotificationHelper
 import org.fossify.home.helpers.TimeBudgetManager
+import org.fossify.home.helpers.TimeBudgetController
 import org.fossify.home.extensions.launchersDB
 import org.fossify.home.extensions.roleManager
 import org.fossify.home.extensions.supportsDarkText
@@ -1025,65 +1026,32 @@ class MainActivity : SimpleActivity(), FlingListener {
         overlay.postDelayed(hide, 4_500L)
     }
 
-    // ─── LAUNCHPAD: Jake's status bar ─────────────────────────────────────────
+    // ─── LAUNCHPAD: Jake's launcher-native home information ───────────────────
 
     private fun refreshStatusBar() {
         val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, MODE_PRIVATE)
         val enforce = prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
         val bar = binding.root.findViewById<android.view.View>(R.id.launchpad_status_bar)
-        val timeText = binding.root.findViewById<android.widget.TextView>(R.id.status_time_text)
-        val timeIcon = binding.root.findViewById<android.widget.TextView>(R.id.status_time_icon)
-        if (bar == null) return
+        bar?.visibility = android.view.View.GONE
+        binding.launchpadHomeInfo.visibility = if (enforce) android.view.View.VISIBLE else android.view.View.GONE
+        if (!enforce) return
 
-        // Time lives in the compact, user-placeable widget. Never reserve or cover launcher space.
-        bar.visibility = android.view.View.GONE
-        return
-
-        if (!enforce) {
-            bar.visibility = android.view.View.GONE
-            return
-        }
-        bar.visibility = android.view.View.VISIBLE
-        bar.setOnClickListener {
-            startActivity(Intent(this, JakeDashboardActivity::class.java))
-        }
-
-        // 🌐 Entdecken button
-        val exploreBtn = binding.root.findViewById<android.widget.TextView>(R.id.status_explore_btn)
-        exploreBtn?.setOnClickListener {
-            startActivity(Intent(this, EntdeckenActivity::class.java))
-        }
+        // The clock changes every minute and shares the existing lightweight refresh pulse.
+        binding.launchpadHomeInfo.updateClock()
 
         CoroutineScope(Dispatchers.Main).launch {
             val budget = withContext(Dispatchers.IO) {
-                org.fossify.home.helpers.TimeBudgetManager(
+                TimeBudgetManager(
                     this@MainActivity,
                     AppsDatabase.getInstance(this@MainActivity)
                 ).getCurrentBudget()
             }
-            when {
-                budget.inCooldown -> {
-                    val rem = budget.minutesUntilCooldownExpires() ?: 0
-                    timeIcon.text = "⏸️"
-                    timeText.text = "Pause — noch $rem Min"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC0D2847"))
-                }
-                budget.balanceMinutes <= 0 -> {
-                    timeIcon.text = "📵"
-                    timeText.text = "Keine Zeit mehr"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CCFF4444"))
-                }
-                budget.balanceMinutes < 10 -> {
-                    timeIcon.text = "⚡"
-                    timeText.text = "Noch ${budget.balanceMinutes} Min"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CCFF6B35"))
-                }
-                else -> {
-                    timeIcon.text = "⏱️"
-                    timeText.text = "${budget.balanceMinutes} Min"
-                    bar.setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
-                }
-            }
+            val canonical = TimeBudgetController(this@MainActivity).state()
+            binding.launchpadHomeInfo.render(
+                canonical,
+                inCooldown = budget.inCooldown,
+                cooldownMinutes = budget.minutesUntilCooldownExpires() ?: 0,
+            )
             if (!budget.inCooldown) maybeWarnTimeLimit(budget.balanceMinutes)
         }
     }
