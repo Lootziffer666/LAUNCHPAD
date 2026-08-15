@@ -3,12 +3,40 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/all_apps_holder"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="match_parent"
+    android:background="@drawable/lp_drawer_background"
+    android:paddingTop="18dp">
+
+    <TextView
+        android:id="@+id/all_apps_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:fontFamily="@font/nunito"
+        android:text="Alle Apps"
+        android:textColor="@color/lp_star"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/all_apps_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/all_apps_title"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="2dp"
+        android:text="Dein nächster Weg beginnt hier"
+        android:textColor="@color/lp_mist"
+        android:textSize="12sp" />
 
     <org.fossify.commons.views.MySearchMenu
         android:id="@+id/search_bar"
+        android:layout_below="@id/all_apps_subtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/lp_search_background"
         app:applyWindowInsets="false" />
 
     <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller

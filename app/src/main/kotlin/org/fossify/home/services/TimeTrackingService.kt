@@ -41,6 +41,9 @@ import org.fossify.home.activities.AppBlockedActivity
 import org.fossify.home.activities.TimesUpActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.AppLimitBonus
+import org.fossify.home.helpers.BreakConfig
+import org.fossify.home.helpers.BreakDecision
+import org.fossify.home.helpers.BreakPolicy
 import org.fossify.home.helpers.DailyRefill
 import org.fossify.home.helpers.ForegroundPolicy
 import org.fossify.home.helpers.LaunchpadConstants
@@ -246,6 +249,7 @@ class TimeTrackingService : Service() {
             if (wholeMinutes >= 1) {
                 accumulatedMs -= wholeMinutes * 60_000L
                 val newBalance = budgetManager.spend(wholeMinutes, pkg)
+                evaluateGentleBreak(now)
                 if (newBalance <= 0) {
                     resetCounter()
                     lastCooldownLaunch = System.currentTimeMillis()
@@ -255,6 +259,30 @@ class TimeTrackingService : Service() {
                     maybeWarnTimeRunningLow(newBalance)
                 }
             }
+        }
+    }
+
+    private fun evaluateGentleBreak(now: Long) {
+        val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
+        var started = prefs.getLong(LaunchpadPrefs.PREF_CONTINUOUS_USAGE_START, 0L)
+        if (started == 0L) { started = now; prefs.edit().putLong(LaunchpadPrefs.PREF_CONTINUOUS_USAGE_START, now).apply() }
+        val config = BreakConfig(
+            prefs.getBoolean(LaunchpadPrefs.PREF_BREAK_ENABLED, true),
+            prefs.getInt(LaunchpadPrefs.PREF_BREAK_AFTER_MINUTES, 60),
+            prefs.getInt(LaunchpadPrefs.PREF_BREAK_DURATION_MINUTES, 5)
+        )
+        val continuous = ((now - started) / 60_000L).toInt()
+        val lastBreak = prefs.getLong(LaunchpadPrefs.PREF_BREAK_ACTIVE_UNTIL, 0L)
+        when (BreakPolicy.decide(config, continuous, continuous, now < lastBreak, ((now - lastBreak) / 60_000L).toInt())) {
+            BreakDecision.WARNING -> if (continuous == config.afterContinuousMinutes - config.warningMinutes) {
+                Toast.makeText(this, "Noch ${config.warningMinutes} Minuten bis zur Verschnaufpause.", Toast.LENGTH_LONG).show()
+            }
+            BreakDecision.START_BREAK -> {
+                budgetManager.beginCooldown(config.durationMinutes)
+                prefs.edit().putLong(LaunchpadPrefs.PREF_BREAK_ACTIVE_UNTIL, now + config.durationMinutes * 60_000L)
+                    .putLong(LaunchpadPrefs.PREF_CONTINUOUS_USAGE_START, 0L).apply()
+            }
+            BreakDecision.NONE -> Unit
         }
     }
 

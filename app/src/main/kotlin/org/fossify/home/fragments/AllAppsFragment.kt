@@ -7,13 +7,13 @@ import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.OnScrollListener
+import androidx.core.content.ContextCompat
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.extensions.normalizeString
 import org.fossify.commons.views.MyGridLayoutManager
+import org.fossify.home.R
 import org.fossify.home.activities.MainActivity
 import org.fossify.home.adapters.LaunchersAdapter
 import org.fossify.home.databinding.AllAppsFragmentBinding
@@ -180,7 +180,7 @@ class AllAppsFragment(
             return
         }
 
-        binding.allAppsFastscroller.updateColors(context.getProperPrimaryColor())
+        binding.allAppsFastscroller.updateColors(ContextCompat.getColor(context, R.color.lp_star))
         binding.allAppsGrid.addOnScrollListener(object : OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 // Hiding is expensive, only do it if focused
@@ -191,12 +191,18 @@ class AllAppsFragment(
         })
 
         setupDrawerBackground()
-        getAdapter()?.updateTextColor(context.getProperTextColor())
+        getAdapter()?.updateTextColor(ContextCompat.getColor(context, R.color.lp_cloud))
 
         binding.searchBar.beVisibleIf(context.config.showSearchBar)
         binding.searchBar.requireToolbar().beGone()
         binding.searchBar.updateColors()
         binding.searchBar.setupMenu()
+        binding.searchBar.background = ContextCompat.getDrawable(context, R.drawable.lp_search_background)
+        binding.searchBar.binding.topToolbarSearch.apply {
+            setTextColor(ContextCompat.getColor(context, R.color.lp_cloud))
+            setHintTextColor(ContextCompat.getColor(context, R.color.lp_mist))
+            hint = "App suchen"
+        }
 
         binding.searchBar.onSearchTextChangedListener = {
             submitList(launchers)

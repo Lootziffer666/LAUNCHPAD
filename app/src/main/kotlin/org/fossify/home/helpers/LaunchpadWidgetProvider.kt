@@ -19,7 +19,6 @@ import org.fossify.home.R
 import org.fossify.home.activities.DogeRequestsActivity
 import org.fossify.home.activities.JakeDashboardActivity
 import org.fossify.home.activities.ZusagenActivity
-import org.fossify.home.databases.AppsDatabase
 
 class LaunchpadWidgetProvider : AppWidgetProvider() {
 
@@ -50,19 +49,20 @@ class LaunchpadWidgetProvider : AppWidgetProvider() {
 }
 
 private suspend fun render(context: Context, manager: AppWidgetManager, widgetId: Int) {
-    val db = AppsDatabase.getInstance(context)
-    val balance = db.cryptoCashDao().getCurrentBalance()
+    val time = TimeBudgetController(context).state()
+    val balance = time.remainingToday
     val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
     val enforced = prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
     val inCooldown = System.currentTimeMillis() < prefs.getLong(LaunchpadPrefs.PREF_COOLDOWN_UNTIL, 0L)
 
     data class State(val icon: String, val text: String, val hex: String, val progress: Int)
     val s = when {
-        inCooldown    -> State("⏸️", "Pause",       "#FF6B35", 0)
-        !enforced     -> State("🔓", "Kein Limit",  "#4CAF50", 120)
-        balance <= 0  -> State("📵", "0 Min",       "#FF4444", 0)
-        balance < 10  -> State("⚡", "$balance Min", "#FF6B35", balance)
-        else          -> State("⏱️", "$balance Min", "#4CAF50", balance.coerceAtMost(120))
+        inCooldown    -> State("☾", "Kurze Pause",  "#B8C9DA", 0)
+        time.unlimitedForToday -> State("✦", "Heute frei", "#FFF3C4", time.availableToday)
+        !enforced     -> State("✦", "Kein Limit",   "#FFF3C4", time.availableToday)
+        balance <= 0  -> State("○", "0 Min",        "#B8C9DA", 0)
+        balance < 10  -> State("◷", "$balance Min", "#F6D98A", balance)
+        else          -> State(if (time.grantedBonusTime > 0) "+" else "✦", "$balance Min", "#FFF3C4", balance)
     }
     val color = Color.parseColor(s.hex)
 
@@ -70,7 +70,7 @@ private suspend fun render(context: Context, manager: AppWidgetManager, widgetId
     views.setTextViewText(R.id.widget_icon, s.icon)
     views.setTextViewText(R.id.widget_balance, s.text)
     views.setInt(R.id.widget_mode_dot, "setBackgroundColor", color)
-    views.setProgressBar(R.id.widget_progress, 120, s.progress, false)
+    views.setProgressBar(R.id.widget_progress, time.availableToday.coerceAtLeast(1), s.progress, false)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         views.setColorStateList(
             R.id.widget_progress, "setProgressTintList",

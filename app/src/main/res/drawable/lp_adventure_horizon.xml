@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original Launchpad illustration: two human travellers stargazing. No franchise assets. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp" android:height="800dp"
+    android:viewportWidth="360" android:viewportHeight="800">
+    <!-- quiet star field -->
+    <path android:fillColor="#F6D98A" android:pathData="M52,126 l2,5 5,2 -5,2 -2,5 -2,-5 -5,-2 5,-2z" />
+    <path android:fillColor="#FFF3C4" android:fillAlpha="0.85" android:pathData="M284,99 a2,2 0,1 0,0.1,0" />
+    <path android:fillColor="#FFF3C4" android:fillAlpha="0.7" android:pathData="M318,222 a1.5,1.5 0,1 0,0.1,0" />
+    <path android:fillColor="#F6D98A" android:pathData="M104,278 l1.5,4 4,1.5 -4,1.5 -1.5,4 -1.5,-4 -4,-1.5 4,-1.5z" />
+    <path android:fillColor="#FFF3C4" android:fillAlpha="0.75" android:pathData="M218,184 a1.6,1.6 0,1 0,0.1,0" />
+    <path android:fillColor="#FFF3C4" android:fillAlpha="0.55" android:pathData="M68,362 a1.5,1.5 0,1 0,0.1,0" />
+    <!-- distant hills and open meadow -->
+    <path android:fillColor="#356E67" android:pathData="M0,575 C50,538 92,552 135,572 C184,526 238,536 360,584 L360,800 L0,800z" />
+    <path android:fillColor="#4F8A68" android:pathData="M0,626 C60,598 112,620 164,603 C224,582 283,602 360,616 L360,800 L0,800z" />
+    <path android:fillColor="#6E9B70" android:pathData="M0,682 C80,643 142,681 211,654 C265,634 313,651 360,665 L360,800 L0,800z" />
+    <!-- two original seated travellers, viewed from behind -->
+    <path android:fillColor="#16263F" android:pathData="M190,626 C190,600 208,584 228,584 C248,584 267,601 267,626 L278,684 L178,684z" />
+    <path android:fillColor="#D7A77D" android:pathData="M205,576 a23,23 0,1 0,46,0 a23,23 0,1 0,-46,0" />
+    <path android:fillColor="#263D61" android:pathData="M202,575 C204,546 251,542 255,574 C243,566 217,564 202,575z" />
+    <path android:fillColor="#D9B057" android:pathData="M191,611 C212,593 246,592 270,615 L261,668 L196,668z" />
+    <path android:fillColor="#F4E4C1" android:pathData="M217,595 L230,608 L242,594 L250,604 L231,623 L210,605z" />
+    <path android:fillColor="#16263F" android:pathData="M98,642 C99,619 114,604 133,604 C152,604 167,619 168,642 L179,686 L87,686z" />
+    <path android:fillColor="#C88E69" android:pathData="M112,596 a21,21 0,1 0,42,0 a21,21 0,1 0,-42,0" />
+    <path android:fillColor="#314C72" android:pathData="M109,595 C111,567 154,566 158,596 C144,588 124,588 109,595z" />
+    <path android:fillColor="#547FA0" android:pathData="M98,630 C116,609 151,610 169,632 L162,675 L104,675z" />
+    <!-- shared warm camp light: companionship, not game UI -->
+    <path android:fillColor="#F4C96B" android:fillAlpha="0.28" android:pathData="M168,645 a48,48 0,1 0,96,0 a48,48 0,1 0,-96,0" />
+    <path android:fillColor="#FFE8A3" android:pathData="M211,644 l5,-10 5,10 -5,10z" />
+</vector>
