@@ -53,7 +53,9 @@ class ConnectivityStateMonitor(
     }
 
     private fun currentInternetAvailable(): Boolean = manager.activeNetwork?.let(::hasInternet) == true
-    private fun hasInternet(network: Network): Boolean = manager.getNetworkCapabilities(network)?.isValidatedInternet() == true
+    private fun hasInternet(network: Network): Boolean =
+        manager.getNetworkCapabilities(network)?.isValidatedInternet() == true
+
     private fun NetworkCapabilities.isValidatedInternet() =
         hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)

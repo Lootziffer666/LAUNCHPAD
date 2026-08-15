@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package org.fossify.home.views
 
 import android.content.Context
