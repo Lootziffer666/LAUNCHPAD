@@ -13,6 +13,7 @@ import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.extensions.normalizeString
 import org.fossify.commons.views.MyGridLayoutManager
+import org.fossify.home.R
 import org.fossify.home.activities.MainActivity
 import org.fossify.home.adapters.LaunchersAdapter
 import org.fossify.home.databinding.AllAppsFragmentBinding
