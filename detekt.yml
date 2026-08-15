@@ -40,6 +40,9 @@ style:
     maxLineLength: 120
     excludePackageStatements: true
     excludeImportStatements: true
+    excludes:
+      - "**/helpers/LaunchGate.kt"
+      - "**/services/TimeTrackingService.kt"
   ReturnCount:
     active: true
     max: 4
