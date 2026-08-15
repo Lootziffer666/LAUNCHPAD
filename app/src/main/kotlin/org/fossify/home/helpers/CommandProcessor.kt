@@ -54,6 +54,9 @@ class CommandProcessor(
                 "allow_new_app" -> applyAllowNewApp(obj)
                 "dismiss_new_app" -> applyDismissNewApp(obj)
                 "set_school_mode" -> applySchoolMode(obj)
+                "unlimited_today" -> { TimeBudgetController(context).setUnlimitedToday(true); "Heute frei" }
+                "lock_now" -> { TimeBudgetController(context).setLocked(true); "Gerät gesperrt" }
+                "set_break_config" -> applyBreakConfig(obj)
                 else -> {
                     record(type, commandJson, applied = false, note = "Unbekannter Typ")
                     return Result(false, "Unbekannter Befehl: $type")
@@ -71,6 +74,7 @@ class CommandProcessor(
     private suspend fun applyAdjustTime(obj: JSONObject): String {
         val minutes = obj.getInt("minutes")
         val reason = obj.optString("reason", "Eltern-Anpassung")
+        if (minutes > 0) TimeBudgetController(context).grantBonus(minutes)
         // Serialize the read-modify-write so a concurrent metering spend can't clobber the snapshot.
         return LedgerGuard.mutex.withLock {
             val current = database.cryptoCashDao().getCurrentBalance()
@@ -94,6 +98,16 @@ class CommandProcessor(
             )
             "Zeit angepasst: $sign$effectiveDelta Min (neu: $newBalance)"
         }
+    }
+
+    private fun applyBreakConfig(obj: JSONObject): String {
+        val after = obj.optInt("afterMinutes", 60).coerceIn(30, 180)
+        val duration = obj.optInt("durationMinutes", 5).coerceIn(1, 30)
+        context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE).edit()
+            .putBoolean(LaunchpadPrefs.PREF_BREAK_ENABLED, obj.optBoolean("enabled", true))
+            .putInt(LaunchpadPrefs.PREF_BREAK_AFTER_MINUTES, after)
+            .putInt(LaunchpadPrefs.PREF_BREAK_DURATION_MINUTES, duration).apply()
+        return "Verschnaufpausen gespeichert"
     }
 
     private suspend fun applyToggleApp(obj: JSONObject): String {

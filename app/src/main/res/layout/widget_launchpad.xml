@@ -8,7 +8,7 @@
     android:orientation="vertical"
     android:gravity="center"
     android:background="#CC0D2847"
-    android:padding="12dp">
+    android:padding="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="⏱️"
-            android:textSize="22sp"
+            android:textSize="16sp"
             android:paddingEnd="6dp" />
 
         <TextView
@@ -32,7 +32,12 @@
             android:fontFamily="@font/nunito"
             android:text="—"
             android:textColor="#FFFFFF"
-            android:textSize="24sp"
+            android:maxLines="1"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="12sp"
+            android:autoSizeMaxTextSize="22sp"
+            android:autoSizeStepGranularity="1sp"
+            android:textSize="20sp"
             android:textStyle="bold" />
 
         <TextView
@@ -54,6 +59,7 @@
         android:progressTint="#4CAF50" />
 
     <LinearLayout
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"

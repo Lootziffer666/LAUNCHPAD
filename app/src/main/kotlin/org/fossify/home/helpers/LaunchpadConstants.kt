@@ -15,10 +15,10 @@ object LaunchpadConstants {
     // Krypto-Cash defaults
     const val DEFAULT_WEEK_CAP_MINUTES = 120
     const val DEFAULT_SCHOOL_DAY_CAP_MINUTES = 60
-    const val DEFAULT_COOLDOWN_DURATION_MINUTES = 15
+    const val DEFAULT_COOLDOWN_DURATION_MINUTES = 5
     const val DEFAULT_EXPIRE_UNUSED_AFTER_DAYS = 30
     // Daily base allowance topped up each local day so "morgen gibt's neue" is real.
-    const val DEFAULT_BASE_TIME_MINUTES = 60
+    const val DEFAULT_BASE_TIME_MINUTES = 120
 
     // Impulsbremse defaults
     const val DEFAULT_IMPULSE_SECONDS = 7
@@ -237,6 +237,17 @@ object LaunchpadPrefs {
 
     // Daily base-time refill: local midnight (epoch ms) we last topped up, so it grants once/day.
     const val PREF_LAST_REFILL_DAY = "daily_refill_last_day"
+    const val PREF_BUDGET_DAY = "time_budget_day"
+    const val PREF_USED_TODAY = "used_today"
+    const val PREF_BONUS_TODAY = "bonus_today"
+    const val PREF_UNLIMITED_TODAY = "unlimited_today"
+    const val PREF_REMOTE_LOCKED = "remote_locked"
+    const val PREF_PARENT_COMMAND_NONCES = "parent_command_nonces"
+    const val PREF_BREAK_ENABLED = "break_enabled"
+    const val PREF_BREAK_AFTER_MINUTES = "break_after_minutes"
+    const val PREF_BREAK_DURATION_MINUTES = "break_duration_minutes"
+    const val PREF_BREAK_ACTIVE_UNTIL = "break_active_until"
+    const val PREF_CONTINUOUS_USAGE_START = "continuous_usage_start"
 
     // Hard weekly cap on SYSTEM/earned time (daily refill etc.). Default ON. Parent additions
     // (adjust_time / "Heute Ausnahme", source = parent_app) always bypass it — that is the veto.
