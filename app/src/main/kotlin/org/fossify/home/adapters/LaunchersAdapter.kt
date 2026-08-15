@@ -158,9 +158,9 @@ class LaunchersAdapter(
 
     companion object {
         private const val LAUNCHER_SCALE_NORMAL = 1f
-        private const val LAUNCHER_SCALE_PRESSED = 1.15f
-        private const val LAUNCHER_SCALE_UP_DURATION = 100L
-        private const val LAUNCHER_SCALE_DOWN_DURATION = 50L
+        private const val LAUNCHER_SCALE_PRESSED = 1.04f
+        private const val LAUNCHER_SCALE_UP_DURATION = 90L
+        private const val LAUNCHER_SCALE_DOWN_DURATION = 110L
         private const val LAUNCHER_ALPHA_NORMAL = 255
         private const val LAUNCHER_ALPHA_PRESSED = 220
     }

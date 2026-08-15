@@ -26,4 +26,12 @@
     <color name="lp_ink_soft">#9B8779</color>   <!-- muted warm text -->
     <color name="lp_card">#FFFFFF</color>
     <color name="lp_line">#EFE2D2</color>       <!-- soft warm divider -->
+
+    <!-- Launchpad Adventure Night: original, franchise-neutral visual skin. -->
+    <color name="lp_night">#142B55</color>
+    <color name="lp_twilight">#24588D</color>
+    <color name="lp_meadow">#4F8A68</color>
+    <color name="lp_star">#FFF3C4</color>
+    <color name="lp_cloud">#F5F7FA</color>
+    <color name="lp_mist">#B8C9DA</color>
 </resources>

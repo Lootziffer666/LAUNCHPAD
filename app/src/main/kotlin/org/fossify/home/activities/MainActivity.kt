@@ -1035,6 +1035,10 @@ class MainActivity : SimpleActivity(), FlingListener {
         val timeIcon = binding.root.findViewById<android.widget.TextView>(R.id.status_time_icon)
         if (bar == null) return
 
+        // Time lives in the compact, user-placeable widget. Never reserve or cover launcher space.
+        bar.visibility = android.view.View.GONE
+        return
+
         if (!enforce) {
             bar.visibility = android.view.View.GONE
             return

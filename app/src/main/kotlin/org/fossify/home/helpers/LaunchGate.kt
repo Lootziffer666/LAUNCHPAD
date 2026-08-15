@@ -39,6 +39,8 @@ class LaunchGate(
         packageName: String,
         timeBudget: TimeBudget
     ): LaunchDecision {
+        val canonical = TimeBudgetController(context).state()
+        if (canonical.locked) return LaunchDecision(false, LaunchpadConstants.REASON_LOCKDOWN, "Launchpad ist gerade gesperrt.")
         // Check 0: trusted environment (Papa-Modus, a case of the PresenceTrust model). While the
         // environment is trusted, every gate — whitelist, budget, cool-down, schedule, school mode
         // — is relaxed and the launch is free. This is transparent, not hidden: starting a trusted
@@ -140,7 +142,7 @@ class LaunchGate(
         }
 
         // Check 3: Time budget — only coin-gated (ACTIVE_LEISURE) apps are blocked at 0
-        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes <= 0) {
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && !canonical.unlimitedForToday && canonical.remainingToday <= 0) {
             return LaunchDecision(
                 false,
                 LaunchpadConstants.REASON_NO_BUDGET,
@@ -150,11 +152,11 @@ class LaunchGate(
         }
 
         // Check 4: Minimum threshold for high-stimulation apps
-        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && timeBudget.balanceMinutes < 5) {
+        if (category == LaunchpadConstants.CATEGORY_ACTIVE_LEISURE && !canonical.unlimitedForToday && canonical.remainingToday < 5) {
             return LaunchDecision(
                 false,
                 LaunchpadConstants.REASON_MIN_THRESHOLD,
-                "Nur noch ${timeBudget.balanceMinutes} Minuten. Etwas Ruhigeres starten?",
+                "Nur noch ${canonical.remainingToday} Minuten. Etwas Ruhigeres starten?",
                 category
             )
         }
@@ -209,6 +211,7 @@ class TimeBudgetManager(
      * Returns the new balance.
      */
     suspend fun spend(minutes: Int, pkg: String): Int = LedgerGuard.mutex.withLock {
+        TimeBudgetController(context).recordUsage(minutes)
         var balance = database.cryptoCashDao().getCurrentBalance()
         val toSpend = minutes.coerceAtMost(balance)
         if (toSpend <= 0) return@withLock balance

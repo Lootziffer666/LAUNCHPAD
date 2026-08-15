@@ -19,6 +19,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.telephony.SmsManager
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -51,6 +52,9 @@ import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import java.util.UUID
 
 // ─── Test Mode Manager (inline for companion) ──────────────────────────────
 @Suppress("TooGenericExceptionCaught")
@@ -351,7 +355,11 @@ class CompanionActivity : AppCompatActivity() {
 
     private fun renderStatusHero(content: LinearLayout, statusJson: String) {
         val json = try { JSONObject(statusJson) } catch (e: Exception) { JSONObject() }
-        val balance = json.optInt("balance", 0)
+        val balance = json.optInt("remainingToday", json.optInt("balance", 0))
+        val base = json.optInt("baseDailyBudget", 0)
+        val bonus = json.optInt("bonusTime", 0)
+        val used = json.optInt("usedToday", 0)
+        val unlimited = json.optBoolean("unlimitedForToday", false)
         val enforcement = json.optBoolean("enforcement", false)
         val cooldown = json.optBoolean("cooldown", false)
         val schoolMode = json.optBoolean("schoolMode", false)
@@ -385,12 +393,13 @@ class CompanionActivity : AppCompatActivity() {
             })
         })
         hero.addView(TextView(this).apply {
-            text = "$balance Min"
+            text = if (unlimited) "Heute frei" else "$balance Min"
             textSize = 44f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.WHITE)
             setPadding(0, dp(2), 0, dp(2))
         })
+        hero.addView(bodyText("Basis $base Min  ·  Bonus +$bonus Min  ·  Verbraucht $used Min", color = HERO_SUB, size = 12f))
 
         val chips = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -450,7 +459,7 @@ class CompanionActivity : AppCompatActivity() {
             }
             listOf(15, 30, 60).forEachIndexed { i, m ->
                 row.addView(primaryButton("+$m") {
-                    sendCommand("""{"type":"adjust_time","minutes":$m,"reason":"Eltern-Bonus"}""")
+                    sendSmsCommand("ADD_TIME", m)
                 }.apply {
                     layoutParams = LinearLayout.LayoutParams(0, wc, 1f).apply {
                         setMargins(if (i == 0) 0 else dp(4), 0, if (i == 2) 0 else dp(4), 0)
@@ -458,7 +467,8 @@ class CompanionActivity : AppCompatActivity() {
                 })
             }
             addView(row)
-            addView(ghostButton("Andere Minutenzahl…") { showGrantTimeDialog() })
+            addView(ghostButton("Heute frei") { sendSmsCommand("UNLIMITED_TODAY", 0) })
+            addView(dangerButton("Jetzt sperren") { sendSmsCommand("LOCK_NOW", 0) })
         })
     }
 
@@ -667,6 +677,21 @@ class CompanionActivity : AppCompatActivity() {
         content.addView(backHeader("Einstellungen") { showLoading(); loadData() })
 
         content.addView(card().apply {
+            addView(sectionTitleRow("Verschnaufpausen", "Verschnaufpausen", "Ruhige Erinnerung nach längerer kontinuierlicher Nutzung."))
+            addView(primaryButton("Ein · nach 60 Min · Dauer 5 Min") {
+                sendCommand("""{"type":"set_break_config","enabled":true,"afterMinutes":60,"durationMinutes":5}""")
+            })
+            addView(ghostButton("Verschnaufpausen ausschalten") {
+                sendCommand("""{"type":"set_break_config","enabled":false,"afterMinutes":60,"durationMinutes":5}""")
+            })
+        })
+
+        content.addView(card().apply {
+            addView(bodyText("SMS-Zielnummer des Kindergeräts", color = INK_MUTE, size = 12f))
+            addView(secondaryButton(prefs.getString("child_phone", null) ?: "Nummer einrichten") { promptChildPhone() })
+        })
+
+        content.addView(card().apply {
             addView(sectionTitleRow("Sichern & übertragen", "Sichern & übertragen",
                 "Exportiere alle Apps & Limits als Text — z. B. um sie auf ein neues Gerät zu übertragen oder als Backup zu speichern."))
             addView(LinearLayout(this@CompanionActivity).apply {
@@ -756,6 +781,40 @@ class CompanionActivity : AppCompatActivity() {
             }
             .setNegativeButton("Abbrechen", null)
             .show()
+    }
+
+    private fun promptChildPhone() {
+        val input = EditText(this).apply {
+            hint = "+49 …"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setText(prefs.getString("child_phone", ""))
+        }
+        AlertDialog.Builder(this).setTitle("Kindergerät").setView(input)
+            .setPositiveButton("Speichern") { _, _ -> prefs.edit().putString("child_phone", input.text.toString().trim()).apply() }
+            .setNegativeButton("Abbrechen", null).show()
+    }
+
+    /** Builds an authenticated command; SMS remains only a replaceable transport. */
+    private fun sendSmsCommand(type: String, minutes: Int) {
+        val phone = prefs.getString("child_phone", null)
+        val key = prefs.getString("session_key", null)
+        if (phone.isNullOrBlank()) { toast("Bitte zuerst die Nummer des Kindergeräts einrichten"); openSettingsScreen(); return }
+        if (key.isNullOrBlank()) { toast("Bitte Gerät neu koppeln"); return }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), 22); return
+        }
+        val timestamp = System.currentTimeMillis()
+        val nonce = UUID.randomUUID().toString()
+        val body = "parent|$type|$minutes|$timestamp|$nonce"
+        val mac = Mac.getInstance("HmacSHA256").apply {
+            init(SecretKeySpec(Base64.getDecoder().decode(key), "HmacSHA256"))
+        }
+        val signature = android.util.Base64.encodeToString(mac.doFinal(body.toByteArray()), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
+        val payload = "LP1:" + android.util.Base64.encodeToString("$body|$signature".toByteArray(), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
+        val sms = getSystemService(SmsManager::class.java)
+        val parts = sms.divideMessage(payload)
+        sms.sendMultipartTextMessage(phone, null, parts, null, null)
+        toast("Befehl sicher per SMS gesendet")
     }
 
     // ─────────────────────────── Approval items ───────────────────────────

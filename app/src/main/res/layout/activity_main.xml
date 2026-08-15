@@ -5,6 +5,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Launchpad's own calm default world. It stays behind the functional Foss grid. -->
+    <ImageView
+        android:id="@+id/launchpad_world"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/lp_adventure_background" />
+
     <!-- Rules page overlay — starts off-screen left (translationX set in code), INVISIBLE by default -->
     <FrameLayout
         android:id="@+id/rules_overlay"
@@ -48,7 +57,6 @@
     <include
         android:id="@+id/home_screen_grid"
         layout="@layout/home_screen_grid"
-        android:layout_above="@id/launchpad_status_bar"
         tools:ignore="IncludeLayoutParam" />
 
     <include
@@ -70,6 +78,7 @@
     <!-- LAUNCHPAD: Jake's status bar (only visible when Kindermodus is ON) -->
     <LinearLayout
         android:id="@+id/launchpad_status_bar"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="42dp"
         android:layout_alignParentBottom="true"
@@ -77,8 +86,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:background="#CC000000"
-        android:visibility="gone">
+        android:background="#CC000000">
 
         <TextView
             android:id="@+id/status_time_icon"
