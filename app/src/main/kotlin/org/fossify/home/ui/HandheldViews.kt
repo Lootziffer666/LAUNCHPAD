@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "MaxLineLength", "ForEachOnRange")
+
 package org.fossify.home.ui
 
 import android.animation.AnimatorSet
@@ -176,7 +178,9 @@ class TouchScreenPager(context: Context, pages: List<TouchPage>) : LinearLayout(
         repeat(pageCount) { dots.addView(dot(it == 0)) }
         addView(dots, LayoutParams(MATCH_PARENT, dp(22)))
         pager.onPageChanged = { selected ->
-            (0 until dots.childCount).forEach { i -> dots.getChildAt(i).background = dotBackground(i == selected) }
+            for (i in 0 until dots.childCount) {
+                dots.getChildAt(i).background = dotBackground(i == selected)
+            }
         }
     }
 
@@ -220,8 +224,12 @@ class TouchScreenPager(context: Context, pages: List<TouchPage>) : LinearLayout(
 
     private inner class SnapScrollView(context: Context) : HorizontalScrollView(context) {
         var onPageChanged: (Int) -> Unit = {}
+
         override fun onTouchEvent(ev: MotionEvent): Boolean {
             val handled = super.onTouchEvent(ev)
+            if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                performClick()
+            }
             if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
                 postDelayed({
                     val width = this@TouchScreenPager.width.coerceAtLeast(1)
@@ -230,6 +238,11 @@ class TouchScreenPager(context: Context, pages: List<TouchPage>) : LinearLayout(
                 }, 40)
             }
             return handled
+        }
+
+        override fun performClick(): Boolean {
+            super.performClick()
+            return true
         }
     }
 }
