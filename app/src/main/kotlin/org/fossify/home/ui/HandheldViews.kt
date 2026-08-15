@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "MaxLineLength", "ForEachOnRange")
+
 package org.fossify.home.ui
 
 import android.animation.AnimatorSet
