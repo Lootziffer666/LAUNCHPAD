@@ -7,6 +7,16 @@ import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+private const val FIELD_COUNT = 6
+private const val PARENT_ID_INDEX = 0
+private const val TYPE_INDEX = 1
+private const val MINUTES_INDEX = 2
+private const val TIMESTAMP_INDEX = 3
+private const val NONCE_INDEX = 4
+private const val COMMAND_TTL_MINUTES = 10
+private const val MILLIS_PER_MINUTE = 60_000L
+private const val MAX_STORED_NONCES = 100
+
 enum class ParentCommandType { ADD_TIME, UNLIMITED_TODAY, LOCK_NOW }
 
 data class ParentCommand(
@@ -35,7 +45,8 @@ object ParentCommandCodec {
         }
         val signature = Base64.getUrlEncoder().withoutPadding()
             .encodeToString(mac.doFinal(body.toByteArray(StandardCharsets.UTF_8)))
-        return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString("$body|$signature".toByteArray())
+        return PREFIX + Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("$body|$signature".toByteArray())
     }
 
     fun verify(
@@ -49,17 +60,21 @@ object ParentCommandCodec {
         val fields = runCatching {
             String(Base64.getUrlDecoder().decode(payload.removePrefix(PREFIX))).split('|')
         }.getOrNull() ?: return null
-        if (fields.size != 6 || fields[0] != expectedParent || fields[4] in used) return null
+        if (fields.size != FIELD_COUNT) return null
+        if (fields[PARENT_ID_INDEX] != expectedParent) return null
+        if (fields[NONCE_INDEX] in used) return null
+
         val command = runCatching {
             ParentCommand(
-                fields[0],
-                ParentCommandType.valueOf(fields[1]),
-                fields[2].toInt(),
-                fields[3].toLong(),
-                fields[4]
+                fields[PARENT_ID_INDEX],
+                ParentCommandType.valueOf(fields[TYPE_INDEX]),
+                fields[MINUTES_INDEX].toInt(),
+                fields[TIMESTAMP_INDEX].toLong(),
+                fields[NONCE_INDEX]
             )
         }.getOrNull() ?: return null
-        if (kotlin.math.abs(now - command.timestamp) > 10 * 60_000L) return null
+        val ttlMillis = COMMAND_TTL_MINUTES * MILLIS_PER_MINUTE
+        if (kotlin.math.abs(now - command.timestamp) > ttlMillis) return null
         return if (sign(command, secret) == payload) command else null
     }
 }
@@ -98,7 +113,7 @@ class ParentCommandController(private val context: Context) {
                 "Launchpad wurde von deinen Eltern gesperrt."
             }
         }
-        val recentNonces = (used + command.nonce).toList().takeLast(100).toSet()
+        val recentNonces = (used + command.nonce).toList().takeLast(MAX_STORED_NONCES).toSet()
         prefs.edit().putStringSet(LaunchpadPrefs.PREF_PARENT_COMMAND_NONCES, recentNonces).apply()
         LaunchpadWidgetProvider.requestUpdate(context)
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
