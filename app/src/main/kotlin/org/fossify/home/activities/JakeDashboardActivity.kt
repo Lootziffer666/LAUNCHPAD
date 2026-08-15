@@ -1,18 +1,12 @@
-// File: app/src/main/kotlin/org/fossify/home/activities/JakeDashboardActivity.kt
-// LAUNCHPAD: the child's view — balance, today's usage, active promises, quick actions.
-// "Verspielt & bunt": sunny background, rocket mascot greeting, warm colours that ADAPT to the
-// wallpaper (via Playful.palette). The numbers and rules underneath are unchanged — only the look
-// and the wording got friendlier. Semantic status colours (mint = plenty, sun = low) stay fixed.
-
-@file:Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
+@file:Suppress("MagicNumber")
 
 package org.fossify.home.activities
 
-import android.graphics.Typeface
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -21,298 +15,100 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.fossify.home.R
 import org.fossify.home.databases.AppsDatabase
-import org.fossify.home.databases.Zusage
 import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.LaunchpadConstants
-import org.fossify.home.helpers.Playful
+import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TimeBudgetManager
+import org.fossify.home.ui.GameScreen
+import org.fossify.home.ui.GameScreenEvent
+import org.fossify.home.ui.GameScreenState
+import org.fossify.home.ui.HandheldPalette
+import org.fossify.home.ui.TouchAction
+import org.fossify.home.ui.TouchPage
+import org.fossify.home.ui.TouchScreenPager
 import java.util.Calendar
 
-@Suppress("CyclomaticComplexMethod")
 class JakeDashboardActivity : AppCompatActivity() {
-
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var db: AppsDatabase
-    private lateinit var pal: Playful.Pal
-
-    // Live-updated views
-    private lateinit var balanceText: TextView
-    private lateinit var balanceLabel: TextView
-    private lateinit var statusMsg: TextView
-    private lateinit var usedTodayText: TextView
-    private lateinit var zusagenContainer: LinearLayout
+    private lateinit var gameScreen: GameScreen
+    private var previousMinutes: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = AppsDatabase.getInstance(this)
-        pal = Playful.palette(this)
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(pal.bg)
-        }
-
-        root.addView(buildHeader())
-
-        val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-            )
-        }
-        val body = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        scroll.addView(body)
-        root.addView(scroll)
-
-        body.addView(buildBalanceSection())
-        body.addView(buildTodaySection())
-        zusagenContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        body.addView(zusagenContainer)
-        body.addView(buildActions())
-
-        setContentView(root)
-        load()
+        window.statusBarColor = HandheldPalette.DARK_SCREEN
+        window.navigationBarColor = HandheldPalette.DARK_SCREEN
+        setContentView(buildHandheld())
+        intent.getStringExtra(EXTRA_GAME_EVENT)?.let { gameScreen.show(GameScreenEvent(it, haptic = true)) }
     }
 
-    override fun onResume() {
-        super.onResume()
-        load()
+    override fun onResume() { super.onResume(); load() }
+    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+
+    private fun buildHandheld() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(14), dp(10), dp(14), dp(14))
+        setBackgroundColor(0xFF182337.toInt())
+        addView(TextView(this@JakeDashboardActivity).apply {
+            text = "‹  LAUNCHPAD"; textSize = 13f; setTextColor(Color.WHITE); gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { finish() }; setPadding(dp(4), 0, 0, dp(5))
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(31)))
+        gameScreen = GameScreen(this@JakeDashboardActivity)
+        addView(gameScreen, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 43f))
+        addView(buildTouchScreen(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 57f).apply { topMargin = dp(8) })
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        scope.cancel()
-    }
+    private fun buildTouchScreen() = TouchScreenPager(this, listOf(TouchPage(listOf(
+        TouchAction("Anfragen", "✉", HandheldPalette.RED) {
+            startActivity(Intent(this, DogeRequestsActivity::class.java).putExtra("isParentMode", false))
+        },
+        TouchAction("Versprechen", "✓", HandheldPalette.GREEN) {
+            startActivity(Intent(this, ZusagenActivity::class.java).putExtra("isParentMode", false))
+        },
+        TouchAction("Apps", "▦", HandheldPalette.YELLOW) {
+            startActivity(Intent(this, MainActivity::class.java))
+        },
+        TouchAction("Heute", "◷", HandheldPalette.BLUE) {
+            startActivity(Intent(this, DailyReportActivity::class.java))
+        },
+    ))))
 
-    private fun load() {
-        scope.launch {
-            val (budget, spentToday, zusagen) = withContext(Dispatchers.IO) {
-                val b = TimeBudgetManager(this@JakeDashboardActivity, db).getCurrentBudget()
-                val midnight = todayMidnightMs()
-                val txs = db.cryptoCashDao().getTransactionsBetween(midnight, System.currentTimeMillis())
-                val spent = txs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
-                    .sumOf { -it.deltaMinutes }
-                val z = db.zusageDao().getZusagenByStatus(LaunchpadConstants.ZUSAGE_ACTIVE)
-                Triple(b, spent, z)
+    private fun load() = scope.launch {
+        val data = withContext(Dispatchers.IO) {
+            val budget = TimeBudgetManager(this@JakeDashboardActivity, db).getCurrentBudget()
+            val midnight = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            val spent = db.cryptoCashDao().getTransactionsBetween(midnight, System.currentTimeMillis())
+                .filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }.sumOf { -it.deltaMinutes }
+            Triple(budget, spent, SupervisedOverride.isActive(this@JakeDashboardActivity))
+        }
+        val (budget, spent, override) = data
+        val minutes = if (budget.inCooldown) budget.minutesUntilCooldownExpires() ?: 0 else budget.balanceMinutes
+        val status = when {
+            override -> "PAPA-MODUS AKTIV"
+            budget.inCooldown -> "VERSCHNAUFPAUSE"
+            budget.balanceMinutes <= 0 -> "ZEIT VORBEI"
+            spent > 0 -> "HEUTE $spent MIN GENUTZT"
+            else -> "BEREIT"
+        }
+        gameScreen.render(GameScreenState(
+            ChildProfile.name(this@JakeDashboardActivity), minutes,
+            minutes / 120f, status, budget.inCooldown || budget.balanceMinutes <= 0,
+        ))
+        previousMinutes?.let { old ->
+            when {
+                minutes > old -> gameScreen.show(GameScreenEvent("+${minutes - old} MIN!", HandheldPalette.GREEN, haptic = true))
+                old > 15 && minutes <= 15 -> gameScreen.show(GameScreenEvent("NOCH 15 MIN", HandheldPalette.YELLOW, haptic = true))
+                old > 0 && minutes <= 0 -> gameScreen.show(GameScreenEvent("ZEIT VORBEI", HandheldPalette.RED, haptic = true))
             }
-
-            // Balance
-            balanceText.text = if (budget.inCooldown) {
-                "${budget.minutesUntilCooldownExpires() ?: 0}"
-            } else {
-                "${budget.balanceMinutes}"
-            }
-            balanceText.setTextColor(when {
-                budget.inCooldown -> pal.accent
-                budget.balanceMinutes <= 0 -> pal.accent
-                budget.balanceMinutes < 10 -> Playful.color(Playful.SUN)
-                else -> Playful.color(Playful.MINT)
-            })
-            balanceLabel.text = if (budget.inCooldown) "Minuten Pause noch" else "Minuten zum Spielen"
-            val papaActive = org.fossify.home.helpers.SupervisedOverride.isActive(this@JakeDashboardActivity)
-            statusMsg.text = when {
-                papaActive -> "🛡️ Papa-Modus an — alles frei, die Zeit läuft nicht herunter."
-                budget.inCooldown -> "🌿 Verschnaufpause! Magst du malen, lesen oder bauen?"
-                budget.balanceMinutes <= 0 -> "🌙 Für heute ist die Zeit alle — morgen gibt's neue!"
-                budget.balanceMinutes < 10 -> "✨ Nur noch ${budget.balanceMinutes} Min — clever einsetzen!"
-                else -> "🚀 Viel Spaß!"
-            }
-
-            // Today's usage
-            usedTodayText.text = if (spentToday > 0) "Heute schon $spentToday Min unterwegs 🛰️"
-            else "Heute noch ganz frisch! 🌱"
-
-            // Zusagen
-            renderZusagen(zusagen)
         }
+        previousMinutes = minutes
     }
 
-    private fun renderZusagen(list: List<Zusage>) {
-        zusagenContainer.removeAllViews()
-        if (list.isEmpty()) return
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
-        zusagenContainer.addView(sectionHeader("🤝 Versprechen — Zeit verdienen"))
-        list.take(3).forEach { z ->
-            zusagenContainer.addView(buildZusageRow(z))
-        }
-    }
-
-    private fun buildZusageRow(z: Zusage): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 12, 24, 12)
-            background = Playful.roundedBg(this@JakeDashboardActivity, pal.accentSoft, 14)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(20, 4, 20, 4) }
-
-            addView(TextView(this@JakeDashboardActivity).apply {
-                text = z.childVisibleText.ifBlank { z.text }
-                textSize = 14f
-                setTextColor(pal.ink)
-                setTypeface(null, Typeface.BOLD)
-            })
-            addView(TextView(this@JakeDashboardActivity).apply {
-                text = "von ${z.namedParent}"
-                textSize = 12f
-                setTextColor(pal.inkSoft)
-                setPadding(0, 2, 0, 0)
-            })
-        }
-    }
-
-    private fun buildHeader(): LinearLayout {
-        val name = ChildProfile.name(this)
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 48, 24, 8)
-            addView(TextView(this@JakeDashboardActivity).apply {
-                text = "← Zurück"
-                textSize = 14f
-                setTextColor(pal.inkSoft)
-                setOnClickListener { finish() }
-            })
-            addView(LinearLayout(this@JakeDashboardActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, 12, 0, 0)
-                addView(Playful.mascot(this@JakeDashboardActivity, R.drawable.mascot_rocket, 56))
-                addView(LinearLayout(this@JakeDashboardActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(16, 0, 0, 0)
-                    addView(TextView(this@JakeDashboardActivity).apply {
-                        text = "Hi, $name! 🚀"
-                        textSize = 24f
-                        setTypeface(null, Typeface.BOLD)
-                        setTextColor(pal.ink)
-                    })
-                    addView(TextView(this@JakeDashboardActivity).apply {
-                        text = "Schön, dass du da bist ✨"
-                        textSize = 14f
-                        setTextColor(pal.inkSoft)
-                    })
-                })
-            })
-        }
-    }
-
-    private fun buildBalanceSection(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(32, 24, 32, 24)
-            background = Playful.roundedBg(this@JakeDashboardActivity, pal.card, 24)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(20, 12, 20, 12) }
-
-            balanceText = TextView(this@JakeDashboardActivity).apply {
-                textSize = 72f
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(Playful.color(Playful.MINT))
-                gravity = Gravity.CENTER
-                text = "…"
-            }
-            addView(balanceText)
-
-            balanceLabel = TextView(this@JakeDashboardActivity).apply {
-                textSize = 14f
-                setTextColor(pal.inkSoft)
-                gravity = Gravity.CENTER
-                text = "Minuten zum Spielen"
-                setPadding(0, 0, 0, 8)
-            }
-            addView(balanceLabel)
-
-            statusMsg = TextView(this@JakeDashboardActivity).apply {
-                textSize = 15f
-                setTextColor(pal.ink)
-                gravity = Gravity.CENTER
-            }
-            addView(statusMsg)
-        }
-    }
-
-    private fun buildTodaySection(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 16, 24, 8)
-
-            addView(sectionHeader("📊 Heute"))
-
-            usedTodayText = TextView(this@JakeDashboardActivity).apply {
-                textSize = 14f
-                setTextColor(pal.inkSoft)
-                setPadding(0, 4, 0, 0)
-            }
-            addView(usedTodayText)
-        }
-    }
-
-    private fun buildActions(): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(8, 12, 8, 24)
-        }
-
-        row.addView(bigButton("Medien\nanfragen", "🎬") {
-            startActivity(
-                android.content.Intent(this@JakeDashboardActivity, DogeRequestsActivity::class.java)
-                    .putExtra("isParentMode", false)
-            )
-        })
-        row.addView(bigButton("Versprechen", "🤝") {
-            startActivity(
-                android.content.Intent(this@JakeDashboardActivity, ZusagenActivity::class.java)
-                    .putExtra("isParentMode", false)
-            )
-        })
-        return row
-    }
-
-    private fun bigButton(label: String, emoji: String, onClick: () -> Unit): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { setMargins(12, 0, 12, 0) }
-            setPadding(0, 24, 0, 24)
-            isClickable = true
-            isFocusable = true
-            background = Playful.roundedBg(context, pal.accentSoft, 18)
-            addView(TextView(context).apply {
-                text = emoji; textSize = 32f; gravity = Gravity.CENTER
-            })
-            addView(TextView(context).apply {
-                text = label; textSize = 12f
-                setTextColor(pal.ink)
-                gravity = Gravity.CENTER; setPadding(0, 4, 0, 0)
-            })
-            setOnClickListener { onClick() }
-        }
-    }
-
-    private fun sectionHeader(title: String): TextView = TextView(this).apply {
-        text = title
-        textSize = 13f
-        setTypeface(null, Typeface.BOLD)
-        setTextColor(pal.accent)
-        setPadding(0, 0, 0, 8)
-    }
-
-    private fun todayMidnightMs(): Long {
-        return Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    }
+    companion object { const val EXTRA_GAME_EVENT = "game_screen_event" }
 }
