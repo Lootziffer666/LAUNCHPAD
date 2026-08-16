@@ -14,12 +14,14 @@
         android:scaleType="fitXY"
         android:src="@drawable/lp_adventure_background" />
 
-    <!-- Rules page overlay — starts off-screen left (translationX set in code), INVISIBLE by default -->
+    <!-- LAUNCHPAD's real Quests destination. It is the default child HOME surface; Gear reveals
+         the existing launcher workspace underneath without changing Android's HOME activity. -->
     <FrameLayout
-        android:id="@+id/rules_overlay"
+        android:id="@+id/launchpad_quests_screen"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="invisible"
+        android:background="#040E1F"
+        android:visibility="visible"
         android:elevation="4dp" />
 
     <!-- LAUNCHPAD: Rocket splash overlay — shown once per process on cold start. Sits ABOVE everything -->

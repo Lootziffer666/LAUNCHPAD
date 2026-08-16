@@ -110,7 +110,7 @@ import org.fossify.home.interfaces.ItemMenuListener
 import org.fossify.home.models.AppLauncher
 import org.fossify.home.models.HiddenIcon
 import org.fossify.home.models.HomeScreenGridItem
-import org.fossify.home.fragments.RulesFragment
+import org.fossify.home.fragments.LaunchpadQuestsFragment
 import org.fossify.home.helpers.KioskManager
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.receivers.LockDeviceAdminReceiver
@@ -155,8 +155,8 @@ class MainActivity : SimpleActivity(), FlingListener {
     private var wallpaperColorChangeListener: OnColorsChangedListener? = null
     private var wallpaperSupportsDarkText: Boolean? = null
 
-    // LAUNCHPAD: rules overlay state
-    private var rulesVisible = false
+    // LAUNCHPAD: Quests is the real child HOME destination; Gear is the launcher workspace.
+    private var questsVisible = true
 
     private lateinit var mDetector: GestureDetectorCompat
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -166,6 +166,8 @@ class MainActivity : SimpleActivity(), FlingListener {
         private const val ANIMATION_DURATION = 150L
         private const val APP_DRAWER_CLOSE_DELAY = 300L
         private const val APP_DRAWER_STATE = "app_drawer_state"
+
+        const val EXTRA_OPEN_GEAR = "org.fossify.home.extra.OPEN_GEAR"
 
         // LAUNCHPAD: how often Jake's status bar re-reads the balance while the launcher is
         // in the foreground, so parent-approved coins / earned time show up without leaving home.
@@ -217,11 +219,14 @@ class MainActivity : SimpleActivity(), FlingListener {
         // LAUNCHPAD: init notification channels
         org.fossify.home.helpers.NotificationHelper.init(this)
 
-        // LAUNCHPAD: mount RulesFragment into rules_overlay (invisible until summoned)
-        val rulesOverlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay)
-        if (rulesOverlay != null && supportFragmentManager.findFragmentById(R.id.rules_overlay) == null) {
+        // LAUNCHPAD: mount Quests directly inside the real HOME activity. This deliberately avoids
+        // promoting a second activity to HOME or repurposing the old rules/overview swipe page.
+        val questsScreen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen)
+        if (questsScreen != null &&
+            supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen) == null
+        ) {
             supportFragmentManager.beginTransaction()
-                .replace(R.id.rules_overlay, RulesFragment())
+                .replace(R.id.launchpad_quests_screen, LaunchpadQuestsFragment())
                 .commitAllowingStateLoss()
         }
 
@@ -307,6 +312,12 @@ class MainActivity : SimpleActivity(), FlingListener {
         }
 
         handleIntentAction(intent)
+
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEAR, false)) {
+            showGearScreen(animate = false)
+        } else {
+            showQuestsScreen(animate = false)
+        }
     }
 
     override fun onStart() {
@@ -355,8 +366,10 @@ class MainActivity : SimpleActivity(), FlingListener {
             }
         }
 
-        // LAUNCHPAD: hide rules overlay when app resumes
-        if (rulesVisible) hideRulesOverlay(animate = false)
+        if (questsVisible) {
+            (supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen)
+                as? LaunchpadQuestsFragment)?.refresh()
+        }
 
         // LAUNCHPAD: refresh Jake's status bar now, then keep it live while resumed
         statusBarHandler.removeCallbacks(statusBarRefresher)
@@ -1263,15 +1276,13 @@ class MainActivity : SimpleActivity(), FlingListener {
         if (mIgnoreXMoveEvents) return
         mIgnoreUpEvent = true
 
-        // If rules overlay is visible, dismiss it; otherwise try prev page or show rules
-        if (rulesVisible) {
-            hideRulesOverlay()
+        // Quests is the destination immediately left of the Gear workspace.
+        if (questsVisible) {
             return
         }
         val moved = binding.homeScreenGrid.root.prevPage(redraw = true)
         if (!moved) {
-            // Already on first page → show Jakes Regeln from the left
-            showRulesOverlay()
+            showQuestsScreen()
         }
     }
 
@@ -1279,45 +1290,41 @@ class MainActivity : SimpleActivity(), FlingListener {
         if (mIgnoreXMoveEvents) return
         mIgnoreUpEvent = true
 
-        if (rulesVisible) {
-            hideRulesOverlay()
+        if (questsVisible) {
+            showGearScreen()
             return
         }
         binding.homeScreenGrid.root.nextPage(redraw = true)
     }
 
-    // ─── LAUNCHPAD: Rules overlay ─────────────────────────────────────────────
+    // ─── LAUNCHPAD destinations ───────────────────────────────────────────────
 
-    private fun showRulesOverlay(animate: Boolean = true) {
-        val overlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay) ?: return
-        (supportFragmentManager.findFragmentById(R.id.rules_overlay) as? RulesFragment)?.refresh()
-        rulesVisible = true
-        overlay.visibility = android.view.View.VISIBLE
+    fun showQuestsScreen(animate: Boolean = true) {
+        val screen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen) ?: return
+        (supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen)
+            as? LaunchpadQuestsFragment)?.refresh()
+        questsVisible = true
+        screen.visibility = android.view.View.VISIBLE
         if (animate) {
-            overlay.translationX = -overlay.width.toFloat()
-            overlay.animate().translationX(0f).setDuration(280)
+            screen.translationX = -screen.width.toFloat()
+            screen.animate().translationX(0f).setDuration(280)
                 .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
         } else {
-            overlay.translationX = 0f
+            screen.translationX = 0f
         }
     }
 
-    /** Navigation callback used by the retro overview's Gear tab. */
-    fun closeLaunchpadOverview() {
-        hideRulesOverlay()
-    }
-
-    private fun hideRulesOverlay(animate: Boolean = true) {
-        val overlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay) ?: return
-        rulesVisible = false
+    fun showGearScreen(animate: Boolean = true) {
+        val screen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen) ?: return
+        questsVisible = false
         if (animate) {
-            overlay.animate().translationX(-overlay.width.toFloat()).setDuration(250)
+            screen.animate().translationX(-screen.width.toFloat()).setDuration(250)
                 .setInterpolator(android.view.animation.AccelerateInterpolator())
-                .withEndAction { overlay.visibility = android.view.View.INVISIBLE }
+                .withEndAction { screen.visibility = android.view.View.INVISIBLE }
                 .start()
         } else {
-            overlay.translationX = -overlay.width.toFloat()
-            overlay.visibility = android.view.View.INVISIBLE
+            screen.translationX = -screen.width.toFloat()
+            screen.visibility = android.view.View.INVISIBLE
         }
     }
 

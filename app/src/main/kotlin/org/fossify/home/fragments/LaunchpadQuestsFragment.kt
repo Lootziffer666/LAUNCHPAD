@@ -1,5 +1,5 @@
-// File: app/src/main/kotlin/org/fossify/home/fragments/RulesFragment.kt
-// LAUNCHPAD: the real DS dual-screen overview shown left of the launcher home.
+// File: app/src/main/kotlin/org/fossify/home/fragments/LaunchpadQuestsFragment.kt
+// LAUNCHPAD: native Quests screen built from the supplied DS dual-screen design.
 
 @file:Suppress("MagicNumber", "MaxLineLength")
 
@@ -44,7 +44,7 @@ import org.fossify.home.ui.TouchPage
 import org.fossify.home.ui.TouchScreenPager
 import java.util.Calendar
 
-class RulesFragment : Fragment() {
+class LaunchpadQuestsFragment : Fragment() {
     private var viewScope: CoroutineScope? = null
     private var refreshJob: Job? = null
     private var gameScreen: GameScreen? = null
@@ -113,7 +113,7 @@ class RulesFragment : Fragment() {
         refresh()
     }
 
-    /** MainActivity calls this whenever the off-screen dashboard becomes visible. */
+    /** MainActivity calls this whenever Quests becomes the active launcher destination. */
     fun refresh() {
         val target = gameScreen ?: return
         val scope = viewScope ?: return
@@ -184,7 +184,7 @@ class RulesFragment : Fragment() {
                         open(EntdeckenActivity::class.java)
                     },
                     TouchAction("Rucksack", "▣", 0xFFABC7FF.toInt()) {
-                        (activity as? MainActivity)?.closeLaunchpadOverview()
+                        (activity as? MainActivity)?.showGearScreen()
                     },
                 ),
             ),
@@ -195,7 +195,7 @@ class RulesFragment : Fragment() {
         context,
         listOf(
             NavAction("Quests", "⚔", true) { Unit },
-            NavAction("Gear", "◆") { (activity as? MainActivity)?.closeLaunchpadOverview() },
+            NavAction("Gear", "◆") { (activity as? MainActivity)?.showGearScreen() },
             NavAction("Map", "⌖") { open(EntdeckenActivity::class.java) },
             NavAction("Journal", "▤") { open(DailyReportActivity::class.java) },
         ),
