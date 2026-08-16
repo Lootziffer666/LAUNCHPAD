@@ -27,18 +27,17 @@ import android.os.Looper
 import android.provider.Settings
 import android.provider.Telephony
 import android.telecom.TelecomManager
-import android.view.ContextThemeWrapper
 import android.view.GestureDetector
-import android.view.Gravity
 import android.view.Menu
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.DecelerateInterpolator
-import androidx.appcompat.widget.PopupMenu
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
 import androidx.core.view.GestureDetectorCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.iterator
 import androidx.viewbinding.ViewBinding
@@ -46,7 +45,6 @@ import kotlinx.collections.immutable.toImmutableList
 import org.fossify.commons.extensions.appLaunched
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.getContrastColor
-import org.fossify.commons.extensions.getPopupMenuTheme
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.insetsController
 import org.fossify.commons.extensions.isPackageInstalled
@@ -115,6 +113,9 @@ import org.fossify.home.helpers.KioskManager
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.receivers.LockDeviceAdminReceiver
 import org.fossify.home.services.TimeTrackingStartup
+import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -132,7 +133,7 @@ class MainActivity : SimpleActivity(), FlingListener {
     private var mIgnoreXMoveEvents = false
     private var mIgnoreYMoveEvents = false
     private var mLongPressedIcon: HomeScreenGridItem? = null
-    private var mOpenPopupMenu: PopupMenu? = null
+    private var mOpenPopupMenu: GameMenuUi.GameActionMenu? = null
     private var mLastTouchCoords = Pair(-1f, -1f)
     private var mActionOnCanBindWidget: ((granted: Boolean) -> Unit)? = null
     private var mActionOnWidgetConfiguredWidget: ((granted: Boolean) -> Unit)? = null
@@ -188,8 +189,7 @@ class MainActivity : SimpleActivity(), FlingListener {
             padTopSystem = listOf(binding.allAppsFragment.root, binding.widgetsFragment.root),
             padBottomImeAndSystem = listOf(
                 binding.allAppsFragment.allAppsGrid, binding.widgetsFragment.widgetsList
-            ),
-            padBottomSystem = listOf(binding.homeScreenGrid.root)
+            )
         )
 
         mDetector = GestureDetectorCompat(this, MyGestureListener(this))
@@ -219,6 +219,31 @@ class MainActivity : SimpleActivity(), FlingListener {
         // LAUNCHPAD: init notification channels
         org.fossify.home.helpers.NotificationHelper.init(this)
 
+        binding.gearHeader.removeAllViews()
+        binding.gearHeader.addView(
+            GameMenuUi.headerView(this, "Gear"),
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        binding.gearBottomNav.removeAllViews()
+        binding.gearBottomNav.addView(
+            LaunchpadNavigation.view(this, LaunchpadDestination.GEAR),
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        ViewCompat.setOnApplyWindowInsetsListener(binding.launchpadGearShell) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            (binding.homeScreenGrid.root.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { params ->
+                val density = resources.displayMetrics.density
+                params.topMargin = bars.top + (62 * density).toInt()
+                params.bottomMargin = bars.bottom + (80 * density).toInt()
+                binding.homeScreenGrid.root.layoutParams = params
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.launchpadGearShell)
+
         // LAUNCHPAD: mount Quests directly inside the real HOME activity. This deliberately avoids
         // promoting a second activity to HOME or repurposing the old rules/overview swipe page.
         val questsScreen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen)
@@ -228,6 +253,9 @@ class MainActivity : SimpleActivity(), FlingListener {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.launchpad_quests_screen, LaunchpadQuestsFragment())
                 .commitAllowingStateLoss()
+        }
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEAR, false)) {
+            showGearScreen(animate = false)
         }
 
         // LAUNCHPAD: play the rocket splash on first cold start of this process.
@@ -972,7 +1000,6 @@ class MainActivity : SimpleActivity(), FlingListener {
 
         if (mOpenPopupMenu == null) {
             mOpenPopupMenu = handleGridItemPopupMenu(
-                anchorView = binding.homeScreenPopupMenuAnchor,
                 gridItem = gridItem,
                 isOnAllAppsFragment = isOnAllAppsFragment,
                 listener = menuListener
@@ -986,36 +1013,24 @@ class MainActivity : SimpleActivity(), FlingListener {
         binding.homeScreenGrid.root.itemDraggingStarted(mLongPressedIcon!!)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun showMainLongPressMenu(x: Float, y: Float) {
         // LAUNCHPAD: PIN gate removed from here — the context menu is always accessible.
         // PIN protection lives inside ElternModusActivity itself, so the parent can always
         // reach it (especially on first run before a PIN is set).
         binding.homeScreenGrid.root.hideResizeLines()
-        binding.homeScreenPopupMenuAnchor.x = x
-        binding.homeScreenPopupMenuAnchor.y =
-            y - resources.getDimension(R.dimen.long_press_anchor_button_offset_y) * 2
-        val contextTheme = ContextThemeWrapper(this, getPopupMenuTheme())
-        PopupMenu(
-            contextTheme,
-            binding.homeScreenPopupMenuAnchor,
-            Gravity.TOP or Gravity.END
-        ).apply {
-            inflate(R.menu.menu_home_screen)
-            menu.findItem(R.id.set_as_default).isVisible = !isDefaultLauncher()
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.widgets -> showWidgetsFragment()
-                    R.id.wallpapers -> launchWallpapersIntent()
-                    R.id.launcher_settings -> launchSettings()
-                    R.id.set_as_default -> launchSetAsDefaultIntent()
-                    R.id.eltern_modus -> startActivity(
-                        Intent(this@MainActivity, ElternModusActivity::class.java)
-                    )
-                }
-                true
-            }
-            show()
+        val actions = mutableListOf(
+            GameMenuUi.Action("Widgets", "▦", GameMenuUi.BLUE, ::showWidgetsFragment),
+            GameMenuUi.Action("Hintergrundbilder", "▧", GameMenuUi.GREEN, ::launchWallpapersIntent),
+            GameMenuUi.Action("Launcher-Einstellungen", "⚙", GameMenuUi.YELLOW, ::launchSettings),
+        )
+        if (!isDefaultLauncher()) {
+            actions += GameMenuUi.Action("Als Standard auswählen", "★", GameMenuUi.YELLOW, ::launchSetAsDefaultIntent)
         }
+        actions += GameMenuUi.Action("Eltern-Modus", "⚿", GameMenuUi.RED) {
+            startActivity(Intent(this, ElternModusActivity::class.java))
+        }
+        GameMenuUi.showActionMenu(this, "Gear-Menü", actions)
     }
 
     // ─── LAUNCHPAD: Rocket splash overlay ─────────────────────────────────────

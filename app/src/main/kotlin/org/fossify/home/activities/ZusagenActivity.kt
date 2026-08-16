@@ -6,9 +6,7 @@ package org.fossify.home.activities
 import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
-import android.util.Log
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +21,8 @@ import org.fossify.home.helpers.toModel
 import org.fossify.home.models.Zusage
 import org.fossify.home.models.ZusageManager
 import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically; padding/size literals
 class ZusagenActivity : AppCompatActivity() {
@@ -39,7 +39,11 @@ class ZusagenActivity : AppCompatActivity() {
         database = AppsDatabase.getInstance(this)
         isParentMode = intent.getBooleanExtra("isParentMode", false)
 
-        content = GameMenuUi.install(this, if (isParentMode) "Zusagen verwalten" else "Zusagen")
+        content = GameMenuUi.install(
+            this,
+            if (isParentMode) "Zusagen verwalten" else "Zusagen",
+            if (isParentMode) null else LaunchpadNavigation.view(this, LaunchpadDestination.QUESTS),
+        )
 
         if (isParentMode) showParentView() else showChildView()
     }
@@ -49,20 +53,13 @@ class ZusagenActivity : AppCompatActivity() {
         scope.cancel()
     }
 
-    private fun label(text: String, size: Float = 16f, topPad: Int = 24) =
-        if (size >= 20f) GameMenuUi.title(this, text) else if (topPad >= 20) {
-            GameMenuUi.section(this, text)
-        } else {
-            GameMenuUi.body(this, text)
-        }
-
     // ─── Parent view ────────────────────────────────────────────────────────────────
 
     private fun showParentView() {
         content.removeAllViews()
-        content.addView(label("Zusagen verwalten", size = 20f, topPad = 0))
+        content.addView(GameMenuUi.title(this, "Zusagen verwalten"))
+        content.addView(GameMenuUi.body(this, "Was versprochen wird, bleibt sichtbar und nachvollziehbar."))
 
-        content.addView(label("Neue Zusage"))
         val textInput = GameMenuUi.field(this).apply {
             hint = "z.B. 'Nach Hausaufgaben, dann 20 Min Minecraft'"
             inputType = InputType.TYPE_CLASS_TEXT
@@ -71,29 +68,34 @@ class ZusagenActivity : AppCompatActivity() {
             hint = "Bedingung (optional): z.B. 'Hausaufgaben fertig'"
             inputType = InputType.TYPE_CLASS_TEXT
         }
-        content.addView(textInput)
-        content.addView(conditionInput)
-
-        content.addView(GameMenuUi.rawButton(this, GameMenuUi.YELLOW).apply {
-            text = "Zusage erstellen"
-            layoutParams = matchWidth()
-            setOnClickListener {
-                val text = textInput.text.toString()
-                if (text.isBlank()) {
-                    toast("Zusage-Text erforderlich")
-                    return@setOnClickListener
+        content.addView(GameMenuUi.card(this, GameMenuUi.YELLOW) {
+            addView(GameMenuUi.panelText(this@ZusagenActivity, "Neue Zusage", strong = true))
+            addView(textInput)
+            addView(conditionInput)
+            addView(GameMenuUi.rawButton(this@ZusagenActivity, GameMenuUi.YELLOW).apply {
+                text = "Zusage erstellen"
+                layoutParams = matchWidth()
+                setOnClickListener {
+                    val text = textInput.text.toString()
+                    if (text.isBlank()) {
+                        toast("Zusage-Text erforderlich")
+                        return@setOnClickListener
+                    }
+                    val condition = conditionInput.text.toString().ifBlank { null }
+                    createZusage(text, condition) {
+                        textInput.text.clear()
+                        conditionInput.text.clear()
+                    }
                 }
-                val condition = conditionInput.text.toString().ifBlank { null }
-                createZusage(text, condition) {
-                    textInput.text.clear()
-                    conditionInput.text.clear()
-                }
-            }
+            })
         })
 
-        content.addView(label("Wartende Genehmigungen (24h Auto-Genehmigung)"))
         val pending = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(pending)
+        content.addView(GameMenuUi.card(this, GameMenuUi.BLUE) {
+            addView(GameMenuUi.panelText(this@ZusagenActivity, "Wartende Genehmigungen", strong = true))
+            addView(GameMenuUi.panelText(this@ZusagenActivity, "Automatische Genehmigung nach 24 Stunden"))
+            addView(pending)
+        })
 
         refreshPending(pending)
     }
@@ -119,7 +121,7 @@ class ZusagenActivity : AppCompatActivity() {
             }
             target.removeAllViews()
             if (pending.isEmpty()) {
-                target.addView(label("(Keine wartenden Zusagen)", size = 14f, topPad = 8))
+                target.addView(GameMenuUi.emptyState(this@ZusagenActivity, "Keine wartenden Zusagen"))
                 return@launch
             }
             for (z in pending) {
@@ -133,8 +135,7 @@ class ZusagenActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(0, 12, 0, 12)
         }
-        row.addView(TextView(this).apply {
-            text = z.text + (z.condition?.let { "  (Bedingung: $it)" } ?: "")
+        row.addView(GameMenuUi.panelText(this, z.text + (z.condition?.let { "  (Bedingung: $it)" } ?: ""), strong = true).apply {
             textSize = 15f
         })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -187,16 +188,20 @@ class ZusagenActivity : AppCompatActivity() {
 
     private fun showChildView() {
         content.removeAllViews()
-        content.addView(label("Mama und Papas Zusagen", size = 20f, topPad = 0))
-        content.addView(label("Hier siehst du, was Mama und Papa dir versprechen. ✨", size = 14f))
+        content.addView(GameMenuUi.title(this, "Mama und Papas Zusagen"))
+        content.addView(GameMenuUi.body(this, "Hier siehst du, was Mama und Papa dir versprechen. ✨"))
 
-        content.addView(label("Das erwartet dich:"))
         val activeHolder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(activeHolder)
+        content.addView(GameMenuUi.card(this, GameMenuUi.YELLOW) {
+            addView(GameMenuUi.panelText(this@ZusagenActivity, "Das erwartet dich", strong = true))
+            addView(activeHolder)
+        })
 
-        content.addView(label("Das hat geklappt:"))
         val fulfilledHolder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(fulfilledHolder)
+        content.addView(GameMenuUi.card(this, GameMenuUi.GREEN) {
+            addView(GameMenuUi.panelText(this@ZusagenActivity, "Das hat geklappt", strong = true))
+            addView(fulfilledHolder)
+        })
 
         scope.launch {
             val all = withContext(Dispatchers.IO) {
@@ -206,19 +211,17 @@ class ZusagenActivity : AppCompatActivity() {
             val fulfilled = all.filter { it.status == "FULFILLED" }
 
             if (active.isEmpty()) {
-                activeHolder.addView(label("(Noch keine aktiven Zusagen)", size = 14f, topPad = 4))
+                activeHolder.addView(GameMenuUi.emptyState(this@ZusagenActivity, "Noch keine aktiven Zusagen"))
             } else {
-                for (z in active) activeHolder.addView(TextView(this@ZusagenActivity).apply {
-                    text = "• ${z.childVisibleText}"
+                for (z in active) activeHolder.addView(GameMenuUi.panelText(this@ZusagenActivity, "◆ ${z.childVisibleText}").apply {
                     setPadding(8, 6, 8, 6)
                 })
             }
 
             if (fulfilled.isEmpty()) {
-                fulfilledHolder.addView(label("(Noch nichts erfüllt)", size = 14f, topPad = 4))
+                fulfilledHolder.addView(GameMenuUi.emptyState(this@ZusagenActivity, "Noch nichts erfüllt"))
             } else {
-                for (z in fulfilled) fulfilledHolder.addView(TextView(this@ZusagenActivity).apply {
-                    text = "✓ ${z.text}"
+                for (z in fulfilled) fulfilledHolder.addView(GameMenuUi.panelText(this@ZusagenActivity, "✓ ${z.text}").apply {
                     setPadding(8, 6, 8, 6)
                 })
             }

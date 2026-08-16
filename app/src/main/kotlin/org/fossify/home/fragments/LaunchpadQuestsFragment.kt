@@ -22,7 +22,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.fossify.home.activities.DailyReportActivity
 import org.fossify.home.activities.DogeRequestsActivity
 import org.fossify.home.activities.EntdeckenActivity
 import org.fossify.home.activities.MainActivity
@@ -36,9 +35,9 @@ import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.ui.GameScreen
 import org.fossify.home.ui.GameScreenState
 import org.fossify.home.ui.HandheldPalette
-import org.fossify.home.ui.NavAction
-import org.fossify.home.ui.StitchBottomNav
 import org.fossify.home.ui.StitchHeaderView
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 import org.fossify.home.ui.TouchAction
 import org.fossify.home.ui.TouchPage
 import org.fossify.home.ui.TouchScreenPager
@@ -88,7 +87,7 @@ class LaunchpadQuestsFragment : Fragment() {
         )
 
         root.addView(
-            buildBottomNav(context),
+            LaunchpadNavigation.view(requireActivity(), LaunchpadDestination.QUESTS),
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(80)),
         )
 
@@ -188,16 +187,6 @@ class LaunchpadQuestsFragment : Fragment() {
                     },
                 ),
             ),
-        ),
-    )
-
-    private fun buildBottomNav(context: Context) = StitchBottomNav(
-        context,
-        listOf(
-            NavAction("Quests", "⚔", true) { Unit },
-            NavAction("Gear", "◆") { (activity as? MainActivity)?.showGearScreen() },
-            NavAction("Map", "⌖") { open(EntdeckenActivity::class.java) },
-            NavAction("Journal", "▤") { open(DailyReportActivity::class.java) },
         ),
     )
 

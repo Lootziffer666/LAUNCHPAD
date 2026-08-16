@@ -3,11 +3,13 @@
     android:id="@+id/launcher_holder"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    android:background="@drawable/lp_game_app_tile"
     android:clickable="true"
     android:focusable="true"
-    android:paddingStart="@dimen/small_margin"
-    android:paddingTop="18dp"
-    android:paddingEnd="@dimen/small_margin"
+    android:paddingStart="6dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="10dp"
     android:paddingBottom="14dp">
 
     <org.fossify.commons.views.MySquareImageView
