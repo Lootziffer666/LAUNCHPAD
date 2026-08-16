@@ -514,6 +514,16 @@ class MainActivity : SimpleActivity(), FlingListener {
             return false
         }
 
+        // Quests owns the foreground while it is visible. Feed only the destination-swipe
+        // detector; never drag, tap or open the launcher workspace hidden underneath it.
+        if (questsVisible) {
+            try {
+                mDetector.onTouchEvent(event)
+            } catch (_: Exception) {
+            }
+            return true
+        }
+
         if (mLongPressedIcon != null && event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
             mLastUpEvent = System.currentTimeMillis()
         }
@@ -1204,12 +1214,14 @@ class MainActivity : SimpleActivity(), FlingListener {
         private val flingListener: FlingListener,
     ) : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapUp(event: MotionEvent): Boolean {
-            (flingListener as MainActivity).homeScreenClicked(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenClicked(event.x, event.y)
             return super.onSingleTapUp(event)
         }
 
         override fun onDoubleTap(event: MotionEvent): Boolean {
-            (flingListener as MainActivity).homeScreenDoubleTapped(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenDoubleTapped(event.x, event.y)
             return super.onDoubleTap(event)
         }
 
@@ -1242,12 +1254,13 @@ class MainActivity : SimpleActivity(), FlingListener {
         }
 
         override fun onLongPress(event: MotionEvent) {
-            (flingListener as MainActivity).homeScreenLongPressed(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenLongPressed(event.x, event.y)
         }
     }
 
     override fun onFlingUp() {
-        if (mIgnoreYMoveEvents) {
+        if (questsVisible || mIgnoreYMoveEvents) {
             return
         }
 
@@ -1259,7 +1272,7 @@ class MainActivity : SimpleActivity(), FlingListener {
 
     @SuppressLint("WrongConstant")
     override fun onFlingDown() {
-        if (mIgnoreYMoveEvents) {
+        if (questsVisible || mIgnoreYMoveEvents) {
             return
         }
 
