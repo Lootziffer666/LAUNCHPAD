@@ -296,7 +296,7 @@ private class PressedGameDrawable(
         paint.style = Paint.Style.FILL
     }
     override fun isStateful() = true
-    override fun onStateChange(state: IntArray?): Boolean { invalidateSelf(); return true }
+    override fun onStateChange(state: IntArray): Boolean { invalidateSelf(); return true }
     override fun setAlpha(alpha: Int) { paint.alpha = alpha }
     override fun setColorFilter(filter: android.graphics.ColorFilter?) { paint.colorFilter = filter }
     @Deprecated("Deprecated in Android") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
