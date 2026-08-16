@@ -1290,6 +1290,7 @@ class MainActivity : SimpleActivity(), FlingListener {
 
     private fun showRulesOverlay(animate: Boolean = true) {
         val overlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay) ?: return
+        (supportFragmentManager.findFragmentById(R.id.rules_overlay) as? RulesFragment)?.refresh()
         rulesVisible = true
         overlay.visibility = android.view.View.VISIBLE
         if (animate) {
@@ -1299,6 +1300,11 @@ class MainActivity : SimpleActivity(), FlingListener {
         } else {
             overlay.translationX = 0f
         }
+    }
+
+    /** Navigation callback used by the retro overview's Gear tab. */
+    fun closeLaunchpadOverview() {
+        hideRulesOverlay()
     }
 
     private fun hideRulesOverlay(animate: Boolean = true) {
