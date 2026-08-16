@@ -1,5 +1,5 @@
 // File: app/src/main/kotlin/org/fossify/home/fragments/RulesFragment.kt
-// LAUNCHPAD: retro overview shown to the LEFT of the home screen (swipe right from page 0).
+// LAUNCHPAD: the real DS dual-screen overview shown left of the launcher home.
 
 @file:Suppress("MagicNumber", "MaxLineLength")
 
@@ -12,7 +12,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -26,28 +25,29 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.activities.DailyReportActivity
 import org.fossify.home.activities.DogeRequestsActivity
 import org.fossify.home.activities.EntdeckenActivity
-import org.fossify.home.activities.JakeDashboardActivity
 import org.fossify.home.activities.MainActivity
 import org.fossify.home.activities.ZusagenActivity
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.LaunchpadConstants
-import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TimeBudgetController
 import org.fossify.home.helpers.TimeBudgetManager
-import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.GameScreen
+import org.fossify.home.ui.GameScreenState
+import org.fossify.home.ui.HandheldPalette
 import org.fossify.home.ui.NavAction
-import org.fossify.home.ui.RetroOverviewAction
-import org.fossify.home.ui.RetroOverviewState
-import org.fossify.home.ui.RetroOverviewView
 import org.fossify.home.ui.StitchBottomNav
 import org.fossify.home.ui.StitchHeaderView
+import org.fossify.home.ui.TouchAction
+import org.fossify.home.ui.TouchPage
+import org.fossify.home.ui.TouchScreenPager
+import java.util.Calendar
 
 class RulesFragment : Fragment() {
     private var viewScope: CoroutineScope? = null
     private var refreshJob: Job? = null
-    private var overview: RetroOverviewView? = null
+    private var gameScreen: GameScreen? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,7 +58,7 @@ class RulesFragment : Fragment() {
         val context = requireContext()
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(GameMenuUi.LOWEST)
+            setBackgroundColor(HandheldPalette.DARK_SCREEN)
         }
 
         root.addView(
@@ -66,20 +66,24 @@ class RulesFragment : Fragment() {
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(56)),
         )
 
-        val overviewView = RetroOverviewView(context, ::handleOverviewAction)
-        overview = overviewView
-        val scroll = ScrollView(context).apply {
-            isFillViewport = true
-            isVerticalScrollBarEnabled = false
-            overScrollMode = View.OVER_SCROLL_NEVER
-            setBackgroundColor(GameMenuUi.LOWEST)
-            addView(
-                overviewView,
-                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
-            )
+        val screens = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(context.dp(24), 0, context.dp(24), context.dp(16))
         }
+        val upperScreen = GameScreen(context)
+        gameScreen = upperScreen
+        screens.addView(
+            upperScreen,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, .82f),
+        )
+        screens.addView(
+            buildTouchScreen(context),
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
+                topMargin = context.dp(12)
+            },
+        )
         root.addView(
-            scroll,
+            screens,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
         )
 
@@ -109,9 +113,9 @@ class RulesFragment : Fragment() {
         refresh()
     }
 
-    /** Called by MainActivity each time the off-screen overview is brought into view. */
+    /** MainActivity calls this whenever the off-screen dashboard becomes visible. */
     fun refresh() {
-        val target = overview ?: return
+        val target = gameScreen ?: return
         val scope = viewScope ?: return
         refreshJob?.cancel()
         refreshJob = scope.launch {
@@ -125,52 +129,72 @@ class RulesFragment : Fragment() {
         refreshJob?.cancel()
         viewScope?.cancel()
         viewScope = null
-        overview = null
+        gameScreen = null
         super.onDestroyView()
     }
 
-    private suspend fun loadState(context: Context): RetroOverviewState {
+    private suspend fun loadState(context: Context): GameScreenState {
         val db = AppsDatabase.getInstance(context)
         val budget = TimeBudgetManager(context, db).getCurrentBudget()
-        val timeState = TimeBudgetController(context).state()
-        val prefs = context.getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
-        val enforced = prefs.getBoolean(LaunchpadPrefs.PREF_ENFORCEMENT_ENABLED, false)
-        val pendingCount = db.dogeRequestDao().getPending().size
-        val promiseCount = db.zusageDao().getZusagenByStatus(LaunchpadConstants.ZUSAGE_ACTIVE).size
-        val capacity = timeState.availableToday.coerceAtLeast(1)
-        val minutes = budget.balanceMinutes.coerceAtLeast(0)
-        return RetroOverviewState(
+        val midnight = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val spent = db.cryptoCashDao().getTransactionsBetween(midnight, System.currentTimeMillis())
+            .filter { it.type == LaunchpadConstants.TX_TYPE_SPEND }
+            .sumOf { -it.deltaMinutes }
+        val minutes = if (budget.inCooldown) budget.minutesUntilCooldownExpires() ?: 0 else budget.balanceMinutes
+        val status = when {
+            SupervisedOverride.isActive(context) -> "PAPA-MODUS AKTIV"
+            budget.inCooldown -> "VERSCHNAUFPAUSE"
+            budget.balanceMinutes <= 0 -> "ZEIT VORBEI"
+            spent > 0 -> "HEUTE $spent MIN GENUTZT"
+            else -> "BEREIT"
+        }
+        val available = TimeBudgetController(context).state().availableToday.coerceAtLeast(1)
+        return GameScreenState(
             name = ChildProfile.name(context),
-            minutes = minutes,
-            capacity = capacity,
-            status = overviewEnergyStatus(
-                minutes = minutes,
-                capacity = capacity,
-                inCooldown = budget.inCooldown,
-                enforced = enforced,
-                overrideActive = SupervisedOverride.isActive(context),
-            ),
-            missionSummary = countLabel(pendingCount, "offene Anfrage", "offene Anfragen", "Tägliche Aufgaben"),
-            promiseSummary = countLabel(promiseCount, "aktiver Pakt", "aktive Pakte", "Aktive Pakte"),
+            minutes = minutes.coerceAtLeast(0),
+            progress = minutes.toFloat() / available,
+            status = status,
+            paused = budget.inCooldown || budget.balanceMinutes <= 0,
         )
     }
 
-    private fun handleOverviewAction(action: RetroOverviewAction) {
-        when (action) {
-            RetroOverviewAction.STATUS -> open(JakeDashboardActivity::class.java)
-            RetroOverviewAction.MISSIONS -> startActivity(
-                Intent(requireContext(), DogeRequestsActivity::class.java).putExtra("isParentMode", false),
-            )
-            RetroOverviewAction.PROMISES -> startActivity(
-                Intent(requireContext(), ZusagenActivity::class.java).putExtra("isParentMode", false),
-            )
-        }
-    }
+    private fun buildTouchScreen(context: Context) = TouchScreenPager(
+        context,
+        listOf(
+            TouchPage(
+                listOf(
+                    TouchAction("Anfragen", "✉", HandheldPalette.RED) {
+                        startActivity(
+                            Intent(requireContext(), DogeRequestsActivity::class.java)
+                                .putExtra("isParentMode", false),
+                        )
+                    },
+                    TouchAction("Versprechen", "✓", HandheldPalette.GREEN) {
+                        startActivity(
+                            Intent(requireContext(), ZusagenActivity::class.java)
+                                .putExtra("isParentMode", false),
+                        )
+                    },
+                    TouchAction("Karte", "⌖", HandheldPalette.YELLOW) {
+                        open(EntdeckenActivity::class.java)
+                    },
+                    TouchAction("Rucksack", "▣", 0xFFABC7FF.toInt()) {
+                        (activity as? MainActivity)?.closeLaunchpadOverview()
+                    },
+                ),
+            ),
+        ),
+    )
 
     private fun buildBottomNav(context: Context) = StitchBottomNav(
         context,
         listOf(
-            NavAction("Quests", "⚔", true) { open(JakeDashboardActivity::class.java) },
+            NavAction("Quests", "⚔", true) { Unit },
             NavAction("Gear", "◆") { (activity as? MainActivity)?.closeLaunchpadOverview() },
             NavAction("Map", "⌖") { open(EntdeckenActivity::class.java) },
             NavAction("Journal", "▤") { open(DailyReportActivity::class.java) },
@@ -180,27 +204,6 @@ class RulesFragment : Fragment() {
     private fun open(activityClass: Class<*>) {
         startActivity(Intent(requireContext(), activityClass))
     }
-}
-
-internal fun overviewEnergyStatus(
-    minutes: Int,
-    capacity: Int,
-    inCooldown: Boolean,
-    enforced: Boolean,
-    overrideActive: Boolean,
-): String = when {
-    overrideActive -> "PAPA-MODUS AKTIV"
-    !enforced -> "BEREIT ZUM EINRICHTEN"
-    inCooldown -> "VERSCHNAUFPAUSE"
-    minutes <= 0 -> "ENERGIE LEER"
-    minutes.toFloat() / capacity.coerceAtLeast(1) <= .25f -> "ENERGIE KNAPP"
-    else -> "ENERGIE VOLL"
-}
-
-internal fun countLabel(count: Int, singular: String, plural: String, empty: String): String = when (count) {
-    0 -> empty
-    1 -> "1 $singular"
-    else -> "$count $plural"
 }
 
 private fun Context.dp(value: Int) = (value * resources.displayMetrics.density).toInt()
