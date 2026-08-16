@@ -241,7 +241,7 @@ fun Activity.handleGridItemPopupMenu(
             listener.onAnyClick(); listener.appInfo(gridItem)
         }
         if (isOnAllAppsFragment) {
-            actions += GameMenuUi.Action(getString(R.string.hide), "◉") {
+            actions += GameMenuUi.Action(getString(org.fossify.commons.R.string.hide), "◉") {
                 listener.onAnyClick(); listener.hide(gridItem)
             }
         }
@@ -253,17 +253,17 @@ fun Activity.handleGridItemPopupMenu(
     }
 
     if ((gridItem.type == ITEM_TYPE_ICON || gridItem.type == ITEM_TYPE_FOLDER) && !isOnAllAppsFragment) {
-        actions += GameMenuUi.Action(getString(R.string.rename), "✎") {
+        actions += GameMenuUi.Action(getString(org.fossify.commons.R.string.rename), "✎") {
             listener.onAnyClick(); listener.rename(gridItem)
         }
     }
     if (gridItem.type == ITEM_TYPE_WIDGET) {
-        actions += GameMenuUi.Action(getString(R.string.resize), "↔") {
+        actions += GameMenuUi.Action(getString(org.fossify.commons.R.string.resize), "↔") {
             listener.onAnyClick(); listener.resize(gridItem)
         }
     }
     if (!isOnAllAppsFragment) {
-        actions += GameMenuUi.Action(getString(R.string.remove), "−", GameMenuUi.RED) {
+        actions += GameMenuUi.Action(getString(org.fossify.commons.R.string.remove), "−", GameMenuUi.RED) {
             listener.onAnyClick(); listener.remove(gridItem)
         }
     }
