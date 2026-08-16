@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +22,7 @@ import org.fossify.home.databases.DogeRequest
 import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.TimeBudgetManager
+import org.fossify.home.ui.GameMenuUi
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -41,11 +41,7 @@ class DailyReportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = AppsDatabase.getInstance(this)
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        content = GameMenuUi.install(this, "Tagesbericht")
         loadReport()
     }
 

@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +19,7 @@ import kotlinx.coroutines.withContext
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.WeekScheduleEntry
 import org.fossify.home.helpers.ChildProfile
+import org.fossify.home.ui.GameMenuUi
 import java.util.Calendar
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
@@ -35,11 +35,7 @@ class WeekScheduleActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = AppsDatabase.getInstance(this)
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        content = GameMenuUi.install(this, "Wochenplan")
         loadSchedule()
     }
 

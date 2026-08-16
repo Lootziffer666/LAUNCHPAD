@@ -24,6 +24,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.widget.Toolbar
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -57,7 +58,7 @@ object GameMenuUi {
         }
         val header = header(activity, title)
         root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, activity.dp(62)))
-        val content = LinearLayout(activity).apply {
+        val content = GameMenuContentLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(activity.dp(24), activity.dp(24), activity.dp(24), activity.dp(30))
         }
@@ -78,6 +79,34 @@ object GameMenuUi {
         activity.setContentView(root)
         return content
     }
+
+    /** Applies the same shell to existing XML screens without replacing their IDs or listeners. */
+    fun migrateExisting(activity: Activity, root: View, toolbar: Toolbar? = null) {
+        WindowCompat.setDecorFitsSystemWindows(activity.window, false)
+        activity.window.statusBarColor = HIGH
+        activity.window.navigationBarColor = HIGH
+        root.background = DotGridDrawable(activity)
+        toolbar?.apply {
+            background = outlined(activity, HIGH, INK, 4f, 0f)
+            setTitleTextColor(TEXT)
+            navigationIcon?.setTint(TEXT)
+        }
+        styleTree(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+    }
+
+    fun styleChoice(button: Button, selected: Boolean) {
+        button.setTextColor(if (selected) 0xFF241A00.toInt() else Color.WHITE)
+        button.background = PressedGameDrawable(button.context, if (selected) YELLOW else BLUE)
+    }
+
+    fun styleAdded(view: View) = styleTree(view)
 
     fun title(context: Context, text: String) = TextView(context).apply {
         this.text = text.uppercase()
@@ -185,6 +214,81 @@ object GameMenuUi {
         }
     }
 
+    fun styleShownDialog(dialog: AlertDialog) {
+        dialog.window?.let(::styleDialogWindow)
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.apply {
+            setTextColor(INK)
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(BLUE)
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setTextColor(BLUE)
+    }
+
+    @Suppress("CyclomaticComplexMethod") // Existing view types and product roles are orthogonal.
+    internal fun styleTree(view: View) {
+        val idName = if (view.id == View.NO_ID) "" else runCatching {
+            view.resources.getResourceEntryName(view.id)
+        }.getOrDefault("")
+        when (view) {
+            is EditText -> {
+                view.setTextColor(INK)
+                view.setHintTextColor(ColorUtils.setAlphaComponent(MUTED, 180))
+                view.background = outlined(view.context, PANEL, INK, 3f, 8f)
+            }
+            is Button -> {
+                view.setTextColor(Color.WHITE)
+                view.stateListAnimator = null
+                if (view.background !is PressedGameDrawable) {
+                    view.background = PressedGameDrawable(view.context, BLUE)
+                }
+            }
+            is TextView -> when {
+                idName.contains("sec_") || idName.endsWith("_label") && view.textSize <= 15f -> {
+                    view.setTextColor(YELLOW)
+                    view.typeface = Typeface.DEFAULT_BOLD
+                    view.letterSpacing = .06f
+                }
+                idName.contains("badge") -> view.setTextColor(INK)
+                else -> view.setTextColor(TEXT)
+            }
+        }
+        if (view is ViewGroup) {
+            if (idName == "em_dashboard") {
+                view.background = outlined(view.context, PANEL, BLUE, 4f, 12f)
+                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
+                    leftMargin = view.context.dp(24)
+                    rightMargin = view.context.dp(24)
+                    topMargin = view.context.dp(16)
+                    bottomMargin = view.context.dp(16)
+                }
+            }
+            if (idName.startsWith("em_row_") || idName.endsWith("_holder")) {
+                view.background = outlined(view.context, HIGH, INK, 3f, 8f)
+                view.setPadding(view.context.dp(16), view.context.dp(12), view.context.dp(16), view.context.dp(12))
+                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
+                    leftMargin = view.context.dp(16)
+                    rightMargin = view.context.dp(16)
+                    topMargin = view.context.dp(4)
+                    bottomMargin = view.context.dp(8)
+                }
+            }
+            for (index in 0 until view.childCount) styleTree(view.getChildAt(index))
+            if (idName == "em_dashboard") stylePanelText(view)
+        }
+    }
+
+    private fun stylePanelText(view: View) {
+        if (view is TextView) {
+            val name = if (view.id == View.NO_ID) "" else runCatching {
+                view.resources.getResourceEntryName(view.id)
+            }.getOrDefault("")
+            if (!name.contains("badge")) view.setTextColor(INK)
+        }
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) stylePanelText(view.getChildAt(index))
+        }
+    }
+
     private fun styleDialogWindow(window: Window) {
         window.decorView.setPadding(window.decorView.context.dp(20), 0, window.decorView.context.dp(20), 0)
         window.setBackgroundDrawable(outlined(window.decorView.context, PANEL, INK, 4f, 12f))
@@ -231,6 +335,13 @@ object GameMenuUi {
     private fun rounded(context: Context, color: Int, radius: Float) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = radius * context.resources.displayMetrics.density
+    }
+}
+
+private class GameMenuContentLayout(context: Context) : LinearLayout(context) {
+    override fun onViewAdded(child: View) {
+        super.onViewAdded(child)
+        GameMenuUi.styleTree(child)
     }
 }
 

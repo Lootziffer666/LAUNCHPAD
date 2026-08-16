@@ -19,7 +19,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -29,6 +28,7 @@ import androidx.core.content.ContextCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import org.fossify.home.helpers.SupervisedOverride
+import org.fossify.home.ui.GameMenuUi
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,11 +49,7 @@ class PapaModusActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(40, 40, 40, 40)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        val content = GameMenuUi.install(this, "Papa-Modus")
 
         content.addView(heading("Papa-Modus"))
         content.addView(body(

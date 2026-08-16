@@ -24,6 +24,7 @@ import org.fossify.home.helpers.MAX_ROW_COUNT
 import org.fossify.home.helpers.MIN_COLUMN_COUNT
 import org.fossify.home.helpers.MIN_ROW_COUNT
 import org.fossify.home.receivers.LockDeviceAdminReceiver
+import org.fossify.home.ui.GameMenuUi
 import java.util.Locale
 import kotlin.system.exitProcess
 
@@ -68,6 +69,7 @@ class SettingsActivity : SimpleActivity() {
         ).forEach {
             it.setTextColor(getProperPrimaryColor())
         }
+        GameMenuUi.migrateExisting(this, binding.root, binding.settingsToolbar)
     }
 
     private fun setupOptionsMenu() {
