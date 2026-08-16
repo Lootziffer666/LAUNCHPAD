@@ -3,19 +3,38 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/widgets_holder"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="match_parent"
+    android:background="@drawable/lp_drawer_background">
+
+    <FrameLayout
+        android:id="@+id/widgets_header"
+        android:layout_width="match_parent"
+        android:layout_height="62dp"
+        android:layout_alignParentTop="true" />
+
+    <FrameLayout
+        android:id="@+id/widgets_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_alignParentBottom="true" />
 
     <org.fossify.commons.views.MySearchMenu
         android:id="@+id/search_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@id/widgets_header"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/lp_search_background"
         app:applyWindowInsets="false" />
 
     <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
         android:id="@+id/widgets_fastscroller"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_below="@id/search_bar"
+        android:layout_above="@id/widgets_bottom_nav"
+        android:layout_marginTop="8dp"
         app:fastScrollEnabled="false">
 
         <org.fossify.commons.views.MyRecyclerView

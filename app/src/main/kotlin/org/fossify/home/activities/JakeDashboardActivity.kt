@@ -106,13 +106,13 @@ class JakeDashboardActivity : AppCompatActivity() {
             startActivity(Intent(this, EntdeckenActivity::class.java))
         },
         TouchAction("Rucksack", "▣", 0xFFABC7FF.toInt()) {
-            startActivity(Intent(this, MainActivity::class.java))
+            openGear()
         },
     ))))
 
     private fun buildBottomNav() = StitchBottomNav(this, listOf(
         NavAction("Quests", "⚔", true) { Unit },
-        NavAction("Gear", "◆") { startActivity(Intent(this, MainActivity::class.java)) },
+        NavAction("Gear", "◆") { openGear() },
         NavAction("Map", "⌖") { startActivity(Intent(this, EntdeckenActivity::class.java)) },
         NavAction("Journal", "▤") { startActivity(Intent(this, DailyReportActivity::class.java)) },
     ))
@@ -162,6 +162,13 @@ class JakeDashboardActivity : AppCompatActivity() {
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun matchParent() = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+
+    private fun openGear() {
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_OPEN_GEAR, true),
+        )
+    }
 
     private fun onConnectivityState(state: ConnectivityState) {
         when (state) {

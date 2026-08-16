@@ -1,18 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/entdecken_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#040E1F"
     android:orientation="vertical">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/entdecken_toolbar"
+    <FrameLayout
+        android:id="@+id/entdecken_header"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/color_primary" />
+        android:layout_height="62dp" />
 
     <FrameLayout
         android:id="@+id/entdecken_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginVertical="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/lp_game_app_tile"
+        android:padding="4dp" />
+
+    <FrameLayout
+        android:id="@+id/entdecken_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="80dp" />
 
 </LinearLayout>

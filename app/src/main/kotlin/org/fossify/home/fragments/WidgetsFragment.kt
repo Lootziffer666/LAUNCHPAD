@@ -9,9 +9,8 @@ import android.content.pm.PackageManager
 import android.os.Process
 import android.util.AttributeSet
 import android.view.MotionEvent
+import androidx.core.content.ContextCompat
 import org.fossify.commons.extensions.beGone
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.extensions.normalizeString
 import org.fossify.commons.extensions.showErrorToast
@@ -32,6 +31,9 @@ import org.fossify.home.models.HomeScreenGridItem
 import org.fossify.home.models.WidgetsListItem
 import org.fossify.home.models.WidgetsListItemsHolder
 import org.fossify.home.models.WidgetsListSection
+import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 
 class WidgetsFragment(context: Context, attributeSet: AttributeSet) :
     MyFragment<WidgetsFragmentBinding>(context, attributeSet), WidgetsFragmentListener {
@@ -44,6 +46,22 @@ class WidgetsFragment(context: Context, attributeSet: AttributeSet) :
     override fun setupFragment(activity: MainActivity) {
         this.activity = activity
         this.binding = WidgetsFragmentBinding.bind(this)
+        binding.widgetsHeader.removeAllViews()
+        binding.widgetsHeader.addView(
+            GameMenuUi.headerView(context, "Widgets"),
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        binding.widgetsBottomNav.removeAllViews()
+        binding.widgetsBottomNav.addView(
+            LaunchpadNavigation.view(activity, LaunchpadDestination.GEAR),
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
         getAppWidgets()
 
         binding.widgetsList.setOnTouchListener { v, event ->
@@ -254,13 +272,21 @@ class WidgetsFragment(context: Context, attributeSet: AttributeSet) :
             return
         }
 
-        binding.widgetsFastscroller.updateColors(context.getProperPrimaryColor())
-        (binding.widgetsList.adapter as? WidgetsAdapter)?.updateTextColor(context.getProperTextColor())
+        binding.widgetsFastscroller.updateColors(ContextCompat.getColor(context, R.color.lp_star))
+        (binding.widgetsList.adapter as? WidgetsAdapter)?.updateTextColor(
+            ContextCompat.getColor(context, R.color.lp_cloud),
+        )
         setupDrawerBackground()
 
         binding.searchBar.requireToolbar().beGone()
         binding.searchBar.updateColors()
         binding.searchBar.setupMenu()
+        binding.searchBar.background = ContextCompat.getDrawable(context, R.drawable.lp_search_background)
+        binding.searchBar.binding.topToolbarSearch.apply {
+            setTextColor(ContextCompat.getColor(context, R.color.lp_cloud))
+            setHintTextColor(ContextCompat.getColor(context, R.color.lp_mist))
+            hint = "Widget suchen"
+        }
         binding.searchBar.onSearchTextChangedListener = {
             splitWidgetsByApps()
         }

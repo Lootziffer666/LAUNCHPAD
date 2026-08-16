@@ -5,7 +5,6 @@ package org.fossify.home.activities
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +22,8 @@ import org.fossify.home.helpers.AppLimitBonus
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -41,7 +42,11 @@ class DailyReportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = AppsDatabase.getInstance(this)
-        content = GameMenuUi.install(this, "Tagesbericht")
+        content = GameMenuUi.install(
+            this,
+            "Tagesbericht",
+            LaunchpadNavigation.view(this, LaunchpadDestination.JOURNAL),
+        )
         loadReport()
     }
 
@@ -98,8 +103,9 @@ class DailyReportActivity : AppCompatActivity() {
         reportText.setLength(0)
 
         val dateLabel = SimpleDateFormat("EEEE, d. MMMM", Locale.GERMAN).format(midnight)
-        content.addView(section("Tagesbericht", 22f, topPad = 0))
-        content.addView(caption(dateLabel))
+        reportText.append("Tagesbericht\n").append(dateLabel).append("\n")
+        content.addView(GameMenuUi.title(this, "Dein Tag im Überblick"))
+        content.addView(GameMenuUi.body(this, dateLabel))
 
         // ── Budget ────────────────────────────────────────────────────────────────
         val spent = txs
@@ -112,14 +118,16 @@ class DailyReportActivity : AppCompatActivity() {
             .filter { it.type == LaunchpadConstants.TX_TYPE_CORRECTION && !it.deleted }
             .sumOf { it.deltaMinutes }
 
-        content.addView(section("Konto"))
-        content.addView(dataRow("Aktuelles Guthaben", "$balance Min"))
-        content.addView(dataRow("Heute verbraucht", "$spent Min"))
-        if (earned > 0) content.addView(dataRow("Heute verdient", "+$earned Min"))
-        if (corrections != 0) {
-            val sign = if (corrections > 0) "+" else ""
-            content.addView(dataRow("Korrekturen", "$sign$corrections Min"))
-        }
+        content.addView(GameMenuUi.card(this, GameMenuUi.GREEN) {
+            addView(section("Konto"))
+            addView(dataRow("Aktuelles Guthaben", "$balance Min"))
+            addView(dataRow("Heute verbraucht", "$spent Min"))
+            if (earned > 0) addView(dataRow("Heute verdient", "+$earned Min"))
+            if (corrections != 0) {
+                val sign = if (corrections > 0) "+" else ""
+                addView(dataRow("Korrekturen", "$sign$corrections Min"))
+            }
+        })
 
         // ── Top apps ──────────────────────────────────────────────────────────────
         val spendTxs = txs.filter { it.type == LaunchpadConstants.TX_TYPE_SPEND && !it.deleted }
@@ -131,25 +139,27 @@ class DailyReportActivity : AppCompatActivity() {
             .take(5)
 
         if (byPkg.isNotEmpty()) {
-            content.addView(section("Top-Apps heute"))
-            for ((pkg, mins) in byPkg) {
-                val label = try {
-                    packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-                } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
-                    android.util.Log.w("DailyReport", "Package not found: $pkg", e)
-                    pkg
+            content.addView(GameMenuUi.card(this, GameMenuUi.BLUE) {
+                addView(section("Top-Apps heute"))
+                for ((pkg, mins) in byPkg) {
+                    val label = try {
+                        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+                    } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                        android.util.Log.w("DailyReport", "Package not found: $pkg", e)
+                        pkg
+                    }
+                    val limit = limits[pkg]
+                    val value = when {
+                        limit == null -> "$mins Min"
+                        mins >= limit -> "$mins / $limit Min ⛔"
+                        else -> "$mins / $limit Min"
+                    }
+                    addView(dataRow(label, value))
                 }
-                val limit = limits[pkg]
-                val value = when {
-                    limit == null -> "$mins Min"
-                    mins >= limit -> "$mins / $limit Min ⛔"
-                    else -> "$mins / $limit Min"
+                if (byPkg.any { (pkg, mins) -> limits[pkg]?.let { mins >= it } == true }) {
+                    addView(caption("⛔ = Tageslimit heute erreicht"))
                 }
-                content.addView(dataRow(label, value))
-            }
-            if (byPkg.any { (pkg, mins) -> limits[pkg]?.let { mins >= it } == true }) {
-                content.addView(caption("⛔ = Tageslimit heute erreicht"))
-            }
+            })
         }
 
         // ── Doge-Anfragen ─────────────────────────────────────────────────────────
@@ -159,11 +169,13 @@ class DailyReportActivity : AppCompatActivity() {
             val rejected = todayRequests.count { it.decision == "REJECTED" }
             val pending = todayRequests.count { it.decision == null }
 
-            content.addView(section("Medien-Anfragen heute"))
-            content.addView(dataRow("Eingereicht", "${todayRequests.size}"))
-            if (approved > 0) content.addView(dataRow("Genehmigt", "$approved"))
-            if (rejected > 0) content.addView(dataRow("Abgelehnt", "$rejected"))
-            if (pending > 0) content.addView(dataRow("Ausstehend", "$pending"))
+            content.addView(GameMenuUi.card(this, GameMenuUi.YELLOW) {
+                addView(section("Medien-Anfragen heute"))
+                addView(dataRow("Eingereicht", "${todayRequests.size}"))
+                if (approved > 0) addView(dataRow("Genehmigt", "$approved"))
+                if (rejected > 0) addView(dataRow("Abgelehnt", "$rejected"))
+                if (pending > 0) addView(dataRow("Ausstehend", "$pending"))
+            })
         }
 
         // ── Audit events ──────────────────────────────────────────────────────────
@@ -171,40 +183,28 @@ class DailyReportActivity : AppCompatActivity() {
             it.severity == LaunchpadConstants.SEVERITY_WARNING || it.severity == LaunchpadConstants.SEVERITY_CRITICAL
         }
         if (warnings.isNotEmpty()) {
-            content.addView(section("Ereignisse heute"))
-            for (ev in warnings.take(5)) {
-                content.addView(auditRow(ev))
-            }
-            if (warnings.size > 5) {
-                content.addView(caption("… und ${warnings.size - 5} weitere"))
-            }
+            content.addView(GameMenuUi.card(this, GameMenuUi.RED) {
+                addView(section("Ereignisse heute"))
+                for (ev in warnings.take(5)) addView(auditRow(ev))
+                if (warnings.size > 5) addView(caption("… und ${warnings.size - 5} weitere"))
+            })
         } else {
-            content.addView(section("Ereignisse heute"))
-            content.addView(caption("Keine Auffälligkeiten"))
+            content.addView(GameMenuUi.card(this, GameMenuUi.GREEN) {
+                addView(section("Ereignisse heute"))
+                addView(GameMenuUi.emptyState(this@DailyReportActivity, "✓ Keine Auffälligkeiten"))
+            })
+            reportText.append("\nEreignisse heute\nKeine Auffälligkeiten\n")
         }
 
         // ── Nächster Tag ─────────────────────────────────────────────────────────
-        content.addView(section("Morgen"))
-        content.addView(caption("Das Konto wird nicht automatisch zurückgesetzt — " +
-            "neues Budget über „Heute Ausnahme\" hinzufügen."))
+        content.addView(GameMenuUi.card(this, GameMenuUi.BLUE) {
+            addView(section("Morgen"))
+            addView(caption("Das Konto wird nicht automatisch zurückgesetzt — " +
+                "neues Budget über „Heute Ausnahme\" hinzufügen."))
+        })
 
         // ── Teilen ─────────────────────────────────────────────────────────────────
-        content.addView(shareButton())
-    }
-
-    private fun shareButton() = Button(this).apply {
-        text = "Bericht teilen"
-        isAllCaps = false
-        textSize = 15f
-        setTextColor(android.graphics.Color.WHITE)
-        setBackgroundColor(android.graphics.Color.parseColor("#0D2847"))
-        val lp = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        lp.topMargin = 32
-        layoutParams = lp
-        setOnClickListener { shareReport() }
+        content.addView(GameMenuUi.button(this, "Bericht teilen", GameMenuUi.YELLOW, ::shareReport))
     }
 
     private fun shareReport() {
@@ -218,23 +218,18 @@ class DailyReportActivity : AppCompatActivity() {
 
     // ── View helpers ─────────────────────────────────────────────────────────────
 
-    private fun section(text: String, size: Float = 16f, topPad: Int = 24): TextView {
+    private fun section(text: String, size: Float = 16f, topPad: Int = 0): TextView {
         reportText.append("\n").append(text).append("\n")
-        return TextView(this).apply {
-            this.text = text
+        return GameMenuUi.panelText(this, text, strong = true).apply {
             textSize = size
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(android.graphics.Color.parseColor("#0D2847"))
             setPadding(0, topPad, 0, 8)
         }
     }
 
     private fun caption(text: String): TextView {
         reportText.append(text).append("\n")
-        return TextView(this).apply {
-            this.text = text
+        return GameMenuUi.panelText(this, text).apply {
             textSize = 13f
-            setTextColor(android.graphics.Color.parseColor("#666666"))
             setPadding(0, 0, 0, 8)
         }
     }
@@ -244,16 +239,12 @@ class DailyReportActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 6, 0, 6)
-            addView(TextView(this@DailyReportActivity).apply {
-                text = label
+            addView(GameMenuUi.panelText(this@DailyReportActivity, label).apply {
                 textSize = 15f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
-            addView(TextView(this@DailyReportActivity).apply {
-                text = value
+            addView(GameMenuUi.panelText(this@DailyReportActivity, value, strong = true).apply {
                 textSize = 15f
-                setTypeface(null, android.graphics.Typeface.BOLD)
-                setTextColor(android.graphics.Color.parseColor("#0D2847"))
             })
         }
     }
@@ -261,14 +252,13 @@ class DailyReportActivity : AppCompatActivity() {
     private fun auditRow(ev: AuditEvent): TextView {
         reportText.append("  • ").append(ev.message).append("\n")
         val color = when (ev.severity) {
-            LaunchpadConstants.SEVERITY_CRITICAL -> "#D32F2F"
-            LaunchpadConstants.SEVERITY_WARNING -> "#E65100"
-            else -> "#555555"
+            LaunchpadConstants.SEVERITY_CRITICAL -> GameMenuUi.RED
+            LaunchpadConstants.SEVERITY_WARNING -> 0xFF9A4E00.toInt()
+            else -> GameMenuUi.INK
         }
-        return TextView(this).apply {
-            text = "• ${ev.message}"
+        return GameMenuUi.panelText(this, "• ${ev.message}").apply {
             textSize = 13f
-            setTextColor(android.graphics.Color.parseColor(color))
+            setTextColor(color)
             setPadding(0, 4, 0, 4)
         }
     }

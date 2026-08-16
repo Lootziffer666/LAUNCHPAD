@@ -4,46 +4,37 @@
     android:id="@+id/all_apps_holder"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/lp_drawer_background"
-    android:paddingTop="18dp">
+    android:background="@drawable/lp_drawer_background">
 
-    <TextView
-        android:id="@+id/all_apps_title"
+    <FrameLayout
+        android:id="@+id/drawer_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:fontFamily="@font/nunito"
-        android:text="Alle Apps"
-        android:textColor="@color/lp_star"
-        android:textSize="24sp"
-        android:textStyle="bold" />
+        android:layout_height="62dp"
+        android:layout_alignParentTop="true" />
 
-    <TextView
-        android:id="@+id/all_apps_subtitle"
+    <FrameLayout
+        android:id="@+id/drawer_bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/all_apps_title"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="2dp"
-        android:text="Dein nächster Weg beginnt hier"
-        android:textColor="@color/lp_mist"
-        android:textSize="12sp" />
+        android:layout_height="80dp"
+        android:layout_alignParentBottom="true" />
 
     <org.fossify.commons.views.MySearchMenu
         android:id="@+id/search_bar"
-        android:layout_below="@id/all_apps_subtitle"
+        android:layout_below="@id/drawer_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="18dp"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="12dp"
         android:background="@drawable/lp_search_background"
         app:applyWindowInsets="false" />
 
     <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
         android:id="@+id/all_apps_fastscroller"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_below="@+id/search_bar"
+        android:layout_above="@id/drawer_bottom_nav"
+        android:layout_marginTop="8dp"
         app:fastScrollEnabled="true">
 
         <org.fossify.commons.views.MyRecyclerView
@@ -63,6 +54,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@+id/search_bar"
+        android:layout_above="@id/drawer_bottom_nav"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="@dimen/bigger_margin"
         android:alpha="0.8"

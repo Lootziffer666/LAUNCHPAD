@@ -6,8 +6,8 @@ package org.fossify.home.activities
 import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
+import android.view.View
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +23,8 @@ import org.fossify.home.helpers.toModel
 import org.fossify.home.models.DogeManager
 import org.fossify.home.models.DogeRequest
 import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 
 /**
  * DogeRequestsActivity: request-based media approvals.
@@ -48,7 +50,11 @@ class DogeRequestsActivity : AppCompatActivity() {
         isParentMode = intent.getBooleanExtra("isParentMode", false)
         prefillPkg = intent.getStringExtra("prefill_package")
 
-        content = GameMenuUi.install(this, if (isParentMode) "Medien-Anfragen" else "Medien-Wunsch")
+        content = GameMenuUi.install(
+            this,
+            if (isParentMode) "Medien-Anfragen" else "Medien-Wunsch",
+            if (isParentMode) null else LaunchpadNavigation.view(this, LaunchpadDestination.QUESTS),
+        )
 
         if (isParentMode) showParentView() else showChildView()
     }
@@ -57,13 +63,6 @@ class DogeRequestsActivity : AppCompatActivity() {
         super.onDestroy()
         scope.cancel()
     }
-
-    private fun label(text: String, size: Float = 16f, topPad: Int = 24) =
-        if (size >= 20f) GameMenuUi.title(this, text) else if (topPad >= 20) {
-            GameMenuUi.section(this, text)
-        } else {
-            GameMenuUi.body(this, text)
-        }
 
     private fun matchWidth() = LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -74,13 +73,11 @@ class DogeRequestsActivity : AppCompatActivity() {
 
     private fun showParentView() {
         content.removeAllViews()
-        content.addView(label("Medien-Anfragen", size = 20f, topPad = 0))
-        content.addView(
-            label(
-                "${ChildProfile.possessiveName(this)} Wünsche – genehmige mit einer Dauer oder lehne ab.",
-                size = 14f
-            )
-        )
+        content.addView(GameMenuUi.title(this, "Medien-Anfragen"))
+        content.addView(GameMenuUi.body(
+            this,
+            "${ChildProfile.possessiveName(this)} Wünsche – genehmige mit einer Dauer oder lehne ab.",
+        ))
 
         val pending = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(pending)
@@ -92,81 +89,56 @@ class DogeRequestsActivity : AppCompatActivity() {
             val pendingList = manager.getPendingRequests(models)
             pending.removeAllViews()
             if (pendingList.isEmpty()) {
-                pending.addView(label("(Keine offenen Anfragen)", size = 14f, topPad = 8))
+                pending.addView(GameMenuUi.card(this@DogeRequestsActivity, GameMenuUi.GREEN) {
+                    addView(GameMenuUi.emptyState(this@DogeRequestsActivity, "✓ Keine offenen Anfragen"))
+                })
             } else {
                 for (r in pendingList) pending.addView(renderPendingRow(r))
             }
         }
     }
 
-    private fun renderPendingRow(r: DogeRequest): LinearLayout {
+    private fun renderPendingRow(r: DogeRequest): View {
         val age = formatAge(r.requestedAt)
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 12, 0, 16)
-        }
-        row.addView(TextView(this).apply {
-            text = r.contentDescription
-            textSize = 15f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-        })
-        row.addView(TextView(this).apply {
-            text = "Angefragt $age"
-            textSize = 12f
-            setTextColor(android.graphics.Color.parseColor("#888888"))
-            setPadding(0, 2, 0, 8)
-        })
-        // Quick-approve chips
-        val chips = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, 4)
-        }
-        listOf(30, 60, 90).forEach { mins ->
-            chips.addView(GameMenuUi.rawButton(this, GameMenuUi.GREEN).apply {
-                text = "+$mins Min"
-                isAllCaps = false
-                textSize = 12f
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { setMargins(0, 0, 8, 0) }
-                setOnClickListener { decide(r, approve = true, durationMinutes = mins) }
+        return GameMenuUi.card(this, GameMenuUi.YELLOW) {
+            addView(GameMenuUi.panelText(this@DogeRequestsActivity, r.contentDescription, strong = true))
+            addView(GameMenuUi.panelText(this@DogeRequestsActivity, "Angefragt $age"))
+            val chips = LinearLayout(this@DogeRequestsActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 4, 0, 4)
+            }
+            listOf(30, 60, 90).forEach { mins ->
+                chips.addView(GameMenuUi.rawButton(this@DogeRequestsActivity, GameMenuUi.GREEN).apply {
+                    text = "+$mins Min"
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        .apply { setMargins(0, 0, 6, 0) }
+                    setOnClickListener { decide(r, approve = true, durationMinutes = mins) }
+                })
+            }
+            chips.addView(GameMenuUi.rawButton(this@DogeRequestsActivity).apply {
+                text = "⚙"
+                textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnClickListener { promptCustomDuration(r) }
             })
+            addView(chips)
+            val rejectRow = LinearLayout(this@DogeRequestsActivity).apply { orientation = LinearLayout.HORIZONTAL }
+            rejectRow.addView(GameMenuUi.rawButton(this@DogeRequestsActivity, GameMenuUi.RED).apply {
+                text = "Nicht jetzt"
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { setMargins(0, 0, 6, 0) }
+                setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Nicht jetzt") }
+            })
+            rejectRow.addView(GameMenuUi.rawButton(this@DogeRequestsActivity, GameMenuUi.RED).apply {
+                text = "Heute nicht"
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Heute nicht") }
+            })
+            addView(rejectRow)
         }
-        chips.addView(GameMenuUi.rawButton(this).apply {
-            text = "⚙"
-            isAllCaps = false
-            textSize = 14f
-            setOnClickListener { promptCustomDuration(r) }
-        })
-        row.addView(chips)
-        // Reject options
-        val rejectRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        rejectRow.addView(GameMenuUi.rawButton(this, GameMenuUi.RED).apply {
-            text = "Nicht jetzt"
-            isAllCaps = false
-            textSize = 12f
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 0, 8, 0) }
-            setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Nicht jetzt") }
-        })
-        rejectRow.addView(GameMenuUi.rawButton(this, GameMenuUi.RED).apply {
-            text = "Heute nicht"
-            isAllCaps = false
-            textSize = 12f
-            setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Heute nicht") }
-        })
-        row.addView(rejectRow)
-        // Divider
-        row.addView(android.view.View(this).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#EEEEEE"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1
-            ).apply { setMargins(0, 8, 0, 0) }
-        })
-        return row
     }
 
     private fun promptCustomDuration(r: DogeRequest) {
@@ -232,7 +204,8 @@ class DogeRequestsActivity : AppCompatActivity() {
 
     private fun showChildView() {
         content.removeAllViews()
-        content.addView(label("Was möchtest du sehen?", size = 20f, topPad = 0))
+        content.addView(GameMenuUi.title(this, "Was möchtest du sehen?"))
+        content.addView(GameMenuUi.body(this, "Schick Mama oder Papa einen konkreten Medien-Wunsch."))
 
         val prefillText = prefillPkg?.let { pkg ->
             try {
@@ -247,27 +220,34 @@ class DogeRequestsActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_TEXT
             prefillText?.let { setText(it) }
         }
-        content.addView(input)
-        content.addView(GameMenuUi.rawButton(this, GameMenuUi.YELLOW).apply {
-            text = "Anfragen"
-            layoutParams = matchWidth()
-            setOnClickListener {
-                val text = input.text.toString()
-                if (text.isBlank()) {
-                    toast("Bitte etwas eingeben")
-                    return@setOnClickListener
+        content.addView(GameMenuUi.card(this, GameMenuUi.YELLOW) {
+            addView(GameMenuUi.panelText(this@DogeRequestsActivity, "Neue Anfrage", strong = true))
+            addView(input)
+            addView(GameMenuUi.rawButton(this@DogeRequestsActivity, GameMenuUi.YELLOW).apply {
+                text = "Anfragen"
+                layoutParams = matchWidth()
+                setOnClickListener {
+                    val text = input.text.toString()
+                    if (text.isBlank()) {
+                        toast("Bitte etwas eingeben")
+                        return@setOnClickListener
+                    }
+                    createRequest(text) { input.text.clear() }
                 }
-                createRequest(text) { input.text.clear() }
-            }
+            })
         })
 
-        content.addView(label("Genehmigt (läuft):"))
         val activeHolder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(activeHolder)
+        content.addView(GameMenuUi.card(this, GameMenuUi.GREEN) {
+            addView(GameMenuUi.panelText(this@DogeRequestsActivity, "Genehmigt – läuft", strong = true))
+            addView(activeHolder)
+        })
 
-        content.addView(label("Wartet auf Mama/Papa:"))
         val pendingHolder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(pendingHolder)
+        content.addView(GameMenuUi.card(this, GameMenuUi.BLUE) {
+            addView(GameMenuUi.panelText(this@DogeRequestsActivity, "Wartet auf Mama/Papa", strong = true))
+            addView(pendingHolder)
+        })
 
         scope.launch {
             val models = withContext(Dispatchers.IO) {
@@ -277,22 +257,20 @@ class DogeRequestsActivity : AppCompatActivity() {
             val pending = manager.getPendingRequests(models)
 
             if (active.isEmpty()) {
-                activeHolder.addView(label("(Nichts genehmigt gerade)", size = 14f, topPad = 4))
+                activeHolder.addView(GameMenuUi.emptyState(this@DogeRequestsActivity, "Nichts genehmigt gerade"))
             } else {
                 for (r in active) {
                     val remaining = manager.getTimeRemaining(r) ?: 0
-                    activeHolder.addView(TextView(this@DogeRequestsActivity).apply {
-                        text = "• ${r.contentDescription} — noch $remaining Min"
+                    activeHolder.addView(GameMenuUi.panelText(this@DogeRequestsActivity, "▶ ${r.contentDescription} — noch $remaining Min").apply {
                         setPadding(8, 6, 8, 6)
                     })
                 }
             }
 
             if (pending.isEmpty()) {
-                pendingHolder.addView(label("(Keine offenen Anfragen)", size = 14f, topPad = 4))
+                pendingHolder.addView(GameMenuUi.emptyState(this@DogeRequestsActivity, "Keine offenen Anfragen"))
             } else {
-                for (r in pending) pendingHolder.addView(TextView(this@DogeRequestsActivity).apply {
-                    text = "• ${r.contentDescription}"
+                for (r in pending) pendingHolder.addView(GameMenuUi.panelText(this@DogeRequestsActivity, "◆ ${r.contentDescription}").apply {
                     setPadding(8, 6, 8, 6)
                 })
             }

@@ -27,18 +27,17 @@ import android.os.Looper
 import android.provider.Settings
 import android.provider.Telephony
 import android.telecom.TelecomManager
-import android.view.ContextThemeWrapper
 import android.view.GestureDetector
-import android.view.Gravity
 import android.view.Menu
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.DecelerateInterpolator
-import androidx.appcompat.widget.PopupMenu
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
 import androidx.core.view.GestureDetectorCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.iterator
 import androidx.viewbinding.ViewBinding
@@ -46,7 +45,6 @@ import kotlinx.collections.immutable.toImmutableList
 import org.fossify.commons.extensions.appLaunched
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.getContrastColor
-import org.fossify.commons.extensions.getPopupMenuTheme
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.insetsController
 import org.fossify.commons.extensions.isPackageInstalled
@@ -110,11 +108,14 @@ import org.fossify.home.interfaces.ItemMenuListener
 import org.fossify.home.models.AppLauncher
 import org.fossify.home.models.HiddenIcon
 import org.fossify.home.models.HomeScreenGridItem
-import org.fossify.home.fragments.RulesFragment
+import org.fossify.home.fragments.LaunchpadQuestsFragment
 import org.fossify.home.helpers.KioskManager
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.receivers.LockDeviceAdminReceiver
 import org.fossify.home.services.TimeTrackingStartup
+import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -132,7 +133,7 @@ class MainActivity : SimpleActivity(), FlingListener {
     private var mIgnoreXMoveEvents = false
     private var mIgnoreYMoveEvents = false
     private var mLongPressedIcon: HomeScreenGridItem? = null
-    private var mOpenPopupMenu: PopupMenu? = null
+    private var mOpenPopupMenu: GameMenuUi.GameActionMenu? = null
     private var mLastTouchCoords = Pair(-1f, -1f)
     private var mActionOnCanBindWidget: ((granted: Boolean) -> Unit)? = null
     private var mActionOnWidgetConfiguredWidget: ((granted: Boolean) -> Unit)? = null
@@ -155,8 +156,8 @@ class MainActivity : SimpleActivity(), FlingListener {
     private var wallpaperColorChangeListener: OnColorsChangedListener? = null
     private var wallpaperSupportsDarkText: Boolean? = null
 
-    // LAUNCHPAD: rules overlay state
-    private var rulesVisible = false
+    // LAUNCHPAD: Quests is the real child HOME destination; Gear is the launcher workspace.
+    private var questsVisible = true
 
     private lateinit var mDetector: GestureDetectorCompat
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -166,6 +167,8 @@ class MainActivity : SimpleActivity(), FlingListener {
         private const val ANIMATION_DURATION = 150L
         private const val APP_DRAWER_CLOSE_DELAY = 300L
         private const val APP_DRAWER_STATE = "app_drawer_state"
+
+        const val EXTRA_OPEN_GEAR = "org.fossify.home.extra.OPEN_GEAR"
 
         // LAUNCHPAD: how often Jake's status bar re-reads the balance while the launcher is
         // in the foreground, so parent-approved coins / earned time show up without leaving home.
@@ -186,8 +189,7 @@ class MainActivity : SimpleActivity(), FlingListener {
             padTopSystem = listOf(binding.allAppsFragment.root, binding.widgetsFragment.root),
             padBottomImeAndSystem = listOf(
                 binding.allAppsFragment.allAppsGrid, binding.widgetsFragment.widgetsList
-            ),
-            padBottomSystem = listOf(binding.homeScreenGrid.root)
+            )
         )
 
         mDetector = GestureDetectorCompat(this, MyGestureListener(this))
@@ -217,12 +219,43 @@ class MainActivity : SimpleActivity(), FlingListener {
         // LAUNCHPAD: init notification channels
         org.fossify.home.helpers.NotificationHelper.init(this)
 
-        // LAUNCHPAD: mount RulesFragment into rules_overlay (invisible until summoned)
-        val rulesOverlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay)
-        if (rulesOverlay != null && supportFragmentManager.findFragmentById(R.id.rules_overlay) == null) {
+        binding.gearHeader.removeAllViews()
+        binding.gearHeader.addView(
+            GameMenuUi.headerView(this, "Gear"),
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        binding.gearBottomNav.removeAllViews()
+        binding.gearBottomNav.addView(
+            LaunchpadNavigation.view(this, LaunchpadDestination.GEAR),
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        ViewCompat.setOnApplyWindowInsetsListener(binding.launchpadGearShell) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            (binding.homeScreenGrid.root.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { params ->
+                val density = resources.displayMetrics.density
+                params.topMargin = bars.top + (62 * density).toInt()
+                params.bottomMargin = bars.bottom + (80 * density).toInt()
+                binding.homeScreenGrid.root.layoutParams = params
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.launchpadGearShell)
+
+        // LAUNCHPAD: mount Quests directly inside the real HOME activity. This deliberately avoids
+        // promoting a second activity to HOME or repurposing the old rules/overview swipe page.
+        val questsScreen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen)
+        if (questsScreen != null &&
+            supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen) == null
+        ) {
             supportFragmentManager.beginTransaction()
-                .replace(R.id.rules_overlay, RulesFragment())
+                .replace(R.id.launchpad_quests_screen, LaunchpadQuestsFragment())
                 .commitAllowingStateLoss()
+        }
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEAR, false)) {
+            showGearScreen(animate = false)
         }
 
         // LAUNCHPAD: play the rocket splash on first cold start of this process.
@@ -307,6 +340,12 @@ class MainActivity : SimpleActivity(), FlingListener {
         }
 
         handleIntentAction(intent)
+
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEAR, false)) {
+            showGearScreen(animate = false)
+        } else {
+            showQuestsScreen(animate = false)
+        }
     }
 
     override fun onStart() {
@@ -355,8 +394,10 @@ class MainActivity : SimpleActivity(), FlingListener {
             }
         }
 
-        // LAUNCHPAD: hide rules overlay when app resumes
-        if (rulesVisible) hideRulesOverlay(animate = false)
+        if (questsVisible) {
+            (supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen)
+                as? LaunchpadQuestsFragment)?.refresh()
+        }
 
         // LAUNCHPAD: refresh Jake's status bar now, then keep it live while resumed
         statusBarHandler.removeCallbacks(statusBarRefresher)
@@ -499,6 +540,16 @@ class MainActivity : SimpleActivity(), FlingListener {
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         if (event == null) {
             return false
+        }
+
+        // Quests owns the foreground while it is visible. Feed only the destination-swipe
+        // detector; never drag, tap or open the launcher workspace hidden underneath it.
+        if (questsVisible) {
+            try {
+                mDetector.onTouchEvent(event)
+            } catch (_: Exception) {
+            }
+            return true
         }
 
         if (mLongPressedIcon != null && event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
@@ -949,7 +1000,6 @@ class MainActivity : SimpleActivity(), FlingListener {
 
         if (mOpenPopupMenu == null) {
             mOpenPopupMenu = handleGridItemPopupMenu(
-                anchorView = binding.homeScreenPopupMenuAnchor,
                 gridItem = gridItem,
                 isOnAllAppsFragment = isOnAllAppsFragment,
                 listener = menuListener
@@ -963,36 +1013,24 @@ class MainActivity : SimpleActivity(), FlingListener {
         binding.homeScreenGrid.root.itemDraggingStarted(mLongPressedIcon!!)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun showMainLongPressMenu(x: Float, y: Float) {
         // LAUNCHPAD: PIN gate removed from here — the context menu is always accessible.
         // PIN protection lives inside ElternModusActivity itself, so the parent can always
         // reach it (especially on first run before a PIN is set).
         binding.homeScreenGrid.root.hideResizeLines()
-        binding.homeScreenPopupMenuAnchor.x = x
-        binding.homeScreenPopupMenuAnchor.y =
-            y - resources.getDimension(R.dimen.long_press_anchor_button_offset_y) * 2
-        val contextTheme = ContextThemeWrapper(this, getPopupMenuTheme())
-        PopupMenu(
-            contextTheme,
-            binding.homeScreenPopupMenuAnchor,
-            Gravity.TOP or Gravity.END
-        ).apply {
-            inflate(R.menu.menu_home_screen)
-            menu.findItem(R.id.set_as_default).isVisible = !isDefaultLauncher()
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.widgets -> showWidgetsFragment()
-                    R.id.wallpapers -> launchWallpapersIntent()
-                    R.id.launcher_settings -> launchSettings()
-                    R.id.set_as_default -> launchSetAsDefaultIntent()
-                    R.id.eltern_modus -> startActivity(
-                        Intent(this@MainActivity, ElternModusActivity::class.java)
-                    )
-                }
-                true
-            }
-            show()
+        val actions = mutableListOf(
+            GameMenuUi.Action("Widgets", "▦", GameMenuUi.BLUE, ::showWidgetsFragment),
+            GameMenuUi.Action("Hintergrundbilder", "▧", GameMenuUi.GREEN, ::launchWallpapersIntent),
+            GameMenuUi.Action("Launcher-Einstellungen", "⚙", GameMenuUi.YELLOW, ::launchSettings),
+        )
+        if (!isDefaultLauncher()) {
+            actions += GameMenuUi.Action("Als Standard auswählen", "★", GameMenuUi.YELLOW, ::launchSetAsDefaultIntent)
         }
+        actions += GameMenuUi.Action("Eltern-Modus", "⚿", GameMenuUi.RED) {
+            startActivity(Intent(this, ElternModusActivity::class.java))
+        }
+        GameMenuUi.showActionMenu(this, "Gear-Menü", actions)
     }
 
     // ─── LAUNCHPAD: Rocket splash overlay ─────────────────────────────────────
@@ -1191,12 +1229,14 @@ class MainActivity : SimpleActivity(), FlingListener {
         private val flingListener: FlingListener,
     ) : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapUp(event: MotionEvent): Boolean {
-            (flingListener as MainActivity).homeScreenClicked(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenClicked(event.x, event.y)
             return super.onSingleTapUp(event)
         }
 
         override fun onDoubleTap(event: MotionEvent): Boolean {
-            (flingListener as MainActivity).homeScreenDoubleTapped(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenDoubleTapped(event.x, event.y)
             return super.onDoubleTap(event)
         }
 
@@ -1229,12 +1269,13 @@ class MainActivity : SimpleActivity(), FlingListener {
         }
 
         override fun onLongPress(event: MotionEvent) {
-            (flingListener as MainActivity).homeScreenLongPressed(event.x, event.y)
+            val activity = flingListener as MainActivity
+            if (!activity.questsVisible) activity.homeScreenLongPressed(event.x, event.y)
         }
     }
 
     override fun onFlingUp() {
-        if (mIgnoreYMoveEvents) {
+        if (questsVisible || mIgnoreYMoveEvents) {
             return
         }
 
@@ -1246,7 +1287,7 @@ class MainActivity : SimpleActivity(), FlingListener {
 
     @SuppressLint("WrongConstant")
     override fun onFlingDown() {
-        if (mIgnoreYMoveEvents) {
+        if (questsVisible || mIgnoreYMoveEvents) {
             return
         }
 
@@ -1263,15 +1304,13 @@ class MainActivity : SimpleActivity(), FlingListener {
         if (mIgnoreXMoveEvents) return
         mIgnoreUpEvent = true
 
-        // If rules overlay is visible, dismiss it; otherwise try prev page or show rules
-        if (rulesVisible) {
-            hideRulesOverlay()
+        // Quests is the destination immediately left of the Gear workspace.
+        if (questsVisible) {
             return
         }
         val moved = binding.homeScreenGrid.root.prevPage(redraw = true)
         if (!moved) {
-            // Already on first page → show Jakes Regeln from the left
-            showRulesOverlay()
+            showQuestsScreen()
         }
     }
 
@@ -1279,39 +1318,41 @@ class MainActivity : SimpleActivity(), FlingListener {
         if (mIgnoreXMoveEvents) return
         mIgnoreUpEvent = true
 
-        if (rulesVisible) {
-            hideRulesOverlay()
+        if (questsVisible) {
+            showGearScreen()
             return
         }
         binding.homeScreenGrid.root.nextPage(redraw = true)
     }
 
-    // ─── LAUNCHPAD: Rules overlay ─────────────────────────────────────────────
+    // ─── LAUNCHPAD destinations ───────────────────────────────────────────────
 
-    private fun showRulesOverlay(animate: Boolean = true) {
-        val overlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay) ?: return
-        rulesVisible = true
-        overlay.visibility = android.view.View.VISIBLE
+    fun showQuestsScreen(animate: Boolean = true) {
+        val screen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen) ?: return
+        (supportFragmentManager.findFragmentById(R.id.launchpad_quests_screen)
+            as? LaunchpadQuestsFragment)?.refresh()
+        questsVisible = true
+        screen.visibility = android.view.View.VISIBLE
         if (animate) {
-            overlay.translationX = -overlay.width.toFloat()
-            overlay.animate().translationX(0f).setDuration(280)
+            screen.translationX = -screen.width.toFloat()
+            screen.animate().translationX(0f).setDuration(280)
                 .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
         } else {
-            overlay.translationX = 0f
+            screen.translationX = 0f
         }
     }
 
-    private fun hideRulesOverlay(animate: Boolean = true) {
-        val overlay = binding.root.findViewById<FrameLayout>(R.id.rules_overlay) ?: return
-        rulesVisible = false
+    fun showGearScreen(animate: Boolean = true) {
+        val screen = binding.root.findViewById<FrameLayout>(R.id.launchpad_quests_screen) ?: return
+        questsVisible = false
         if (animate) {
-            overlay.animate().translationX(-overlay.width.toFloat()).setDuration(250)
+            screen.animate().translationX(-screen.width.toFloat()).setDuration(250)
                 .setInterpolator(android.view.animation.AccelerateInterpolator())
-                .withEndAction { overlay.visibility = android.view.View.INVISIBLE }
+                .withEndAction { screen.visibility = android.view.View.INVISIBLE }
                 .start()
         } else {
-            overlay.translationX = -overlay.width.toFloat()
-            overlay.visibility = android.view.View.INVISIBLE
+            screen.translationX = -screen.width.toFloat()
+            screen.visibility = android.view.View.INVISIBLE
         }
     }
 

@@ -24,6 +24,9 @@ import org.fossify.home.helpers.ITEM_TYPE_ICON
 import org.fossify.home.interfaces.AllAppsListener
 import org.fossify.home.models.AppLauncher
 import org.fossify.home.models.HomeScreenGridItem
+import org.fossify.home.ui.GameMenuUi
+import org.fossify.home.ui.LaunchpadDestination
+import org.fossify.home.ui.LaunchpadNavigation
 
 class AllAppsFragment(
     context: Context,
@@ -40,6 +43,23 @@ class AllAppsFragment(
     override fun setupFragment(activity: MainActivity) {
         this.activity = activity
         this.binding = AllAppsFragmentBinding.bind(this)
+
+        binding.drawerHeader.removeAllViews()
+        binding.drawerHeader.addView(
+            GameMenuUi.headerView(context, "Gear"),
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        binding.drawerBottomNav.removeAllViews()
+        binding.drawerBottomNav.addView(
+            LaunchpadNavigation.view(activity, LaunchpadDestination.GEAR),
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
 
         binding.allAppsGrid.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {

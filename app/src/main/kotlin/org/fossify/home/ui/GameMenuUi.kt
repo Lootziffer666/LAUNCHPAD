@@ -8,17 +8,20 @@ package org.fossify.home.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -44,7 +47,7 @@ object GameMenuUi {
     const val TEXT = 0xFFD8E3FB.toInt()
     const val MUTED = 0xFF5C4039.toInt()
 
-    fun install(activity: Activity, title: String): LinearLayout {
+    fun install(activity: Activity, title: String, bottomNavigation: View? = null): LinearLayout {
         WindowCompat.setDecorFitsSystemWindows(activity.window, false)
         activity.window.statusBarColor = HIGH
         activity.window.navigationBarColor = HIGH
@@ -69,6 +72,12 @@ object GameMenuUi {
             addView(content)
         }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        bottomNavigation?.let {
+            root.addView(
+                it,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, activity.dp(80)),
+            )
+        }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
@@ -85,6 +94,10 @@ object GameMenuUi {
         WindowCompat.setDecorFitsSystemWindows(activity.window, false)
         activity.window.statusBarColor = HIGH
         activity.window.navigationBarColor = HIGH
+        WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         root.background = DotGridDrawable(activity)
         toolbar?.apply {
             background = outlined(activity, HIGH, INK, 4f, 0f)
@@ -195,6 +208,103 @@ object GameMenuUi {
         return shadow
     }
 
+    fun actionRow(
+        context: Context,
+        title: String,
+        detail: String = "",
+        symbol: String = "◆",
+        accent: Int = BLUE,
+        click: () -> Unit,
+    ): View = card(context, accent) {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        addView(TextView(context).apply {
+            text = symbol
+            textSize = 26f
+            setTextColor(accent)
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(context.dp(46), context.dp(46)))
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(context.dp(12), 0, context.dp(8), 0)
+            addView(panelText(context, title, strong = true))
+            if (detail.isNotBlank()) addView(panelText(context, detail))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(panelText(context, "›", strong = true).apply {
+            textSize = 26f
+            gravity = Gravity.CENTER
+        })
+    }.apply {
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { click() }
+    }
+
+    fun toggleRow(
+        context: Context,
+        title: String,
+        detail: String = "",
+        enabled: Boolean,
+        onToggle: (Boolean) -> Unit,
+    ): View = card(context, if (enabled) GREEN else BLUE) {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(panelText(context, title, strong = true))
+            if (detail.isNotBlank()) addView(panelText(context, detail))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(TextView(context).apply {
+            text = if (enabled) "AN" else "AUS"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = .08f
+            gravity = Gravity.CENTER
+            setTextColor(if (enabled) 0xFF073D32.toInt() else TEXT)
+            background = outlined(context, if (enabled) GREEN else HIGH, INK, 2f, 16f)
+        }, LinearLayout.LayoutParams(context.dp(64), context.dp(34)))
+    }.apply {
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onToggle(!enabled) }
+    }
+
+    fun valueRow(
+        context: Context,
+        title: String,
+        value: String,
+        detail: String = "",
+        accent: Int = BLUE,
+        click: () -> Unit,
+    ): View = card(context, accent) {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(panelText(context, title, strong = true))
+            if (detail.isNotBlank()) addView(panelText(context, detail))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(TextView(context).apply {
+            text = value
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(INK)
+            background = outlined(context, YELLOW, INK, 2f, 16f)
+            setPadding(context.dp(12), 0, context.dp(12), 0)
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(34)))
+    }.apply {
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { click() }
+    }
+
+    fun emptyState(context: Context, text: String) = panelText(context, text).apply {
+        setTextColor(ColorUtils.setAlphaComponent(INK, 180))
+        gravity = Gravity.CENTER
+        setPadding(context.dp(8), context.dp(16), context.dp(8), context.dp(16))
+    }
+
     fun panelText(context: Context, text: String, strong: Boolean = false) = TextView(context).apply {
         this.text = text
         textSize = if (strong) 16f else 14f
@@ -202,6 +312,79 @@ object GameMenuUi {
         if (strong) typeface = Typeface.DEFAULT_BOLD
         setPadding(0, context.dp(4), 0, context.dp(4))
     }
+
+    data class Action(
+        val label: String,
+        val symbol: String = "◆",
+        val accent: Int = BLUE,
+        val onClick: () -> Unit,
+    )
+
+    class GameActionMenu internal constructor(private val dialog: AlertDialog) {
+        fun dismiss() = dialog.dismiss()
+    }
+
+    fun showActionMenu(
+        activity: Activity,
+        title: String,
+        actions: List<Action>,
+        onDismiss: () -> Unit = {},
+    ): GameActionMenu {
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(activity.dp(18), activity.dp(16), activity.dp(18), activity.dp(10))
+            background = outlined(activity, PANEL, INK, 4f, 12f)
+            addView(panelText(activity, title.uppercase(), strong = true).apply {
+                textSize = 19f
+                letterSpacing = .06f
+                setPadding(0, 0, 0, activity.dp(12))
+            })
+        }
+        val shadow = FrameLayout(activity).apply {
+            setPadding(0, 0, activity.dp(5), activity.dp(7))
+            background = rounded(activity, INK, 12f)
+            addView(ScrollView(activity).apply {
+                isFillViewport = true
+                addView(content)
+            })
+        }
+        lateinit var dialog: AlertDialog
+        actions.forEach { action ->
+            content.addView(button(activity, "${action.symbol}  ${action.label}", action.accent) {
+                dialog.dismiss()
+                action.onClick()
+            })
+        }
+        dialog = AlertDialog.Builder(activity).setView(shadow).create()
+        dialog.setOnDismissListener { onDismiss() }
+        dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            decorView.setPadding(activity.dp(18), 0, activity.dp(18), 0)
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setDimAmount(.62f)
+        }
+        return GameActionMenu(dialog)
+    }
+
+    fun showNumberChoice(
+        activity: Activity,
+        title: String,
+        values: IntRange,
+        current: Int,
+        onSelected: (Int) -> Unit,
+    ): GameActionMenu = showActionMenu(
+        activity,
+        title,
+        values.map { value ->
+            Action(
+                label = value.toString(),
+                symbol = if (value == current) "●" else "○",
+                accent = if (value == current) YELLOW else BLUE,
+                onClick = { onSelected(value) },
+            )
+        },
+    )
 
     fun styleDialog(dialog: AlertDialog) {
         dialog.setOnShowListener {
@@ -234,6 +417,17 @@ object GameMenuUi {
                 view.setTextColor(INK)
                 view.setHintTextColor(ColorUtils.setAlphaComponent(MUTED, 180))
                 view.background = outlined(view.context, PANEL, INK, 3f, 8f)
+            }
+            is CompoundButton -> {
+                view.setTextColor(TEXT)
+                view.background = ColorDrawable(Color.TRANSPARENT)
+                view.buttonTintList = ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf(),
+                    ),
+                    intArrayOf(GREEN, BLUE),
+                )
             }
             is Button -> {
                 view.setTextColor(Color.WHITE)
@@ -295,6 +489,8 @@ object GameMenuUi {
         window.navigationBarColor = HIGH
     }
 
+    fun headerView(context: Context, title: String) = header(context, title)
+
     private fun header(context: Context, title: String) = LinearLayout(context).apply {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(context.dp(16), 0, context.dp(16), 0)
@@ -338,12 +534,7 @@ object GameMenuUi {
     }
 }
 
-private class GameMenuContentLayout(context: Context) : LinearLayout(context) {
-    override fun onViewAdded(child: View) {
-        super.onViewAdded(child)
-        GameMenuUi.styleTree(child)
-    }
-}
+private class GameMenuContentLayout(context: Context) : LinearLayout(context)
 
 private class DotGridDrawable(context: Context) : android.graphics.drawable.Drawable() {
     private val density = context.resources.displayMetrics.density
