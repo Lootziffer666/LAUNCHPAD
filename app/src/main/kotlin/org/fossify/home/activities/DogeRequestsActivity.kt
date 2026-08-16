@@ -6,10 +6,7 @@ package org.fossify.home.activities
 import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
-import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +22,7 @@ import org.fossify.home.helpers.toEntity
 import org.fossify.home.helpers.toModel
 import org.fossify.home.models.DogeManager
 import org.fossify.home.models.DogeRequest
+import org.fossify.home.ui.GameMenuUi
 
 /**
  * DogeRequestsActivity: request-based media approvals.
@@ -50,11 +48,7 @@ class DogeRequestsActivity : AppCompatActivity() {
         isParentMode = intent.getBooleanExtra("isParentMode", false)
         prefillPkg = intent.getStringExtra("prefill_package")
 
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        content = GameMenuUi.install(this, if (isParentMode) "Medien-Anfragen" else "Medien-Wunsch")
 
         if (isParentMode) showParentView() else showChildView()
     }
@@ -64,11 +58,12 @@ class DogeRequestsActivity : AppCompatActivity() {
         scope.cancel()
     }
 
-    private fun label(text: String, size: Float = 16f, topPad: Int = 24) = TextView(this).apply {
-        this.text = text
-        textSize = size
-        setPadding(0, topPad, 0, 8)
-    }
+    private fun label(text: String, size: Float = 16f, topPad: Int = 24) =
+        if (size >= 20f) GameMenuUi.title(this, text) else if (topPad >= 20) {
+            GameMenuUi.section(this, text)
+        } else {
+            GameMenuUi.body(this, text)
+        }
 
     private fun matchWidth() = LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -127,7 +122,7 @@ class DogeRequestsActivity : AppCompatActivity() {
             setPadding(0, 0, 0, 4)
         }
         listOf(30, 60, 90).forEach { mins ->
-            chips.addView(Button(this).apply {
+            chips.addView(GameMenuUi.rawButton(this, GameMenuUi.GREEN).apply {
                 text = "+$mins Min"
                 isAllCaps = false
                 textSize = 12f
@@ -138,7 +133,7 @@ class DogeRequestsActivity : AppCompatActivity() {
                 setOnClickListener { decide(r, approve = true, durationMinutes = mins) }
             })
         }
-        chips.addView(Button(this).apply {
+        chips.addView(GameMenuUi.rawButton(this).apply {
             text = "⚙"
             isAllCaps = false
             textSize = 14f
@@ -147,7 +142,7 @@ class DogeRequestsActivity : AppCompatActivity() {
         row.addView(chips)
         // Reject options
         val rejectRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        rejectRow.addView(Button(this).apply {
+        rejectRow.addView(GameMenuUi.rawButton(this, GameMenuUi.RED).apply {
             text = "Nicht jetzt"
             isAllCaps = false
             textSize = 12f
@@ -157,7 +152,7 @@ class DogeRequestsActivity : AppCompatActivity() {
             ).apply { setMargins(0, 0, 8, 0) }
             setOnClickListener { decide(r, approve = false, durationMinutes = 0, reason = "Nicht jetzt") }
         })
-        rejectRow.addView(Button(this).apply {
+        rejectRow.addView(GameMenuUi.rawButton(this, GameMenuUi.RED).apply {
             text = "Heute nicht"
             isAllCaps = false
             textSize = 12f
@@ -176,11 +171,11 @@ class DogeRequestsActivity : AppCompatActivity() {
 
     private fun promptCustomDuration(r: DogeRequest) {
         val suggested = manager.suggestApprovalDuration(r.contentDescription)
-        val durationInput = EditText(this).apply {
+        val durationInput = GameMenuUi.field(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(suggested.toString())
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Genehmigen: ${r.contentDescription}")
             .setMessage("Dauer in Minuten:")
             .setView(durationInput)
@@ -193,7 +188,9 @@ class DogeRequestsActivity : AppCompatActivity() {
                 decide(r, approve = true, durationMinutes = minutes)
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .create()
+        GameMenuUi.styleDialog(dialog)
+        dialog.show()
     }
 
     private fun formatAge(requestedAt: Long): String {
@@ -245,13 +242,13 @@ class DogeRequestsActivity : AppCompatActivity() {
                 pkg
             }
         }
-        val input = EditText(this).apply {
+        val input = GameMenuUi.field(this).apply {
             hint = "z.B. 'YouTube – Minecraft Tutorials'"
             inputType = InputType.TYPE_CLASS_TEXT
             prefillText?.let { setText(it) }
         }
         content.addView(input)
-        content.addView(Button(this).apply {
+        content.addView(GameMenuUi.rawButton(this, GameMenuUi.YELLOW).apply {
             text = "Anfragen"
             layoutParams = matchWidth()
             setOnClickListener {
