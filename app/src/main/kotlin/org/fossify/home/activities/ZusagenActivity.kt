@@ -7,10 +7,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +22,7 @@ import org.fossify.home.helpers.toEntity
 import org.fossify.home.helpers.toModel
 import org.fossify.home.models.Zusage
 import org.fossify.home.models.ZusageManager
+import org.fossify.home.ui.GameMenuUi
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically; padding/size literals
 class ZusagenActivity : AppCompatActivity() {
@@ -41,11 +39,7 @@ class ZusagenActivity : AppCompatActivity() {
         database = AppsDatabase.getInstance(this)
         isParentMode = intent.getBooleanExtra("isParentMode", false)
 
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        content = GameMenuUi.install(this, if (isParentMode) "Zusagen verwalten" else "Zusagen")
 
         if (isParentMode) showParentView() else showChildView()
     }
@@ -55,11 +49,12 @@ class ZusagenActivity : AppCompatActivity() {
         scope.cancel()
     }
 
-    private fun label(text: String, size: Float = 16f, topPad: Int = 24) = TextView(this).apply {
-        this.text = text
-        textSize = size
-        setPadding(0, topPad, 0, 8)
-    }
+    private fun label(text: String, size: Float = 16f, topPad: Int = 24) =
+        if (size >= 20f) GameMenuUi.title(this, text) else if (topPad >= 20) {
+            GameMenuUi.section(this, text)
+        } else {
+            GameMenuUi.body(this, text)
+        }
 
     // ─── Parent view ────────────────────────────────────────────────────────────────
 
@@ -68,18 +63,18 @@ class ZusagenActivity : AppCompatActivity() {
         content.addView(label("Zusagen verwalten", size = 20f, topPad = 0))
 
         content.addView(label("Neue Zusage"))
-        val textInput = EditText(this).apply {
+        val textInput = GameMenuUi.field(this).apply {
             hint = "z.B. 'Nach Hausaufgaben, dann 20 Min Minecraft'"
             inputType = InputType.TYPE_CLASS_TEXT
         }
-        val conditionInput = EditText(this).apply {
+        val conditionInput = GameMenuUi.field(this).apply {
             hint = "Bedingung (optional): z.B. 'Hausaufgaben fertig'"
             inputType = InputType.TYPE_CLASS_TEXT
         }
         content.addView(textInput)
         content.addView(conditionInput)
 
-        content.addView(Button(this).apply {
+        content.addView(GameMenuUi.rawButton(this, GameMenuUi.YELLOW).apply {
             text = "Zusage erstellen"
             layoutParams = matchWidth()
             setOnClickListener {
@@ -143,11 +138,11 @@ class ZusagenActivity : AppCompatActivity() {
             textSize = 15f
         })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        buttons.addView(Button(this).apply {
+        buttons.addView(GameMenuUi.rawButton(this, GameMenuUi.GREEN).apply {
             text = "Genehmigen"
             setOnClickListener { decide(z, approve = true) }
         })
-        buttons.addView(Button(this).apply {
+        buttons.addView(GameMenuUi.rawButton(this, GameMenuUi.RED).apply {
             text = "Ablehnen"
             setOnClickListener { promptReject(z) }
         })
@@ -156,15 +151,17 @@ class ZusagenActivity : AppCompatActivity() {
     }
 
     private fun promptReject(z: Zusage) {
-        val reasonInput = EditText(this).apply { hint = "Grund" }
-        AlertDialog.Builder(this)
+        val reasonInput = GameMenuUi.field(this, "Grund")
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Zusage ablehnen")
             .setView(reasonInput)
             .setPositiveButton("Ablehnen") { _, _ ->
                 decide(z, approve = false, reason = reasonInput.text.toString().ifBlank { "Abgelehnt" })
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .create()
+        GameMenuUi.styleDialog(dialog)
+        dialog.show()
     }
 
     private fun decide(z: Zusage, approve: Boolean, reason: String = "") {

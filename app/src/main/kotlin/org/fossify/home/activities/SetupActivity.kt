@@ -6,7 +6,6 @@ package org.fossify.home.activities
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import android.app.AlertDialog
 import android.provider.Settings
@@ -23,7 +22,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.fossify.home.R
 import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.databases.CryptoCashTransaction
 import org.fossify.home.helpers.ChildProfile
@@ -31,6 +29,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PinGateHelper
 import org.fossify.home.helpers.UsageTracker
+import org.fossify.home.ui.GameMenuUi
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically; literals are paddings/colors/sizes
 class SetupActivity : AppCompatActivity() {
@@ -50,14 +49,19 @@ class SetupActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_setup)
-
-        content = findViewById(R.id.setup_content)
-        nextBtn = findViewById(R.id.setup_next_button)
-        dot1 = findViewById(R.id.step_dot_1)
-        dot2 = findViewById(R.id.step_dot_2)
-        dot3 = findViewById(R.id.step_dot_3)
-        dot4 = findViewById(R.id.step_dot_4)
+        val screen = GameMenuUi.install(this, "Einrichten")
+        screen.addView(LinearLayout(this).apply {
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, resources.displayMetrics.density.times(16).toInt())
+            dot1 = stepDot(); addView(dot1)
+            dot2 = stepDot(); addView(dot2)
+            dot3 = stepDot(); addView(dot3)
+            dot4 = stepDot(); addView(dot4)
+        })
+        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        screen.addView(content)
+        nextBtn = GameMenuUi.rawButton(this, GameMenuUi.YELLOW)
+        screen.addView(nextBtn)
 
         showStep(1)
         nextBtn.setOnClickListener { advance() }
@@ -87,8 +91,8 @@ class SetupActivity : AppCompatActivity() {
     }
 
     private fun updateDots() {
-        val active = Color.WHITE
-        val inactive = Color.argb(85, 255, 255, 255)
+        val active = GameMenuUi.YELLOW
+        val inactive = GameMenuUi.HIGH
         dot1.setBackgroundColor(if (currentStep >= 1) active else inactive)
         dot2.setBackgroundColor(if (currentStep >= 2) active else inactive)
         dot3.setBackgroundColor(if (currentStep >= 3) active else inactive)
@@ -105,14 +109,9 @@ class SetupActivity : AppCompatActivity() {
                 "Wie heißt dein Kind?"
         )
         content.addView(spacer(16))
-        nameField = EditText(this).apply {
-            hint = "Name des Kindes"
+        nameField = GameMenuUi.field(this, "Name des Kindes").apply {
             setText(ChildProfile.name(this@SetupActivity))
             setSingleLine()
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.argb(150, 255, 255, 255))
-            setBackgroundColor(Color.argb(50, 255, 255, 255))
-            setPadding(24, 20, 24, 20)
         }
         content.addView(nameField)
     }
@@ -129,24 +128,14 @@ class SetupActivity : AppCompatActivity() {
         title("🔒 Eltern-PIN festlegen")
         body("Mit diesem PIN öffnest du den Eltern-Modus. Mindestens 4 Ziffern.")
 
-        pinField1 = EditText(this).apply {
-            hint = "PIN eingeben"
+        pinField1 = GameMenuUi.field(this, "PIN eingeben").apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.argb(150, 255, 255, 255))
-            setBackgroundColor(Color.argb(50, 255, 255, 255))
-            setPadding(24, 20, 24, 20)
         }
         content.addView(spacer(16))
         content.addView(pinField1)
 
-        pinField2 = EditText(this).apply {
-            hint = "PIN wiederholen"
+        pinField2 = GameMenuUi.field(this, "PIN wiederholen").apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.argb(150, 255, 255, 255))
-            setBackgroundColor(Color.argb(50, 255, 255, 255))
-            setPadding(24, 20, 24, 20)
         }
         content.addView(spacer(12))
         content.addView(pinField2)
@@ -193,12 +182,14 @@ class SetupActivity : AppCompatActivity() {
                 setTextColor(android.graphics.Color.parseColor("#666666"))
             })
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Wiederherstellungscode")
             .setView(box)
             .setPositiveButton("Verstanden, Code notiert") { _, _ -> }
             .setCancelable(false)
-            .show()
+            .create()
+        GameMenuUi.styleDialog(dialog)
+        dialog.show()
     }
 
     // ─── Step 3: Balance ──────────────────────────────────────────────────────
@@ -213,13 +204,9 @@ class SetupActivity : AppCompatActivity() {
         content.addView(spacer(24))
 
         for (minutes in listOf(30, 60, 90, 120)) {
-            val btn = Button(this).apply {
+            val btn = GameMenuUi.rawButton(this).apply {
                 text = "$minutes Minuten"
-                setTextColor(if (minutes == chosenBalance) Color.WHITE else Color.argb(200, 255, 255, 255))
-                setBackgroundColor(
-                    if (minutes == chosenBalance) Color.parseColor("#FF6B35")
-                    else Color.argb(50, 255, 255, 255)
-                )
+                GameMenuUi.styleChoice(this, minutes == chosenBalance)
                 setPadding(0, 16, 0, 16)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -229,11 +216,7 @@ class SetupActivity : AppCompatActivity() {
                     this@SetupActivity.chosenBalance = minutes
                     balanceBtns.forEach { (m, b) ->
                         val sel = this@SetupActivity.chosenBalance
-                        b.setBackgroundColor(
-                            if (m == sel) Color.parseColor("#FF6B35")
-                            else Color.argb(50, 255, 255, 255)
-                        )
-                        b.setTextColor(if (m == sel) Color.WHITE else Color.argb(200, 255, 255, 255))
+                        GameMenuUi.styleChoice(b, m == sel)
                     }
                 }
             }
@@ -349,11 +332,9 @@ class SetupActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         if (actionLabel != null && action != null) {
-            addView(Button(this@SetupActivity).apply {
+            addView(GameMenuUi.rawButton(this@SetupActivity, GameMenuUi.BLUE).apply {
                 text = actionLabel
                 isAllCaps = false
-                setTextColor(Color.WHITE)
-                setBackgroundColor(Color.parseColor("#FF6B35"))
                 setPadding(28, 8, 28, 8)
                 setOnClickListener { action() }
             })
@@ -395,22 +376,19 @@ class SetupActivity : AppCompatActivity() {
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private fun title(text: String) {
-        content.addView(TextView(this).apply {
-            this.text = text
-            textSize = 22f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            setPadding(0, 0, 0, 16)
-        })
+        content.addView(GameMenuUi.title(this, text))
     }
 
     private fun body(text: String) {
-        content.addView(TextView(this).apply {
-            this.text = text
-            textSize = 15f
-            setTextColor(Color.argb(200, 255, 255, 255))
-            setLineSpacing(0f, 1.4f)
-        })
+        content.addView(GameMenuUi.body(this, text))
+    }
+
+    private fun stepDot() = android.view.View(this).apply {
+        val size = (10 * resources.displayMetrics.density).toInt()
+        layoutParams = LinearLayout.LayoutParams(size, size).apply {
+            val margin = (4 * resources.displayMetrics.density).toInt()
+            setMargins(margin, margin, margin, margin)
+        }
     }
 
     private fun spacer(dp: Int) = android.view.View(this).apply {

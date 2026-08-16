@@ -36,7 +36,7 @@ import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.PinGateHelper
-import org.fossify.home.helpers.Playful
+import org.fossify.home.ui.GameMenuUi
 import org.fossify.home.helpers.SchoolMode
 import org.fossify.home.helpers.TamperMonitor
 import org.fossify.home.helpers.UsageTracker
@@ -180,7 +180,7 @@ class ElternModusActivity : AppCompatActivity() {
             .setNeutralButton("PIN vergessen?") { _, _ -> showRecoveryInput() }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
             .setCancelable(false)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showRecoveryInput() {
@@ -209,7 +209,7 @@ class ElternModusActivity : AppCompatActivity() {
             }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
             .setCancelable(false)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showNewPinAfterRecovery(recoveryCode: String) {
@@ -237,7 +237,7 @@ class ElternModusActivity : AppCompatActivity() {
             }
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
             .setCancelable(false)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showNewRecoveryCodeDialog(code: String) {
@@ -272,7 +272,7 @@ class ElternModusActivity : AppCompatActivity() {
                 showUiAndRefresh()
             }
             .setCancelable(false)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun initUi() {
@@ -282,17 +282,6 @@ class ElternModusActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.apply { title = "Eltern-Modus"; setDisplayHomeAsUpEnabled(true) }
         toolbar.setNavigationOnClickListener { finish() }
-
-        // Warm, wallpaper-adaptive accents (toolbar, section headers, status bar) — coherent with
-        // the launch screen; the tints follow the wallpaper via Playful.palette.
-        val pal = Playful.palette(this)
-        toolbar.setBackgroundColor(pal.accent)
-        toolbar.setTitleTextColor(android.graphics.Color.WHITE)
-        window.statusBarColor = pal.accentDark
-        listOf(
-            R.id.em_sec_zeit, R.id.em_sec_apps, R.id.em_sec_inhalte,
-            R.id.em_sec_modus, R.id.em_sec_schutz, R.id.em_sec_mehr
-        ).forEach { findViewById<android.widget.TextView>(it).setTextColor(pal.accent) }
 
         // Dashboard
         balanceBig = findViewById(R.id.em_balance_big)
@@ -387,6 +376,11 @@ class ElternModusActivity : AppCompatActivity() {
                 if (checked) KioskManager.applyRestrictions(this) else KioskManager.stopKiosk(this)
             }
         }
+        GameMenuUi.migrateExisting(
+            this,
+            findViewById(android.R.id.content),
+            toolbar,
+        )
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -519,7 +513,7 @@ class ElternModusActivity : AppCompatActivity() {
                 scope.launch { refresh() }
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showSchoolModeChooser() {
@@ -534,7 +528,7 @@ class ElternModusActivity : AppCompatActivity() {
                     scope.launch { refresh() }
                 }
                 .setNegativeButton("Weiter laufen lassen", null)
-                .show()
+                .show().also { GameMenuUi.styleShownDialog(it) }
             return
         }
         val options = arrayOf("30 Minuten", "60 Minuten", "Bis Uhrzeit…", "Bis ich es beende")
@@ -548,7 +542,7 @@ class ElternModusActivity : AppCompatActivity() {
                     else -> startSchool { SchoolMode.startIndefinite(this) }
                 }
             }
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun startSchool(start: () -> Unit) {
@@ -568,7 +562,11 @@ class ElternModusActivity : AppCompatActivity() {
                 end.add(Calendar.DAY_OF_MONTH, 1)
             }
             startSchool { SchoolMode.startUntil(this, end.timeInMillis) }
-        }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), true).show()
+        },
+            now.get(Calendar.HOUR_OF_DAY),
+            now.get(Calendar.MINUTE),
+            true,
+        ).show()
     }
 
     private fun showStrictBlockDialog() {
@@ -584,7 +582,7 @@ class ElternModusActivity : AppCompatActivity() {
                     scope.launch { refresh() }
                 }
                 .setNegativeButton("Schließen", null)
-                .show()
+                .show().also { GameMenuUi.styleShownDialog(it) }
             return
         }
         AlertDialog.Builder(this)
@@ -602,7 +600,7 @@ class ElternModusActivity : AppCompatActivity() {
                 scope.launch { refresh() }
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showAddTimeDialog() {
@@ -668,7 +666,7 @@ class ElternModusActivity : AppCompatActivity() {
                     LaunchpadWidgetProvider.requestUpdate(this@ElternModusActivity)
                 }
             }
-            .setNegativeButton("Abbrechen", null).show()
+            .setNegativeButton("Abbrechen", null).show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showTransactions() {
@@ -683,7 +681,7 @@ class ElternModusActivity : AppCompatActivity() {
             AlertDialog.Builder(this@ElternModusActivity)
                 .setTitle("Transaktionen")
                 .setMessage(msg)
-                .setPositiveButton("OK", null).show()
+                .setPositiveButton("OK", null).show().also { GameMenuUi.styleShownDialog(it) }
         }
     }
 
@@ -705,7 +703,7 @@ class ElternModusActivity : AppCompatActivity() {
                     toast("Gespeichert")
                 } else toast("Ungültig: ${v.error}")
             }
-            .setNegativeButton("Abbrechen", null).show()
+            .setNegativeButton("Abbrechen", null).show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showHinweiseDialog() {
@@ -754,7 +752,7 @@ class ElternModusActivity : AppCompatActivity() {
                     .apply()
                 toast("Gespeichert")
             }
-            .setNegativeButton("Abbrechen", null).show()
+            .setNegativeButton("Abbrechen", null).show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     @Suppress("TooGenericExceptionCaught") // broad catch: intentional fail-safe opening settings
@@ -804,7 +802,7 @@ class ElternModusActivity : AppCompatActivity() {
                     "Einmaliger ADB-Befehl auf einem frisch zurückgesetzten Gerät:\n\n" +
                     "${KioskManager.deviceOwnerSetupCommand(this)}"
             )
-            .setPositiveButton("OK", null).show()
+            .setPositiveButton("OK", null).show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showFamilyLinkInfo() {
@@ -834,7 +832,7 @@ class ElternModusActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Schließen", null)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showPinRecoveryDialog() {
@@ -848,7 +846,7 @@ class ElternModusActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showChangePinDialog() {
@@ -884,7 +882,7 @@ class ElternModusActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Abbrechen", null)
-            .show()
+            .show().also { GameMenuUi.styleShownDialog(it) }
     }
 
     private fun showOrRegenerateRecoveryCode() {
@@ -900,12 +898,13 @@ class ElternModusActivity : AppCompatActivity() {
                     showNewRecoveryCodeDialog(code)
                 }
                 .setNegativeButton("Abbrechen", null)
-                .show()
+                .show().also { GameMenuUi.styleShownDialog(it) }
         } else {
             val code = pinGate.setRecoveryCode()
             showNewRecoveryCodeDialog(code)
         }
     }
 
-    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun toast(msg: String) =
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }

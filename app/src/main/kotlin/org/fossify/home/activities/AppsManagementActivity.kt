@@ -32,6 +32,7 @@ import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.CategorySuggester
 import org.fossify.home.helpers.LaunchpadConstants
 import org.fossify.home.helpers.LaunchpadPrefs
+import org.fossify.home.ui.GameMenuUi
 import java.util.UUID
 
 @Suppress("MagicNumber", "TooManyFunctions", "NestedBlockDepth") // UI built programmatically
@@ -173,6 +174,7 @@ class AppsManagementActivity : AppCompatActivity() {
 
         setContentView(root)
         setSupportActionBar(toolbar)
+        GameMenuUi.migrateExisting(this, root, toolbar)
 
         loadApps()
     }
@@ -457,6 +459,7 @@ class AppsManagementActivity : AppCompatActivity() {
                     })
                 }
             }
+            GameMenuUi.styleAdded(row)
             listHolder.addView(row)
         }
         if (filtered.isEmpty()) {

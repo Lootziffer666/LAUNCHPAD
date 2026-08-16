@@ -14,7 +14,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -30,6 +29,7 @@ import org.fossify.home.databases.AppsDatabase
 import org.fossify.home.helpers.CommandProcessor
 import org.fossify.home.helpers.PairingManager
 import org.fossify.home.helpers.TestModeManager
+import org.fossify.home.ui.GameMenuUi
 
 @Suppress("MagicNumber", "TooManyFunctions") // UI built programmatically
 class PairingActivity : AppCompatActivity() {
@@ -45,11 +45,7 @@ class PairingActivity : AppCompatActivity() {
         database = AppsDatabase.getInstance(this)
         pairing = PairingManager(this)
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        setContentView(ScrollView(this).apply { addView(content) })
+        val content = GameMenuUi.install(this, "Geräte verbinden")
 
         content.addView(heading("Kopplung mit Eltern-Gerät"))
 
