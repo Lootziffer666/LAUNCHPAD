@@ -2,7 +2,6 @@
 
 package org.fossify.home.activities
 
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -22,7 +21,6 @@ import org.fossify.home.helpers.ChildProfile
 import org.fossify.home.helpers.ConnectivityState
 import org.fossify.home.helpers.ConnectivityStateMonitor
 import org.fossify.home.helpers.LaunchpadConstants
-import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.SupervisedOverride
 import org.fossify.home.helpers.TimeBudgetManager
 import org.fossify.home.helpers.TimeBudgetController
@@ -57,18 +55,6 @@ class JakeDashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val setupDone = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
-            .getBoolean(LaunchpadPrefs.PREF_SETUP_DONE, false)
-        if (!setupDone) {
-            startActivity(
-                Intent(this, SetupActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            )
-            finish()
-            return
-        }
-
         db = AppsDatabase.getInstance(this)
         window.statusBarColor = HandheldPalette.DARK_SCREEN
         window.navigationBarColor = HandheldPalette.DARK_SCREEN
@@ -81,39 +67,13 @@ class JakeDashboardActivity : AppCompatActivity() {
         connectivity = ConnectivityStateMonitor(applicationContext) { state ->
             runOnUiThread { onConnectivityState(state) }
         }
-        showIntentEvent(intent)
+        intent.getStringExtra(EXTRA_GAME_EVENT)?.let { gameScreen.show(GameScreenEvent(it, haptic = true)) }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        if (::gameScreen.isInitialized) {
-            showIntentEvent(intent)
-            if (!offline) load()
-        }
-    }
-
-    override fun onStart() { super.onStart(); if (::connectivity.isInitialized) connectivity.start() }
-    override fun onResume() { super.onResume(); if (::gameScreen.isInitialized && !offline) load() }
-    override fun onStop() { if (::connectivity.isInitialized) connectivity.stop(); super.onStop() }
-    override fun onDestroy() {
-        if (::offlineMode.isInitialized) offlineMode.stop()
-        scope.cancel()
-        super.onDestroy()
-    }
-
-    @Deprecated("Deprecated in Java")
-    @Suppress("GestureBackNavigation")
-    override fun onBackPressed() {
-        // LAUNCHPAD child HOME is the safe root surface. Back must not reveal another launcher/app.
-    }
-
-    private fun showIntentEvent(source: Intent) {
-        source.getStringExtra(EXTRA_GAME_EVENT)?.let {
-            gameScreen.show(GameScreenEvent(it, haptic = true))
-            source.removeExtra(EXTRA_GAME_EVENT)
-        }
-    }
+    override fun onStart() { super.onStart(); connectivity.start() }
+    override fun onResume() { super.onResume(); if (!offline) load() }
+    override fun onStop() { connectivity.stop(); super.onStop() }
+    override fun onDestroy() { offlineMode.stop(); scope.cancel(); super.onDestroy() }
 
     private fun buildHandheld() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL

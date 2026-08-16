@@ -1,5 +1,5 @@
 // File: app/src/main/kotlin/org/fossify/home/activities/SplashActivity.kt
-// LAUNCHPAD: Rocket launch splash screen via Lottie, then route to setup or child home.
+// LAUNCHPAD: Rocket launch splash screen via Lottie, then route to setup or home.
 
 package org.fossify.home.activities
 
@@ -44,7 +44,7 @@ class SplashActivity : AppCompatActivity() {
     private fun navigate() {
         val prefs = getSharedPreferences(LaunchpadPrefs.PREFS_FILE, Context.MODE_PRIVATE)
         val target = if (prefs.getBoolean(LaunchpadPrefs.PREF_SETUP_DONE, false)) {
-            Intent(this, JakeDashboardActivity::class.java)
+            Intent(this, MainActivity::class.java)
         } else {
             Intent(this, SetupActivity::class.java)
         }

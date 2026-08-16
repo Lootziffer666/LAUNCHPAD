@@ -257,7 +257,7 @@ class SetupActivity : AppCompatActivity() {
 
     private fun goToMain() {
         startActivity(
-            Intent(this@SetupActivity, JakeDashboardActivity::class.java)
+            Intent(this@SetupActivity, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         )
     }
