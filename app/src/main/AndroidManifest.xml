@@ -76,6 +76,7 @@
             android:exported="false"
             android:theme="@style/LauncherTheme" />
 
+        <!-- Fossify launcher/app drawer remains available as Gear/Rucksack, but is no longer HOME. -->
         <activity
             android:name=".activities.MainActivity"
             android:clearTaskOnLaunch="true"
@@ -88,12 +89,6 @@
 
             <intent-filter>
                 <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
@@ -128,12 +123,23 @@
             android:label="@string/hidden_icons"
             android:parentActivityName=".activities.SettingsActivity" />
 
-        <!-- LAUNCHPAD: Jake's dashboard -->
+        <!-- LAUNCHPAD child home: the DS dual-screen dashboard from the supplied source design. -->
         <activity
             android:name=".activities.JakeDashboardActivity"
-            android:exported="false"
-            android:label="Mein Status"
-            android:theme="@style/AppTheme" />
+            android:clearTaskOnLaunch="true"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:label="LAUNCHPAD"
+            android:theme="@style/AppTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- LAUNCHPAD: Safe browsing (Entdecken-Modus) -->
         <activity
