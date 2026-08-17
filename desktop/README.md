@@ -19,6 +19,7 @@ separate from the Android app.
 | Path | What it is |
 |---|---|
 | `prototype.html` + `css/` + `js/` | The clickable **design prototype** (no build step). Design source of truth for the child shell. |
+| `faecher.html` | The **Fächerwand** home concept — one self-contained file, no build step. Six lidded compartments laid out on the measured reference render, a desktop hidden in each; a click opens the lid and the camera flies into that compartment until it fills the screen. See below. |
 | `index.html` + `src/` | The **child shell** renderer. |
 | `curator.html` + `src/curator/` | The **parent curator** renderer (Familienzentrale). |
 | `electron/` | Main process + the two preload bridges. |
@@ -36,6 +37,75 @@ npm test         # unit tests — launch resolver, curation model, SteamGridDB c
 `npm run dev` serves both entries on `http://localhost:5173` (child at `/`, curator at
 `/curator.html`) and opens the child window against it. The curator window opens from inside
 the child shell: **Elternbereich** tile → PIN (demo: `1234`).
+
+`faecher.html` needs none of that — open the file in a browser.
+
+## Fächerwand (`faecher.html`)
+
+The home screen as a shelf of six lidded compartments: **Spielen · Apps · Bibliothek ·
+Erschaffen · Schauen · Entdecken**. Hover or focus lifts a lid a crack, so you can see
+there is something inside. Click, and the lid swings open while the camera immediately
+starts flying into that compartment — no pause between the two — until the compartment
+fills the whole screen and its desktop is simply the screen; the same world is waiting
+there as a dimmed backdrop. **Esc** or **Zurück** flies back out and the lid drops shut.
+
+The lids open the way the shelf is built: **the left column swings left, the right column
+swings right, the middle ones up and down.** Every hinge sits on the *outer* edge, as the
+reference renders show it — the open Explore door hangs off the right edge of its box, the
+open Apps lid off the top edge. So the top middle lifts like a chest lid and the bottom
+middle folds down like a laptop.
+
+How it holds together:
+
+- **The compartments come from the template, not from a guess.** The six faces were
+  measured off the magenta-keyed reference by fitting a line to each of the four edges and
+  intersecting them — rounded corners excluded, so the angles are exact. The outer
+  compartments are slightly trapezoidal, the middle column is square-on. The corners live
+  in `QUADS` as fractions of the reference image.
+- **Two layers, because two different things happen.** `.bay` travels — plain translate and
+  scale; `.bay-face` carries the homography (`quadMatrix` → `matrix3d`) that lays the
+  compartment into its measured quad and straightens out during the first half of the
+  flight. Folded into one matrix, the browser interpolates both together and the approach
+  turns into a pop.
+- **The flight is a real approach, not a linear scale.** A scale that grows evenly does not
+  read as movement: from .27 to .6 almost everything visible has already happened and the
+  rest is drift. Someone walking towards an object at a steady pace sees it grow
+  exponentially, so the keyframes step by a constant *factor* (easing out near the end), and
+  every intermediate frame is a magnification about one fixed vanishing point — nothing
+  drifts across the screen. **The whole wall travels with it**: the shelf and the other five
+  lids sweep past the camera. Without that, a panel just grows over a still picture, which
+  is exactly what reads as fading in.
+- **The shelf itself is the reference image**, including its frame, hinges, the foliage and
+  the creatures at the edges, the bar at the bottom and the header. The bar's buttons are
+  invisible hit areas laid over the rendered ones, so the picture stays untouched. The
+  third one — the window icon — lifts all six lids at once.
+- **The flight starts in the click.** The layer is prepared on hover/focus and the
+  transform is set synchronously in the click handler; going through
+  `requestAnimationFrame` delayed the start enough that the zoom stopped feeling like an
+  answer to the click. While it flies, one scrim dims the room instead of six compartments
+  fading separately — that difference is a stutter.
+- **The lid is a door, not a wall.** Its perspective distance is derived from the viewport
+  width (`--lid-persp`, ~4.5×). At a fixed 1500px it was far too near for a screen-sized
+  lid: swung past square, the free edge landed *behind the camera*, so the door ballooned
+  over half the picture instead of swinging aside. The swing is also shorter than the
+  flight, so the door is out of the way before the approach really gets going — and on the
+  way back it only drops shut once the compartment has landed, otherwise it wipes across
+  the screen while everything is still moving.
+- **Closed means closed.** A shut compartment's desktop is `inert`, so tabbing moves across
+  the shelf instead of into a screen nobody can see. Arrow keys move across the shelf,
+  Enter opens, Esc goes back — and an Esc pressed *during* the flight in is remembered
+  rather than swallowed, so an impatient hand never gets stuck. The lid only lifts for a
+  pointer that can hover, or for keyboard focus while keyboard navigation is actually in
+  use; on a touch screen focus sticks after every tap and would leave a lid standing open.
+  `prefers-reduced-motion` keeps the same path, just short.
+- **Self-contained.** The reference render, the six lid paintings and the avatar are
+  embedded as WebP data URIs (~135 KB all together); the small card and book artwork inside
+  the desktops is still painted procedurally onto canvases.
+
+Prototype scope: the tiles, chips and cards are not wired to anything, and *Ausschalten* /
+*Suche* / *Elternbereich* are hit areas without behaviour. Content lives in the `BAYS`
+array at the top of the script; the artwork in `ART`, the measured faces in `QUADS`, and
+the hinge sides in `RICHTUNG`.
 
 ## How it's wired
 
