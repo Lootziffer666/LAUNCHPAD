@@ -29,7 +29,7 @@ object LaunchpadNavigation {
                     openMain(activity, gear = true)
                 }
             },
-            NavAction("Map", "⌖", active == LaunchpadDestination.MAP) {
+            NavAction("Entdecken", "◎", active == LaunchpadDestination.MAP) {
                 if (activity !is EntdeckenActivity) {
                     closeOverlays(activity)
                     activity.startActivity(Intent(activity, EntdeckenActivity::class.java))
@@ -51,6 +51,8 @@ object LaunchpadNavigation {
                 if (gear) putExtra(MainActivity.EXTRA_OPEN_GEAR, true)
             },
         )
+        // Destination navigation replaces the child-facing sub-screen instead of stacking it.
+        activity.finish()
     }
 
     private fun closeOverlays(activity: Activity) {
