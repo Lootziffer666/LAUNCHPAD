@@ -968,11 +968,25 @@ class CompanionActivity : AppCompatActivity() {
                 setPadding(dp(4), dp(8), dp(4), dp(12))
             })
             addView(primaryButton("🔄 Erneut versuchen") { showLoading(); loadData() })
-            addView(
-                if (unauthorized) primaryButton("📷 Neu koppeln") { resetToPairing() }
-                else secondaryButton("Neu koppeln") { resetToPairing() }
-            )
+            if (unauthorized) {
+                addView(primaryButton("📷 Neu koppeln") { resetToPairing() })
+            }
         })
+
+        // A missing LAN connection must not hide the deliberately independent SMS channel.
+        // If the pairing key still exists, time controls and web bundles remain usable remotely.
+        if (!unauthorized && !prefs.getString("session_key", null).isNullOrBlank()) {
+            renderGiveTime(content)
+            content.addView(card().apply {
+                addView(sectionTitleRow(
+                    "Webseiten per SMS",
+                    "Webseiten per SMS",
+                    "Gibt bis zu 20 Webseiten auf Jakes Gerät frei — auch wenn ihr nicht im selben WLAN seid."
+                ))
+                addView(primaryButton("🌐 Webseiten-Bundle senden") { showWebBundleSmsDialog() })
+                addView(ghostButton("SMS-Zielnummer ändern") { promptChildPhone() })
+            })
+        }
     }
 
     /** Clear the saved device + key and re-run onCreate, which lands on the pairing screen. */
