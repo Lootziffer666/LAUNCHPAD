@@ -53,6 +53,16 @@ object KioskManager {
         prefs(context).edit().putBoolean(LaunchpadPrefs.PREF_KIOSK_ENABLED, enabled).apply()
     }
 
+    fun areNotificationsAllowedInLockTask(context: Context): Boolean {
+        if (!isKioskEnabled(context) || !isDeviceOwner(context) || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            return true
+        }
+        return runCatching {
+            dpm(context).getLockTaskFeatures(admin(context)) and
+                DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS != 0
+        }.getOrDefault(false)
+    }
+
     /**
      * Allowlist the launcher + every enabled whitelisted app for lock-task, so launched apps
      * stay inside the locked session and everything else is blocked. Device-owner only.
@@ -66,10 +76,13 @@ object KioskManager {
         try {
             dpm(context).setLockTaskPackages(admin(context), packages.toTypedArray())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                // Keep HOME working (returns to launcher); block recents/notifications/etc.
+                // Keep HOME working and allow normal notifications (including Signal heads-up).
+                // Android disables notifications by default in lock-task mode unless this flag is
+                // explicitly enabled. Quick Settings remains unavailable.
                 dpm(context).setLockTaskFeatures(
                     admin(context),
-                    DevicePolicyManager.LOCK_TASK_FEATURE_HOME
+                    DevicePolicyManager.LOCK_TASK_FEATURE_HOME or
+                        DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS
                 )
             }
         } catch (e: Exception) {
