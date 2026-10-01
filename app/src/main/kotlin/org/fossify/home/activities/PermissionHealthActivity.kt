@@ -9,6 +9,7 @@ package org.fossify.home.activities
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -28,6 +29,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.fossify.home.helpers.KioskManager
 import org.fossify.home.helpers.LaunchpadPrefs
 import org.fossify.home.helpers.LaunchpadServer
 import org.fossify.home.helpers.TamperMonitor
@@ -204,7 +206,50 @@ class PermissionHealthActivity : AppCompatActivity() {
             }
         ))
 
-        // 5 — Boot autostart (always OK after BootReceiver is registered)
+        // 5 — Hard-kiosk notification policy. LockTask hides notifications unless explicitly
+        // enabled; LAUNCHPAD enables them so communication apps such as Signal can still alert.
+        val kioskNotificationsOk = KioskManager.areNotificationsAllowedInLockTask(this)
+        listContainer.addView(healthItem(
+            title = "Kiosk-Benachrichtigungen",
+            description = if (kioskNotificationsOk)
+                "Benachrichtigungen sind auch im gesperrten Modus erlaubt."
+            else
+                "Der harte Kiosk blendet Benachrichtigungen aus. Starte LAUNCHPAD nach dem Update einmal neu.",
+            status = if (kioskNotificationsOk) Status.OK else Status.WARNING
+        ))
+
+        // 6 — Signal's own Android notification grant. Channel-level mute settings cannot be read
+        // cross-app, so the fix button opens Signal's notification settings directly.
+        val signalInstalled = runCatching {
+            packageManager.getApplicationInfo(SIGNAL_PACKAGE, 0)
+            true
+        }.getOrDefault(false)
+        if (signalInstalled) {
+            val signalPermissionOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.checkPermission(
+                    android.Manifest.permission.POST_NOTIFICATIONS,
+                    SIGNAL_PACKAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+            listContainer.addView(healthItem(
+                title = "Signal-Benachrichtigungen",
+                description = if (signalPermissionOk)
+                    "Androids Grundberechtigung ist erteilt. Hier kannst du Signal-Kanäle und Pop-ups prüfen."
+                else
+                    "Signal hat keine Android-Berechtigung für Benachrichtigungen.",
+                status = if (signalPermissionOk) Status.OK else Status.WARNING,
+                actionLabel = "Signal-Einstellungen →",
+                onAction = {
+                    startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, SIGNAL_PACKAGE)
+                    })
+                }
+            ))
+        }
+
+        // 7 — Boot autostart (always OK after BootReceiver is registered)
         listContainer.addView(healthItem(
             title = "Boot-Autostart",
             description = "Tracking wird nach Neustart automatisch wiederhergestellt, sofern Kindermodus aktiv ist.",
@@ -300,6 +345,10 @@ class PermissionHealthActivity : AppCompatActivity() {
     // ─── Layout helpers ──────────────────────────────────────────────────────
 
     private enum class Status { OK, WARNING, CRITICAL }
+
+    companion object {
+        private const val SIGNAL_PACKAGE = "org.thoughtcrime.securesms"
+    }
 
     private fun sectionLabel(text: String) = TextView(this).apply {
         this.text = text
