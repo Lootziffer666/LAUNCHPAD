@@ -49,13 +49,17 @@ class EntdeckenFragment : Fragment() {
         database = AppsDatabase.getInstance(requireContext())
         webView = view.findViewById(R.id.webview_entdecken)
 
-        // Preload allow/block lists off the main thread, then enable the WebView.
-        thread {
-            runBlocking(Dispatchers.IO) { contentFilter.preload(database) }
-        }
-
         configureWebView()
         loadInitialPage()
+
+        // Preload allow/block lists off the main thread, then rebuild the start page with the
+        // domains the parent actually allowed.
+        thread {
+            runBlocking(Dispatchers.IO) { contentFilter.preload(database) }
+            if (isAdded) {
+                requireActivity().runOnUiThread { loadInitialPage() }
+            }
+        }
     }
 
     private fun configureWebView() {
@@ -72,7 +76,57 @@ class EntdeckenFragment : Fragment() {
     }
 
     private fun loadInitialPage() {
-        webView.loadUrl("about:blank")
+        webView.setBackgroundColor(0xFF040E1F.toInt())
+        val domains = contentFilter.allowedDomainSnapshot()
+            .filter { it.matches(Regex("[A-Za-z0-9.-]+")) }
+            .sorted()
+
+        val links = if (domains.isEmpty()) {
+            """
+            <div class="empty">
+              <div class="icon">◎</div>
+              <h2>Noch nichts freigegeben</h2>
+              <p>Eltern können sichere Webseiten in LAUNCHPAD freigeben. Danach erscheinen sie hier.</p>
+            </div>
+            """.trimIndent()
+        } else {
+            domains.joinToString(separator = "") { domain ->
+                """<a class="site" href="https://$domain"><span>◎</span><strong>$domain</strong><b>›</b></a>"""
+            }
+        }
+
+        val html = """
+            <!doctype html>
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <style>
+                * { box-sizing: border-box; }
+                html, body { margin:0; min-height:100%; background:#040E1F; color:#D8E3FB;
+                             font-family: sans-serif; }
+                body { padding:20px 14px 28px; }
+                h1 { margin:2px 4px 4px; font-size:24px; letter-spacing:.04em; }
+                .lead { margin:0 4px 20px; color:#9FB0CE; font-size:14px; line-height:1.4; }
+                .site { display:flex; align-items:center; gap:12px; margin:10px 0; padding:16px;
+                        color:#D8E3FB; text-decoration:none; background:#1F2A3C;
+                        border:2px solid #3164B3; border-radius:14px; }
+                .site span { color:#48D0B0; font-size:22px; }
+                .site strong { flex:1; overflow:hidden; text-overflow:ellipsis; }
+                .site b { color:#FFCC00; font-size:24px; }
+                .empty { margin-top:18vh; padding:24px; text-align:center; color:#9FB0CE; }
+                .empty .icon { color:#48D0B0; font-size:46px; }
+                .empty h2 { color:#D8E3FB; margin-bottom:8px; }
+                .empty p { line-height:1.5; }
+              </style>
+            </head>
+            <body>
+              <h1>Entdecken</h1>
+              <p class="lead">Nur von deinen Eltern freigegebene Seiten.</p>
+              $links
+            </body>
+            </html>
+        """.trimIndent()
+        webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
     }
 
     private inner class SafeWebViewClient : WebViewClient() {
@@ -173,6 +227,8 @@ class EntdeckenContentFilter {
         }
         return false
     }
+
+    fun allowedDomainSnapshot(): Set<String> = allowedDomains.toSet()
 
     private fun extractBaseDomain(domain: String): String {
         val parts = domain.split(".")

@@ -26,7 +26,6 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
 ) : ViewGroup(context, attrs) {
     private val remaining = StatusCard(context, CardKind.REMAINING)
     private val clock = StatusCard(context, CardKind.CLOCK)
-    private val range = StatusCard(context, CardKind.RANGE)
     private var topInset = 0
     private var bottomInset = 0
 
@@ -36,7 +35,6 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         addView(remaining)
         addView(clock)
-        addView(range)
         setOnApplyWindowInsetsListener { _, insets ->
             topInset = insets.systemWindowInsetTop
             bottomInset = insets.systemWindowInsetBottom
@@ -56,13 +54,6 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
             inCooldown -> "PAUSE"
             else -> "RESTZEIT"
         }
-        range.primary = when {
-            state.unlimitedForToday -> "kein Zeitlimit"
-            inCooldown -> "Pause · noch ca. ${duration(cooldownMinutes)}"
-            state.locked -> "für heute gesperrt"
-            else -> "reicht noch ca. ${duration(state.remainingToday)}"
-        }
-        range.secondary = "ZEITSTATUS"
         updateClock()
     }
 
@@ -79,7 +70,6 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
             .coerceAtMost(dp(230))
         remaining.measure(exact((width * .52f).toInt()), exact((region * .55f).toInt()))
         clock.measure(exact((width * .35f).toInt()), exact((region * .38f).toInt()))
-        range.measure(exact((width * .48f).toInt().coerceAtLeast(dp(166))), exact((region * .28f).toInt()))
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -89,19 +79,10 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
         val clockRight = width - margin
         val clockTop = startY + dp(9)
         clock.layout(clockRight - clock.measuredWidth, clockTop, clockRight, clockTop + clock.measuredHeight)
-        val rangeLeft = width - margin - range.measuredWidth - dp(11)
-        val rangeTop = startY + remaining.measuredHeight + dp(5)
-        range.layout(rangeLeft, rangeTop, rangeLeft + range.measuredWidth, rangeTop + range.measuredHeight)
     }
 
     private fun exact(size: Int) = MeasureSpec.makeMeasureSpec(size, MeasureSpec.EXACTLY)
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-
-    private fun duration(minutes: Int): String = when {
-        minutes < 60 -> "$minutes min"
-        minutes % 60 == 0 -> "${minutes / 60} h"
-        else -> "${minutes / 60} h ${minutes % 60} min"
-    }
 
     companion object {
         private const val MAX_HEIGHT_FRACTION = .34f
@@ -109,7 +90,7 @@ class LaunchpadHomeInfoLayer @JvmOverloads constructor(
     }
 }
 
-private enum class CardKind { REMAINING, CLOCK, RANGE }
+private enum class CardKind { REMAINING, CLOCK }
 
 /** One reusable outlined surface; typography and opacity vary by information priority. */
 private class StatusCard(context: Context, private val kind: CardKind) : View(context) {
@@ -124,7 +105,6 @@ private class StatusCard(context: Context, private val kind: CardKind) : View(co
         color = when (kind) {
             CardKind.REMAINING -> 0xE33164B3.toInt()
             CardKind.CLOCK -> 0xC8111C2D.toInt()
-            CardKind.RANGE -> 0xB8FFF4CC.toInt()
         }
     }
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -143,19 +123,17 @@ private class StatusCard(context: Context, private val kind: CardKind) : View(co
         val card = RectF(0f, 0f, width - 4f * density, height - 5f * density)
         canvas.drawRoundRect(card, radius, radius, fill)
         canvas.drawRoundRect(card, radius, radius, outline)
-        val darkText = kind == CardKind.RANGE
-        textPaint.color = if (darkText) 0xFF1E293B.toInt() else Color.WHITE
+        textPaint.color = Color.WHITE
         textPaint.textSize = when (kind) {
             CardKind.REMAINING -> 31f * density
             CardKind.CLOCK -> 27f * density
-            CardKind.RANGE -> 13f * density
         }
         val x = 12f * density
-        val mainY = if (kind == CardKind.RANGE) height * .58f else height * .62f
+        val mainY = height * .62f
         canvas.drawText(primary, x, mainY, textPaint)
         textPaint.textSize = 9f * density
         textPaint.letterSpacing = .12f
-        textPaint.color = if (darkText) 0xC41E293B.toInt() else 0xD9FFE08B.toInt()
+        textPaint.color = 0xD9FFE08B.toInt()
         canvas.drawText(secondary, x, height - 11f * density, textPaint)
         textPaint.letterSpacing = 0f
     }

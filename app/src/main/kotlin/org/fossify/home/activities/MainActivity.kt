@@ -219,11 +219,6 @@ class MainActivity : SimpleActivity(), FlingListener {
         // LAUNCHPAD: init notification channels
         org.fossify.home.helpers.NotificationHelper.init(this)
 
-        binding.gearHeader.removeAllViews()
-        binding.gearHeader.addView(
-            GameMenuUi.headerView(this, "Gear"),
-            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
-        )
         binding.gearBottomNav.removeAllViews()
         binding.gearBottomNav.addView(
             LaunchpadNavigation.view(this, LaunchpadDestination.GEAR),
@@ -236,7 +231,7 @@ class MainActivity : SimpleActivity(), FlingListener {
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             (binding.homeScreenGrid.root.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { params ->
                 val density = resources.displayMetrics.density
-                params.topMargin = bars.top + (62 * density).toInt()
+                params.topMargin = bars.top
                 params.bottomMargin = bars.bottom + (80 * density).toInt()
                 binding.homeScreenGrid.root.layoutParams = params
             }

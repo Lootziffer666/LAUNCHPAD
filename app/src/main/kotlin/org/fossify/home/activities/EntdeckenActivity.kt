@@ -20,7 +20,7 @@ class EntdeckenActivity : AppCompatActivity() {
         setContentView(R.layout.activity_entdecken)
         GameMenuUi.migrateExisting(this, findViewById(R.id.entdecken_root))
         findViewById<FrameLayout>(R.id.entdecken_header).addView(
-            GameMenuUi.headerView(this, "Map"),
+            GameMenuUi.headerView(this, "Entdecken"),
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
         findViewById<FrameLayout>(R.id.entdecken_bottom_nav).addView(
