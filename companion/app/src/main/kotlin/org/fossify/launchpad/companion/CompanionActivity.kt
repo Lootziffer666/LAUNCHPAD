@@ -123,6 +123,9 @@ class CompanionActivity : AppCompatActivity() {
         private const val INK_MUTE = "#97A3B4"
         private const val LINE = "#E6EAF1"
         private const val HERO_SUB = "#AEC4E6"
+        private val WEB_DOMAIN_REGEX = Regex(
+            "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -687,8 +690,14 @@ class CompanionActivity : AppCompatActivity() {
         })
 
         content.addView(card().apply {
+            addView(sectionTitleRow(
+                "SMS-Fernzugriff",
+                "SMS-Fernzugriff",
+                "Funktioniert auch außerhalb des gemeinsamen WLANs. Befehle sind mit dem Pairing-Schlüssel signiert."
+            ))
             addView(bodyText("SMS-Zielnummer des Kindergeräts", color = INK_MUTE, size = 12f))
             addView(secondaryButton(prefs.getString("child_phone", null) ?: "Nummer einrichten") { promptChildPhone() })
+            addView(primaryButton("🌐 Webseiten-Bundle freigeben") { showWebBundleSmsDialog() })
         })
 
         content.addView(card().apply {
@@ -794,8 +803,47 @@ class CompanionActivity : AppCompatActivity() {
             .setNegativeButton("Abbrechen", null).show()
     }
 
+    private fun showWebBundleSmsDialog() {
+        val input = EditText(this).apply {
+            hint = "z. B.\nwikipedia.org\nplanet-schule.de\nhttps://scratch.mit.edu"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 6
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Webseiten per SMS freigeben")
+            .setMessage("Eine Domain pro Zeile oder mit Komma getrennt. Maximal 20 pro Bundle.")
+            .setView(input)
+            .setPositiveButton("Per SMS senden") { _, _ ->
+                val domains = normalizeWebDomains(input.text.toString())
+                when {
+                    domains.isEmpty() -> toast("Keine gültigen Domains gefunden")
+                    domains.size > 20 -> toast("Maximal 20 Webseiten pro SMS-Bundle")
+                    else -> sendSmsCommand("ALLOW_WEB_BUNDLE", 0, domains.joinToString("\n"))
+                }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    private fun normalizeWebDomains(raw: String): List<String> =
+        raw.split(Regex("[\\s,;]+"))
+            .map {
+                it.trim()
+                    .lowercase()
+                    .removePrefix("https://")
+                    .removePrefix("http://")
+                    .substringBefore('/')
+                    .substringBefore('?')
+                    .substringBefore('#')
+                    .removeSuffix(".")
+                    .removePrefix("www.")
+            }
+            .filter { it.isNotBlank() && WEB_DOMAIN_REGEX.matches(it) && it.length <= 253 }
+            .distinct()
+
     /** Builds an authenticated command; SMS remains only a replaceable transport. */
-    private fun sendSmsCommand(type: String, minutes: Int) {
+    private fun sendSmsCommand(type: String, minutes: Int, data: String = "") {
         val phone = prefs.getString("child_phone", null)
         val key = prefs.getString("session_key", null)
         if (phone.isNullOrBlank()) { toast("Bitte zuerst die Nummer des Kindergeräts einrichten"); openSettingsScreen(); return }
@@ -805,12 +853,19 @@ class CompanionActivity : AppCompatActivity() {
         }
         val timestamp = System.currentTimeMillis()
         val nonce = UUID.randomUUID().toString()
-        val body = "parent|$type|$minutes|$timestamp|$nonce"
+        val baseBody = "parent|$type|$minutes|$timestamp|$nonce"
+        val flags = android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING
+        val body = if (data.isBlank()) {
+            baseBody
+        } else {
+            val encodedData = android.util.Base64.encodeToString(data.toByteArray(), flags)
+            "$baseBody|$encodedData"
+        }
         val mac = Mac.getInstance("HmacSHA256").apply {
             init(SecretKeySpec(Base64.getDecoder().decode(key), "HmacSHA256"))
         }
-        val signature = android.util.Base64.encodeToString(mac.doFinal(body.toByteArray()), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
-        val payload = "LP1:" + android.util.Base64.encodeToString("$body|$signature".toByteArray(), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
+        val signature = android.util.Base64.encodeToString(mac.doFinal(body.toByteArray()), flags)
+        val payload = "LP1:" + android.util.Base64.encodeToString("$body|$signature".toByteArray(), flags)
         val sms = getSystemService(SmsManager::class.java)
         val parts = sms.divideMessage(payload)
         sms.sendMultipartTextMessage(phone, null, parts, null, null)
@@ -913,11 +968,25 @@ class CompanionActivity : AppCompatActivity() {
                 setPadding(dp(4), dp(8), dp(4), dp(12))
             })
             addView(primaryButton("🔄 Erneut versuchen") { showLoading(); loadData() })
-            addView(
-                if (unauthorized) primaryButton("📷 Neu koppeln") { resetToPairing() }
-                else secondaryButton("Neu koppeln") { resetToPairing() }
-            )
+            if (unauthorized) {
+                addView(primaryButton("📷 Neu koppeln") { resetToPairing() })
+            }
         })
+
+        // A missing LAN connection must not hide the deliberately independent SMS channel.
+        // If the pairing key still exists, time controls and web bundles remain usable remotely.
+        if (!unauthorized && !prefs.getString("session_key", null).isNullOrBlank()) {
+            renderGiveTime(content)
+            content.addView(card().apply {
+                addView(sectionTitleRow(
+                    "Webseiten per SMS",
+                    "Webseiten per SMS",
+                    "Gibt bis zu 20 Webseiten auf Jakes Gerät frei — auch wenn ihr nicht im selben WLAN seid."
+                ))
+                addView(primaryButton("🌐 Webseiten-Bundle senden") { showWebBundleSmsDialog() })
+                addView(ghostButton("SMS-Zielnummer ändern") { promptChildPhone() })
+            })
+        }
     }
 
     /** Clear the saved device + key and re-run onCreate, which lands on the pairing screen. */
